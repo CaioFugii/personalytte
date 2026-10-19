@@ -6,7 +6,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "postinstall": "pnpm --dir backend install && if [ -f frontend/package.json ]; then pnpm --dir frontend install; fi",
     "dev": "sh scripts/dev.sh",
     "build": "pnpm --dir backend build && if [ -f frontend/package.json ]; then pnpm --dir frontend build; fi",
     "start": "node backend/dist/main.js",
