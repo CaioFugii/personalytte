@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Aula, Responsavel, StatusAula } from '../api/types'
+import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
   Banner,
@@ -93,7 +93,11 @@ export function AulaDetalhe() {
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
   const opcoesAluno = useMemo(() => {
     if (!aula) return []
-    const base = alunos.map((item) => ({ id: item.id, nome: item.nome, categoria: item.categoria }))
+    const base: { id: string; nome: string; categoria: Categoria | null }[] = alunos.map((item) => ({
+      id: item.id,
+      nome: item.nome,
+      categoria: item.categoria,
+    }))
     if (!base.some((item) => item.id === aula.aluno.id)) {
       base.unshift({ id: aula.aluno.id, nome: aula.aluno.nome, categoria: aula.aluno.categoria })
     }
@@ -270,7 +274,7 @@ export function AulaDetalhe() {
                 >
                   {opcoesAluno.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.nome} · {item.categoria}
+                      {item.nome}{item.categoria ? ` · ${item.categoria}` : ''}
                     </option>
                   ))}
                 </select>

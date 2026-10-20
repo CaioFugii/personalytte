@@ -25,10 +25,11 @@ export type ResponsavelResposta = {
 export type AlunoResposta = {
   id: string;
   nome: string;
-  telefone: string;
+  telefone: string | null;
   email: string | null;
-  plano: PlanoAluno;
-  categoria: CategoriaAluno;
+  plano: PlanoAluno | null;
+  categoria: CategoriaAluno | null;
+  temporario: boolean;
   diasSemana: DiaSemana[];
   horarioInicio: string | null;
   responsavelId: string | null;
@@ -38,7 +39,7 @@ export type AlunoResposta = {
 
 export type AulaResposta = {
   id: string;
-  aluno: { id: string; nome: string; categoria: CategoriaAluno };
+  aluno: { id: string; nome: string; categoria: CategoriaAluno | null };
   responsavel: { id: string; nome: string };
   inicio: string;
   fim: string;

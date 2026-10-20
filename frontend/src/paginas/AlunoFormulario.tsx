@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { api, mensagemDeErro, temId } from '../api/client'
+import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Categoria, DiaSemana, Plano, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
@@ -130,9 +130,8 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
     setEnviando(true)
     try {
       if (modo === 'novo') {
-        const criado = await api<unknown>('/api/alunos', { method: 'POST', body: JSON.stringify(corpo) })
-        if (temId(criado)) navigate(`/alunos/${criado.id}`)
-        else navigate('/alunos')
+        await api('/api/alunos', { method: 'POST', body: JSON.stringify(corpo) })
+        navigate('/alunos', { state: { sucesso: 'Aluno cadastrado.' } })
         return
       }
       await api(`/api/alunos/${id}`, { method: 'PATCH', body: JSON.stringify(corpo) })

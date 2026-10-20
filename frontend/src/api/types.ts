@@ -49,7 +49,7 @@ export type Aluno = {
 
 export type Aula = {
   id: string
-  aluno: { id: string; nome: string; categoria: Categoria }
+  aluno: { id: string; nome: string; categoria: Categoria | null }
   responsavel: { id: string; nome: string }
   inicio: string
   fim: string

@@ -168,7 +168,8 @@ export function SeloStatus({ status }: { status: StatusAula }) {
   )
 }
 
-export function SeloCategoria({ categoria }: { categoria: Categoria }) {
+export function SeloCategoria({ categoria }: { categoria: Categoria | null }) {
+  if (!categoria) return null
   return (
     <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-tide/10 px-1.5 text-sm font-bold text-tide-dark">
       {categoria}

@@ -24,7 +24,9 @@ export class ErroApi extends Error {
 }
 
 export const MENSAGEM_OCUPADO = 'Esse horário cruza outra aula do mesmo aluno ou responsável.';
-export const MENSAGEM_BLOQUEIO = 'A agenda está bloqueada nesse horário.';
+export const MENSAGEM_BLOQUEIO = 'Já existe um evento nesse horário.';
+export const MENSAGEM_EVENTO_COM_AULA = 'Já existe uma aula nesse horário.';
+export const MENSAGEM_DATA = 'Não é possível agendar uma data anterior a hoje.';
 export const MENSAGEM_JA_INICIOU = 'A aula já começou e o horário não pode ser alterado.';
 export const MENSAGEM_PLANO = 'Dias da semana, horário e responsável precisam ser preenchidos juntos.';
 export const MENSAGEM_ULTIMO = 'O último administrador ativo não pode ser inativado.';

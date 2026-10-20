@@ -92,9 +92,11 @@ Toda aula nova nasce Aguardando. Administrador e professor podem mover o status 
 
 Ao marcar Falta, o sistema oferece criar outra aula, ligada a essa, já identificada como reposição. A falta também pode ser salva sozinha. A reposição é uma aula avulsa, segue o mesmo ciclo de status e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
 
-Aula experimental é uma avulsa de um aluno já cadastrado, com esse marcador. Avulsa, experimental e reposição ficam fora do plano semanal.
+Aula experimental é avulsa. Pode usar um aluno já cadastrado ou um cadastro temporário, só com nome e telefone opcional, sem plano nem categoria. Esse cadastro não entra na lista de alunos nem na contagem de cadastrados. Avulsa, experimental e reposição ficam fora do plano semanal.
 
-O plano gera ocorrências com início no futuro, até completar 8 semanas a partir de hoje. Todo dia, um agendamento estende esse horizonte. Ocorrência nova que cair em intervalo de feriado ou agenda fechada com bloqueio, ou em ausência daquele responsável, não é criada.
+Um agendamento novo, de aula ou de evento, não aceita data anterior a hoje, no calendário de Brasília. Hoje continua válido. Editar uma aula que já existe não usa essa trava.
+
+O plano gera ocorrências com início no futuro, até completar 8 semanas a partir de hoje. Todo dia, um agendamento estende esse horizonte. Ocorrência nova que cair em qualquer evento não é criada.
 
 Mudar dias, horário ou responsável do plano recria só as ocorrências futuras ainda Aguardando e ainda ligadas ao plano. As demais permanecem.
 
@@ -110,19 +112,7 @@ Tipos: Feriado, Agenda fechada, Ausência de professor, Aniversário e Torneio.
 
 Nome, início e fim são obrigatórios. O fim é posterior ao início. O evento pode atravessar dias. Contato é opcional. Ausência aponta um responsável, e esse campo é obrigatório nesse tipo.
 
-Feriado e Agenda fechada têm o marcador “bloqueia aulas”.
-
-Com o bloqueio ligado:
-
-- Uma aula nova nesse intervalo é recusada.
-- Aulas futuras já geradas, em Aguardando ou Confirmada, passam a Cancelada.
-- Outro evento continua podendo ser criado nesse intervalo.
-
-Ausência usa a mesma regra só para as aulas daquele responsável. Aulas de outros responsáveis seguem.
-
-Aniversário e Torneio aparecem na agenda, e a aula daquele horário continua válida.
-
-Desligar o bloqueio, ou apagar o evento, mantém as aulas já canceladas como Cancelada. Só o administrador cria, edita e apaga evento.
+Qualquer evento ocupa a agenda inteira no intervalo. Uma aula nova que cruze esse horário é recusada, e um evento novo que cruze uma aula não cancelada também é recusado. Aula já marcada não é cancelada por causa do evento. Ausência continua exigindo o responsável, e o bloqueio vale para a escola toda, não só para essa pessoa. Apagar o evento libera o horário para um agendamento novo. Só o administrador cria, edita e apaga evento.
 
 ### 5.4 Aviso
 
@@ -195,7 +185,7 @@ Variáveis previstas na Heroku:
 5. Dois horários que se cruzam para o mesmo responsável, ou para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
 6. Mudar o plano recria só as futuras Aguardando ainda ligadas a ele. Editar aluno, responsável, data ou horário de um dia deixa essa ocorrência de fora das próximas recriações.
 7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.
-8. Feriado ou agenda fechada com bloqueio recusa aula nova no intervalo e cancela as futuras que estavam Aguardando ou Confirmada. Aniversário e torneio não cancelam aula. Ausência cancela e bloqueia só o responsável indicado.
+8. Qualquer evento recusa aula nova no intervalo, e qualquer aula não cancelada recusa evento novo no mesmo horário. Nada que já estava na agenda é cancelado por isso.
 9. Depois do início da aula, o status muda e a data e o horário não mudam.
 10. Inativar aluno remove as futuras Aguardando e preserva o histórico. Inativar integrante corta o login e é recusado enquanto essa pessoa tiver plano ativo ou aula futura não cancelada. O último administrador permanece.
 11. Aviso fica no dashboard até o administrador editar ou apagar, do mais recente ao mais antigo.

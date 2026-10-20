@@ -29,8 +29,9 @@ export class EventosService {
       return await this.em.transactional(async (em) => {
         const evento = new Evento();
         await this.aplicar(em, evento, dados, true);
+        this.agenda.exigirDataAgenda(evento.inicio, agora);
+        await this.agenda.assertEventoSemAula(em, evento.inicio, evento.fim);
         em.persist(evento);
-        await this.agenda.aplicarBloqueio(em, evento, agora);
         await em.flush();
         return serializarEvento(evento);
       });
@@ -47,8 +48,13 @@ export class EventosService {
     return this.em.transactional(async (em) => {
       const evento = await em.findOne(Evento, { id }, { populate: ['responsavel'] });
       if (!evento) throw naoEncontrado('Evento não encontrado.');
+      const inicioAntes = evento.inicio.getTime();
+      const fimAntes = evento.fim.getTime();
       await this.aplicar(em, evento, dados, false);
-      await this.agenda.aplicarBloqueio(em, evento, agora);
+      if (evento.inicio.getTime() !== inicioAntes || evento.fim.getTime() !== fimAntes) {
+        this.agenda.exigirDataAgenda(evento.inicio, agora);
+        await this.agenda.assertEventoSemAula(em, evento.inicio, evento.fim);
+      }
       await em.flush();
       return serializarEvento(evento);
     });

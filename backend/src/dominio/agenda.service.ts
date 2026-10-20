@@ -1,19 +1,12 @@
 import { EntityManager, FlushMode, type FilterQuery } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
-import { ErroApi, MENSAGEM_BLOQUEIO, MENSAGEM_OCUPADO } from '../comum/erros';
-import { DURACAO_AULA_MS, calcularOcorrencias, fimDaAula, terminaNoMesmoDia } from '../comum/tempo';
+import { ErroApi, MENSAGEM_BLOQUEIO, MENSAGEM_DATA, MENSAGEM_EVENTO_COM_AULA, MENSAGEM_OCUPADO } from '../comum/erros';
+import { DURACAO_AULA_MS, calcularOcorrencias, dataRetroativa, fimDaAula, terminaNoMesmoDia } from '../comum/tempo';
 import { Aluno } from '../entidades/aluno.entity';
 import { Aula } from '../entidades/aula.entity';
 import { Evento } from '../entidades/evento.entity';
-import type { TipoEvento } from '../entidades/enums';
 
 type PoliticaConflito = 'recusar' | 'ignorar';
-
-export function eventoBloqueia(evento: { tipo: TipoEvento; bloqueiaAulas: boolean }): boolean {
-  if (evento.tipo === 'AUSENCIA') return true;
-  if (evento.tipo === 'FERIADO' || evento.tipo === 'AGENDA_FECHADA') return evento.bloqueiaAulas;
-  return false;
-}
 
 export function planoCompleto(aluno: Pick<Aluno, 'diasSemana' | 'horarioInicio' | 'responsavel'>): boolean {
   return aluno.diasSemana.length > 0 && aluno.horarioInicio != null && aluno.responsavel != null;
@@ -37,13 +30,25 @@ export class AgendaService {
     return achou.length > 0;
   }
 
-  async bloqueada(em: EntityManager, responsavelId: string, inicio: Date): Promise<boolean> {
+  async bloqueada(em: EntityManager, _responsavelId: string, inicio: Date): Promise<boolean> {
     const fim = new Date(inicio.getTime() + DURACAO_AULA_MS);
-    const eventos = await em.find(Evento, { inicio: { $lt: fim }, fim: { $gt: inicio } }, {
-      populate: ['responsavel'],
+    const total = await em.count(Evento, { inicio: { $lt: fim }, fim: { $gt: inicio } }, {
       flushMode: FlushMode.COMMIT,
     });
-    return eventos.some((evento) => this.eventoCobre(evento, responsavelId));
+    return total > 0;
+  }
+
+  async assertEventoSemAula(em: EntityManager, inicio: Date, fim: Date): Promise<void> {
+    const total = await em.count(Aula, {
+      status: { $ne: 'CANCELADA' },
+      inicio: { $lt: fim },
+      fim: { $gt: inicio },
+    }, { flushMode: FlushMode.COMMIT });
+    if (total > 0) throw new ErroApi(409, 'HORARIO_OCUPADO', MENSAGEM_EVENTO_COM_AULA);
+  }
+
+  exigirDataAgenda(inicio: Date, agora = new Date()): void {
+    if (dataRetroativa(inicio, agora)) throw new ErroApi(400, 'DADOS_INVALIDOS', MENSAGEM_DATA);
   }
 
   async assertPodeAgendar(
@@ -59,23 +64,6 @@ export class AgendaService {
     if (await this.conflito(em, params)) {
       throw new ErroApi(409, 'HORARIO_OCUPADO', MENSAGEM_OCUPADO);
     }
-  }
-
-  async aplicarBloqueio(em: EntityManager, evento: Evento, agora: Date): Promise<number> {
-    if (!eventoBloqueia(evento)) return 0;
-    const candidatas = await em.find(Aula, {
-      status: { $in: ['AGUARDANDO', 'CONFIRMADA'] },
-      inicio: { $gt: agora, $lt: evento.fim },
-      fim: { $gt: evento.inicio },
-      ...(evento.tipo === 'AUSENCIA' && evento.responsavel ? { responsavel: evento.responsavel.id } : {}),
-    });
-    let canceladas = 0;
-    for (const aula of candidatas) {
-      if (evento.tipo === 'AUSENCIA' && aula.responsavel.id !== evento.responsavel?.id) continue;
-      aula.status = 'CANCELADA';
-      canceladas += 1;
-    }
-    return canceladas;
   }
 
   async removerAguardandoFuturas(
@@ -139,9 +127,4 @@ export class AgendaService {
     });
   }
 
-  private eventoCobre(evento: Evento, responsavelId: string): boolean {
-    if (evento.tipo === 'AUSENCIA') return evento.responsavel?.id === responsavelId;
-    if (evento.tipo === 'FERIADO' || evento.tipo === 'AGENDA_FECHADA') return evento.bloqueiaAulas;
-    return false;
-  }
 }

@@ -127,11 +127,11 @@ export class AlunosService {
 
   private filtroBusca(busca?: string): FilterQuery<Aluno> {
     const termo = busca?.trim();
-    if (!termo) return { ativo: true };
+    if (!termo) return { ativo: true, temporario: false };
     const like = `%${escaparLike(termo)}%`;
     const digitos = termo.replace(/\D/g, '');
     const ou: FilterQuery<Aluno>[] = [{ nome: { $ilike: like } }, { email: { $ilike: like } }];
     if (digitos) ou.push({ telefone: { $ilike: `%${digitos}%` } });
-    return { ativo: true, $or: ou };
+    return { ativo: true, temporario: false, $or: ou };
   }
 }

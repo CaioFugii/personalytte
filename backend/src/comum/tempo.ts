@@ -49,6 +49,10 @@ export function doisDigitos(valor: number): string {
   return String(valor).padStart(2, '0');
 }
 
+export function dataRetroativa(inicio: Date, agora = new Date()): boolean {
+  return dataSP(inicio) < dataSP(agora);
+}
+
 export function dataSP(instante: Date): string {
   const partes = partesSP(instante);
   return `${partes.ano}-${doisDigitos(partes.mes)}-${doisDigitos(partes.dia)}`;

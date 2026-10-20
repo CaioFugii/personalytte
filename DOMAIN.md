@@ -26,9 +26,11 @@ Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `
 
 Ao marcar `FALTA`, dá para criar outra aula ligada a essa, já identificada como reposição. A falta também pode ficar sozinha. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
 
-Aula experimental é uma avulsa de um aluno já cadastrado. Avulsa, experimental e reposição ficam fora do plano semanal.
+Aula experimental é avulsa. Pode apontar para um aluno cadastrado ou criar um cadastro temporário: nome obrigatório, telefone opcional, sem plano, categoria ou plano semanal. Temporário não aparece na lista de alunos nem conta como cadastrado. Avulsa, experimental e reposição ficam fora do plano semanal.
 
-O plano gera ocorrências com início no futuro, até 8 semanas a partir de hoje. Todo dia o horizonte é estendido. Ocorrência que cair em feriado ou agenda fechada com bloqueio, ou em ausência daquele responsável, não é criada.
+Um agendamento novo não aceita data anterior a hoje em Brasília. Hoje é permitido.
+
+O plano gera ocorrências com início no futuro, até 8 semanas a partir de hoje. Todo dia o horizonte é estendido. Ocorrência que cair em qualquer evento não é criada.
 
 Mudar dias, horário ou responsável do plano recria só as ocorrências futuras ainda `AGUARDANDO` e ainda ligadas ao plano. Mudar aluno, responsável, data ou horário de um dia solta aquela ocorrência do plano. Mudar o status mantém o vínculo.
 
@@ -40,9 +42,7 @@ Tipos: `FERIADO`, `AGENDA_FECHADA`, `AUSENCIA`, `ANIVERSARIO`, `TORNEIO`.
 
 Nome, início e fim são obrigatórios. O evento pode atravessar dias. Contato é opcional. Ausência aponta um responsável.
 
-`FERIADO` e `AGENDA_FECHADA` podem bloquear aulas. Com o bloqueio ligado, aula nova nesse intervalo é recusada, e aulas futuras já geradas em `AGUARDANDO` ou `CONFIRMADA` passam a `CANCELADA`. Outro evento continua podendo ser criado nesse intervalo. Ausência usa a mesma regra só para o responsável indicado. Aniversário e torneio não cancelam aula.
-
-Desligar o bloqueio ou apagar o evento mantém as aulas já canceladas. Só o administrador cria, edita e apaga evento.
+Qualquer evento bloqueia aula nova em todo o intervalo, para qualquer responsável. Uma aula não cancelada bloqueia evento novo no mesmo intervalo. Aula existente não é cancelada. Ausência exige o responsável e mesmo assim bloqueia a escola toda. Apagar o evento libera o horário. Só o administrador cria, edita e apaga evento.
 
 ## Aviso
 

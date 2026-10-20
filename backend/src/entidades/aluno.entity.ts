@@ -12,17 +12,20 @@ export class Aluno {
   @Property({ type: 'text' })
   nome!: string;
 
-  @Property({ type: 'text' })
-  telefone!: string;
+  @Property({ type: 'text', nullable: true })
+  telefone: string | null = null;
 
   @Property({ type: 'text', nullable: true })
   email: string | null = null;
 
-  @Property({ type: 'text' })
-  plano!: PlanoAluno;
+  @Property({ type: 'text', nullable: true })
+  plano: PlanoAluno | null = null;
 
-  @Property({ type: 'text' })
-  categoria!: CategoriaAluno;
+  @Property({ type: 'text', nullable: true })
+  categoria: CategoriaAluno | null = null;
+
+  @Property({ type: 'boolean' })
+  temporario = false;
 
   @Property({ type: 'jsonb' })
   diasSemana: DiaSemana[] = [];

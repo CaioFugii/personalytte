@@ -114,6 +114,8 @@ Leitura e escrita de aula: professor e administrador.
 }
 ```
 
+Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
+
 `PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`.
 
 Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem:
@@ -166,9 +168,9 @@ Leitura: professor e administrador. Escrita: administrador. Professor recebe `40
 }
 ```
 
-`tipo`: `FERIADO`, `AGENDA_FECHADA`, `AUSENCIA`, `ANIVERSARIO`, `TORNEIO`. `bloqueiaAulas` só vale para `FERIADO` e `AGENDA_FECHADA`. `AUSENCIA` exige `responsavelId`.
+`tipo`: `FERIADO`, `AGENDA_FECHADA`, `AUSENCIA`, `ANIVERSARIO`, `TORNEIO`. Todo evento recusa aula nova que cruze o intervalo (`BLOQUEIO_AGENDA`). Aula não cancelada recusa o evento (`HORARIO_OCUPADO`). Aula já existente não muda de status. `inicio` anterior a hoje responde `DADOS_INVALIDOS`. `AUSENCIA` exige `responsavelId`. `bloqueiaAulas` permanece no corpo por compatibilidade e não altera essa regra.
 
-`DELETE /api/eventos/:id` apaga o evento e mantém aulas já canceladas.
+`DELETE /api/eventos/:id` apaga o evento e libera o horário para um agendamento novo.
 
 Cada evento na lista traz `id`, `tipo`, `nome`, `inicio`, `fim`, `contato`, `bloqueiaAulas` e `responsavelId`.
 

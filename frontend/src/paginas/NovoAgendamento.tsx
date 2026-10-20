@@ -14,8 +14,8 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { civilValida, instanteBrasilia } from '../lib/calendario'
-import { rotuloFuncao, tipoBloqueia, TIPOS_EVENTO } from '../lib/rotulos'
+import { civilValida, hojeSP, instanteBrasilia } from '../lib/calendario'
+import { rotuloFuncao, TIPOS_EVENTO } from '../lib/rotulos'
 
 export function NovoAgendamento() {
   useTitulo('Novo agendamento')
@@ -57,7 +57,7 @@ function Escolha({ admin }: { admin: boolean }) {
       >
         <span className="font-display text-2xl font-semibold">Aula</span>
         <span className="mt-2 block text-sm text-muted">
-          Horário avulso de um aluno já cadastrado. Pode ser marcada como experimental.
+          Horário avulso. A experimental também aceita um nome ainda sem cadastro.
         </span>
       </button>
       {admin ? (
@@ -87,8 +87,11 @@ function FormAula() {
   const respQ = useGet<Responsavel[]>('/api/integrantes/responsaveis')
   const alunos = Array.isArray(alunosQ.dados) ? alunosQ.dados : []
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
-  const [filtro, setFiltro] = useState('')
+  const hoje = hojeSP()
+  const [texto, setTexto] = useState('')
   const [alunoId, setAlunoId] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [aberto, setAberto] = useState(false)
   const [responsavelId, setResponsavelId] = useState('')
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
@@ -96,44 +99,60 @@ function FormAula() {
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const visiveis = useMemo(() => {
-    const texto = filtro.trim().toLowerCase()
-    const digitos = filtro.replace(/\D/g, '')
-    const lista = alunos.filter((aluno) => {
-      if (!texto) return true
-      return (
-        aluno.nome.toLowerCase().includes(texto) ||
-        (aluno.email ?? '').toLowerCase().includes(texto) ||
-        (digitos.length > 0 && aluno.telefone.includes(digitos))
-      )
-    })
-    if (alunoId && !lista.some((aluno) => aluno.id === alunoId)) {
-      const escolhido = alunos.find((aluno) => aluno.id === alunoId)
-      if (escolhido) lista.unshift(escolhido)
-    }
-    return [...lista].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-  }, [alunos, filtro, alunoId])
+  const sugestoes = useMemo(() => {
+    const consulta = texto.trim().toLowerCase()
+    const digitos = texto.replace(/\D/g, '')
+    return alunos
+      .filter((aluno) => {
+        if (!consulta) return true
+        return (
+          aluno.nome.toLowerCase().includes(consulta) ||
+          (aluno.email ?? '').toLowerCase().includes(consulta) ||
+          (digitos.length > 0 && aluno.telefone.includes(digitos))
+        )
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      .slice(0, 8)
+  }, [alunos, texto])
 
+  const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === texto.trim().toLowerCase())
+  const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
+  const nomeTemporario = experimental && !alunoEscolhido && texto.trim().length > 0
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
   const erroCarga = alunosQ.erro || respQ.erro
 
+  function escolher(aluno: Aluno) {
+    setAlunoId(aluno.id)
+    setTexto(aluno.nome)
+    setAberto(false)
+  }
+
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
-    if (!alunoId || !responsavelId || !civilValida(data) || !hora) {
-      setErro('Informe aluno, responsável, data e horário.')
+    const nome = texto.trim()
+    const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === nome.toLowerCase())
+    const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
+    if (!responsavelId || !civilValida(data) || !hora || (!alunoEscolhido && !(experimental && nome))) {
+      setErro(experimental ? 'Informe o aluno, o responsável, a data e o horário.' : 'Selecione um aluno cadastrado, o responsável, a data e o horário.')
+      return
+    }
+    if (data < hoje) {
+      setErro('Não é possível agendar uma data anterior a hoje.')
       return
     }
     setErro(null)
     setEnviando(true)
+    const corpo: Record<string, unknown> = {
+      responsavelId,
+      inicio: instanteBrasilia(data, hora),
+      experimental,
+    }
+    if (alunoEscolhido) corpo.alunoId = alunoEscolhido
+    else corpo.alunoTemporario = { nome, telefone: telefone.trim() ? telefone.trim() : null }
     try {
       const criada = await api<unknown>('/api/aulas', {
         method: 'POST',
-        body: JSON.stringify({
-          alunoId,
-          responsavelId,
-          inicio: instanteBrasilia(data, hora),
-          experimental,
-        }),
+        body: JSON.stringify(corpo),
       })
       if (temId(criada)) navigate(`/agenda/aulas/${criada.id}`)
       else navigate(`/agenda/dia?date=${data}`)
@@ -165,27 +184,78 @@ function FormAula() {
     <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-lg border border-line bg-paper p-4">
       <p className="text-sm text-muted">A aula nasce como Aguardando, dura 60 minutos e fica fora do plano semanal.</p>
       {erro ? <Banner tom="erro">{erro}</Banner> : null}
-      {alunos.length === 0 ? <Banner tom="aviso">Não há aluno ativo para agendar.</Banner> : null}
-      <Campo label="Buscar aluno" htmlFor="filtro-aluno" dica="Nome, e-mail ou telefone">
-        <input id="filtro-aluno" value={filtro} onChange={(event) => setFiltro(event.target.value)} className={classeCampo} />
-      </Campo>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Campo label="Aluno" htmlFor="aluno-aula">
-          <select
+      {!experimental && alunos.length === 0 ? <Banner tom="aviso">Não há aluno ativo para agendar.</Banner> : null}
+      <label className="flex items-center gap-2 text-sm font-semibold">
+        <input
+          type="checkbox"
+          checked={experimental}
+          onChange={(event) => setExperimental(event.target.checked)}
+          className="accent-tide"
+        />
+        Aula experimental
+      </label>
+      <Campo
+        label="Aluno"
+        htmlFor="aluno-aula"
+        dica={
+          experimental
+            ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
+            : 'Busque por nome, e-mail ou telefone e selecione.'
+        }
+      >
+        <div className="relative">
+          <input
             id="aluno-aula"
-            required
-            value={alunoId}
-            onChange={(event) => setAlunoId(event.target.value)}
+            role="combobox"
+            aria-expanded={aberto}
+            aria-autocomplete="list"
+            aria-controls="sugestoes-aluno"
+            value={texto}
+            onChange={(event) => {
+              setTexto(event.target.value)
+              setAlunoId('')
+              setAberto(true)
+            }}
+            onFocus={() => setAberto(true)}
+            onBlur={() => window.setTimeout(() => setAberto(false), 150)}
             className={classeCampo}
-          >
-            <option value="">Selecione</option>
-            {visiveis.map((aluno) => (
-              <option key={aluno.id} value={aluno.id}>
-                {aluno.nome} · {aluno.categoria}
-              </option>
-            ))}
-          </select>
+            autoComplete="off"
+          />
+          {aberto && sugestoes.length > 0 ? (
+            <ul
+              id="sugestoes-aluno"
+              role="listbox"
+              className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-paper shadow-sm"
+            >
+              {sugestoes.map((aluno) => (
+                <li key={aluno.id} role="option" aria-selected={aluno.id === alunoId}>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      escolher(aluno)
+                    }}
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-sand"
+                  >
+                    {aluno.nome} · {aluno.categoria}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </Campo>
+      {nomeTemporario ? (
+        <Campo label="Telefone (opcional)" htmlFor="telefone-temporario" dica="Só deste cadastro temporário. Não entra na lista de alunos.">
+          <input
+            id="telefone-temporario"
+            value={telefone}
+            onChange={(event) => setTelefone(event.target.value)}
+            className={classeCampo}
+          />
         </Campo>
+      ) : null}
+      <div className="grid gap-4 md:grid-cols-2">
         <Campo label="Responsável" htmlFor="resp-aula">
           <select
             id="resp-aula"
@@ -209,6 +279,7 @@ function FormAula() {
             id="data-aula"
             type="date"
             required
+            min={hoje}
             value={data}
             onChange={(event) => setData(event.target.value)}
             className={classeCampo}
@@ -225,17 +296,8 @@ function FormAula() {
           />
         </Campo>
       </div>
-      <label className="flex items-center gap-2 text-sm font-semibold">
-        <input
-          type="checkbox"
-          checked={experimental}
-          onChange={(event) => setExperimental(event.target.checked)}
-          className="accent-tide"
-        />
-        Aula experimental
-      </label>
       <div className="flex gap-2">
-        <Botao type="submit" disabled={enviando || alunos.length === 0}>
+        <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0)}>
           {enviando ? 'Salvando…' : 'Agendar aula'}
         </Botao>
         <LinkBotao to="/agenda/novo" variante="secundario">
@@ -257,8 +319,8 @@ function FormEvento() {
   const [dataFim, setDataFim] = useState('')
   const [horaFim, setHoraFim] = useState('')
   const [contato, setContato] = useState('')
-  const [bloqueia, setBloqueia] = useState(false)
   const [responsavelId, setResponsavelId] = useState('')
+  const hoje = hojeSP()
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -270,6 +332,10 @@ function FormEvento() {
     }
     if (tipo === 'AUSENCIA' && !responsavelId) {
       setErro('Informe o responsável da ausência.')
+      return
+    }
+    if (dataInicio < hoje || dataFim < hoje) {
+      setErro('Não é possível agendar uma data anterior a hoje.')
       return
     }
     const inicio = instanteBrasilia(dataInicio, horaInicio)
@@ -289,7 +355,7 @@ function FormEvento() {
           inicio,
           fim,
           contato: contato.trim() ? contato.trim() : null,
-          bloqueiaAulas: tipoBloqueia(tipo) ? bloqueia : false,
+          bloqueiaAulas: false,
           responsavelId: tipo === 'AUSENCIA' ? responsavelId : null,
         }),
       })
@@ -311,7 +377,6 @@ function FormEvento() {
           onChange={(event) => {
             const proximo = event.target.value as TipoEvento
             setTipo(proximo)
-            if (!tipoBloqueia(proximo)) setBloqueia(false)
             if (proximo !== 'AUSENCIA') setResponsavelId('')
           }}
           className={classeCampo}
@@ -333,6 +398,7 @@ function FormEvento() {
             id="data-inicio"
             type="date"
             required
+            min={hoje}
             value={dataInicio}
             onChange={(event) => setDataInicio(event.target.value)}
             className={classeCampo}
@@ -353,6 +419,7 @@ function FormEvento() {
             id="data-fim"
             type="date"
             required
+            min={hoje}
             value={dataFim}
             onChange={(event) => setDataFim(event.target.value)}
             className={classeCampo}
@@ -372,17 +439,6 @@ function FormEvento() {
       <Campo label="Contato (opcional)" htmlFor="contato-evento">
         <input id="contato-evento" value={contato} onChange={(event) => setContato(event.target.value)} className={classeCampo} />
       </Campo>
-      {tipoBloqueia(tipo) ? (
-        <label className="flex items-center gap-2 text-sm font-semibold">
-          <input
-            type="checkbox"
-            checked={bloqueia}
-            onChange={(event) => setBloqueia(event.target.checked)}
-            className="accent-tide"
-          />
-          Bloqueia aulas
-        </label>
-      ) : null}
       {tipo === 'AUSENCIA' ? (
         <Campo label="Responsável" htmlFor="resp-ausencia">
           <select
@@ -416,11 +472,7 @@ function FormEvento() {
 }
 
 function textoDoTipo(tipo: TipoEvento): string {
-  if (tipo === 'FERIADO' || tipo === 'AGENDA_FECHADA') {
-    return 'Com o bloqueio ligado, uma aula nova nesse intervalo é recusada e as futuras em Aguardando ou Confirmada passam a Cancelada.'
-  }
-  if (tipo === 'AUSENCIA') {
-    return 'A ausência cancela e bloqueia só as aulas desse responsável.'
-  }
-  return 'Aniversário e torneio aparecem na agenda. A aula desse horário continua válida.'
+  const base = 'O horário impede uma aula nova, e uma aula já marcada impede este evento. Aulas que já existem não são canceladas.'
+  if (tipo === 'AUSENCIA') return `${base} Informe o responsável da ausência.`
+  return base
 }

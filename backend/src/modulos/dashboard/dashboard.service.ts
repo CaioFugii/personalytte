@@ -41,7 +41,7 @@ export class DashboardService {
     return {
       aulasHoje: aulasHoje.length,
       confirmadas: aulasHoje.filter((aula) => aula.status === 'CONFIRMADA').length,
-      alunosCadastrados: await this.em.count(Aluno, { ativo: true }),
+      alunosCadastrados: await this.em.count(Aluno, { ativo: true, temporario: false }),
       alunosDoDia: new Set(aulasHoje.map((aula) => aula.aluno.id)).size,
       proximoHorario: proxima ? serializarAula(proxima) : null,
       eventosDaSemana: eventos.map(serializarEvento),

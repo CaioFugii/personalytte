@@ -9,6 +9,7 @@ import { Aviso } from './entidades/aviso.entity';
 import { Evento } from './entidades/evento.entity';
 import { Integrante } from './entidades/integrante.entity';
 import { Migration20261019120000_inicial } from './migrations/Migration20261019120000_inicial';
+import { Migration20261020140000_aluno_temporario } from './migrations/Migration20261020140000_aluno_temporario';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -28,6 +29,7 @@ export function criarOrmConfig() {
       snapshot: false,
       migrationsList: [
         { name: 'Migration20261019120000_inicial', class: Migration20261019120000_inicial },
+        { name: 'Migration20261020140000_aluno_temporario', class: Migration20261020140000_aluno_temporario },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

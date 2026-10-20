@@ -53,6 +53,7 @@ export function serializarAluno(aluno: Aluno): AlunoResposta {
     horarioInicio: aluno.horarioInicio,
     responsavelId: idRelacao(aluno.responsavel),
     ativo: aluno.ativo,
+    temporario: aluno.temporario,
     cadastradoEm: formatarInstante(aluno.cadastradoEm),
   };
 }

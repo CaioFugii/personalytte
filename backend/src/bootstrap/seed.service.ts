@@ -114,7 +114,7 @@ export class SeedService {
       responsavelId: null,
     }, agora);
 
-    const torneio = adicionarDias(proximoDia(agora, 'sab', '09:00'), 21);
+    const torneio = adicionarDias(proximoDia(agora, 'sab', '11:00'), 21);
     await eventos.criar({
       tipo: 'TORNEIO',
       nome: 'Torneio interno',

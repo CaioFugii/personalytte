@@ -293,7 +293,7 @@ describe('regras de domínio', () => {
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
   });
 
-  it('bloqueia feriado e agenda fechada, ignora aniversário e torneio, e limita ausência ao responsável', async () => {
+  it('evento e aula se excluem em qualquer tipo, sem cancelar o que já existe', async () => {
     const s = servicos(orm);
     const marina = await professor(s);
     const outro = await professor(s, 'paulo@personalytte.local');
@@ -307,131 +307,116 @@ describe('regras de domínio', () => {
       responsavelId: marina.id,
     }, AGORA);
     const bruno = await s.alunos.criar({ nome: 'Bruno', telefone: '11911110002', plano: 'GYMPASS', categoria: 'C' }, AGORA);
-    const aulas = await aulasDe(orm, ana.id);
-    const emAndamento = await s.aulas.criar({
-      alunoId: bruno.id,
-      responsavelId: outro.id,
-      inicio: '2026-10-21T14:30:00-03:00',
-      experimental: false,
-    });
-    await s.aulas.atualizar(emAndamento.id, { status: 'CONFIRMADA' }, AGORA);
-    const aindaFutura = await s.aulas.criar({
+    const ocupada = await s.aulas.criar({
       alunoId: bruno.id,
       responsavelId: outro.id,
       inicio: '2026-10-21T15:30:00-03:00',
       experimental: false,
     });
-    await s.eventos.criar({
+    await expect(s.eventos.criar({
       tipo: 'AGENDA_FECHADA',
       nome: 'Fecha a tarde',
       inicio: '2026-10-21T14:00:00-03:00',
       fim: '2026-10-21T16:00:00-03:00',
-      bloqueiaAulas: true,
-      responsavelId: null,
-    }, AGORA);
-    expect((await aulasDe(orm)).find((aula) => aula.id === emAndamento.id)?.status).toBe('CONFIRMADA');
-    expect((await aulasDe(orm)).find((aula) => aula.id === aindaFutura.id)?.status).toBe('CANCELADA');
-    const futura = aulas.find((aula) => iso(aula.inicio) === '2026-10-22T19:00:00-03:00');
-    await s.aulas.atualizar(futura!.id, { status: 'CONFIRMADA' }, AGORA);
-    const aniversario = await s.eventos.criar({
-      tipo: 'ANIVERSARIO',
-      nome: 'Aniversário',
-      inicio: '2026-10-29T18:00:00-03:00',
-      fim: '2026-10-29T21:00:00-03:00',
-      contato: null,
       bloqueiaAulas: false,
       responsavelId: null,
-    }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-10-29T19:00:00-03:00')?.status).toBe('AGUARDANDO');
-    await s.eventos.apagar(aniversario.id);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-10-29T19:00:00-03:00')?.status).toBe('AGUARDANDO');
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', status: 409 });
+    expect((await aulasDe(orm)).find((aula) => aula.id === ocupada.id)?.status).toBe('AGUARDANDO');
 
-    await s.eventos.criar({
-      tipo: 'TORNEIO',
-      nome: 'Torneio',
-      inicio: '2026-11-05T19:00:00-03:00',
-      fim: '2026-11-05T22:00:00-03:00',
-      bloqueiaAulas: false,
-      responsavelId: null,
-    }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-11-05T19:00:00-03:00')?.status).toBe('AGUARDANDO');
-
-    await s.eventos.criar({
-      tipo: 'AGENDA_FECHADA',
-      nome: 'Sem bloqueio',
-      inicio: '2026-11-12T00:00:00-03:00',
-      fim: '2026-11-13T00:00:00-03:00',
-      bloqueiaAulas: false,
-      responsavelId: null,
-    }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-11-12T19:00:00-03:00')?.status).toBe('AGUARDANDO');
-
-    const fechada = await s.eventos.criar({
-      tipo: 'AGENDA_FECHADA',
-      nome: 'Fechada',
-      inicio: '2026-11-19T00:00:00-03:00',
-      fim: '2026-11-20T00:00:00-03:00',
-      bloqueiaAulas: true,
-      responsavelId: null,
-    }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-11-19T19:00:00-03:00')?.status).toBe('CANCELADA');
-    await s.eventos.atualizar(fechada.id, { bloqueiaAulas: false }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-11-19T19:00:00-03:00')?.status).toBe('CANCELADA');
-
-    const feriado = await s.eventos.criar({
+    await expect(s.eventos.criar({
       tipo: 'FERIADO',
-      nome: 'Finados',
+      nome: 'Quinta ocupada',
       inicio: '2026-10-22T00:00:00-03:00',
       fim: '2026-10-23T00:00:00-03:00',
       bloqueiaAulas: true,
       responsavelId: null,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-10-22T19:00:00-03:00')?.status).toBe('AGUARDANDO');
+
+    const aniversario = await s.eventos.criar({
+      tipo: 'ANIVERSARIO',
+      nome: 'Aniversário',
+      inicio: '2026-10-23T08:00:00-03:00',
+      fim: '2026-10-23T10:00:00-03:00',
+      contato: null,
+      bloqueiaAulas: false,
+      responsavelId: null,
     }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-10-22T19:00:00-03:00')?.status).toBe('CANCELADA');
-    expect((await aulasDe(orm)).find((aula) => aula.id === emAndamento.id)?.status).toBe('CONFIRMADA');
     await expect(s.aulas.criar({
-      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-22T18:00:00-03:00', experimental: false,
+      alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
     })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA', status: 409 });
+    await expect(s.aulas.criar({
+      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
+    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+
+    await s.eventos.criar({
+      tipo: 'TORNEIO',
+      nome: 'Torneio',
+      inicio: '2026-10-24T08:00:00-03:00',
+      fim: '2026-10-24T10:00:00-03:00',
+      bloqueiaAulas: false,
+      responsavelId: null,
+    }, AGORA);
+    await expect(s.aulas.criar({
+      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-24T09:00:00-03:00', experimental: false,
+    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+
+    await s.eventos.criar({
+      tipo: 'AGENDA_FECHADA',
+      nome: 'Sem marcador antigo',
+      inicio: '2026-10-25T08:00:00-03:00',
+      fim: '2026-10-25T10:00:00-03:00',
+      bloqueiaAulas: false,
+      responsavelId: null,
+    }, AGORA);
+    await expect(s.aulas.criar({
+      alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-25T09:00:00-03:00', experimental: false,
+    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+
+    await s.eventos.criar({
+      tipo: 'AUSENCIA',
+      nome: 'Marina fora',
+      inicio: '2026-10-26T08:00:00-03:00',
+      fim: '2026-10-26T10:00:00-03:00',
+      bloqueiaAulas: false,
+      responsavelId: marina.id,
+    }, AGORA);
+    await expect(s.aulas.criar({
+      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-26T09:00:00-03:00', experimental: false,
+    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+
     const bloqueado = await s.alunos.criar({
       nome: 'Carla',
       telefone: '11911110003',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['qui'],
-      horarioInicio: '08:00',
+      diasSemana: ['sex'],
+      horarioInicio: '09:00',
       responsavelId: marina.id,
     }, AGORA);
-    expect((await aulasDe(orm, bloqueado.id)).some((aula) => iso(aula.inicio) === '2026-10-22T08:00:00-03:00')).toBe(false);
-    expect((await aulasDe(orm, bloqueado.id)).some((aula) => iso(aula.inicio) === '2026-10-29T08:00:00-03:00')).toBe(true);
-    await s.eventos.apagar(feriado.id);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-10-22T19:00:00-03:00')?.status).toBe('CANCELADA');
-    const criadaDepois = await s.aulas.criar({
-      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-22T18:00:00-03:00', experimental: false,
-    });
-    expect(criadaDepois.status).toBe('AGUARDANDO');
+    expect((await aulasDe(orm, bloqueado.id)).some((aula) => iso(aula.inicio) === '2026-10-23T09:00:00-03:00')).toBe(false);
+    expect((await aulasDe(orm, bloqueado.id)).some((aula) => iso(aula.inicio) === '2026-10-30T09:00:00-03:00')).toBe(true);
 
-    await s.eventos.criar({
-      tipo: 'AUSENCIA',
-      nome: 'Marina fora',
-      inicio: '2026-11-26T00:00:00-03:00',
-      fim: '2026-11-27T00:00:00-03:00',
-      bloqueiaAulas: false,
-      responsavelId: marina.id,
-    }, AGORA);
-    expect((await aulasDe(orm, ana.id)).find((aula) => iso(aula.inicio) === '2026-11-26T19:00:00-03:00')?.status).toBe('CANCELADA');
-    const doOutro = await s.aulas.criar({
-      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-11-26T19:00:00-03:00', experimental: false,
+    await s.eventos.apagar(aniversario.id);
+    const liberada = await s.aulas.criar({
+      alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
     });
-    expect(doOutro.status).toBe('AGUARDANDO');
-    await expect(s.aulas.criar({
-      alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-11-26T15:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+    expect(liberada.status).toBe('AGUARDANDO');
+    await expect(s.eventos.criar({
+      tipo: 'ANIVERSARIO',
+      nome: 'De novo',
+      inicio: '2026-10-23T09:30:00-03:00',
+      fim: '2026-10-23T11:00:00-03:00',
+      bloqueiaAulas: false,
+      responsavelId: null,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
 
     await s.eventos.criar({
       tipo: 'FERIADO',
       nome: 'Fora do horizonte atual',
       inicio: '2026-12-17T00:00:00-03:00',
       fim: '2026-12-18T00:00:00-03:00',
-      bloqueiaAulas: true,
+      bloqueiaAulas: false,
       responsavelId: null,
     }, AGORA);
     const novas = await new AgendaService().estenderHorizonte(orm.em.fork(), em('2026-10-23T15:00:00-03:00'));
@@ -439,6 +424,49 @@ describe('regras de domínio', () => {
     expect(apos.some((aula) => iso(aula.inicio) === '2026-12-17T19:00:00-03:00')).toBe(false);
     expect(novas).toBe(0);
     expect(apos.some((aula) => iso(aula.inicio) === '2026-12-10T19:00:00-03:00' && aula.status === 'AGUARDANDO')).toBe(true);
+  });
+
+  it('aula experimental cria aluno temporário e recusa data anterior a hoje', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    const criada = await s.aulas.criar({
+      experimental: true,
+      alunoTemporario: { nome: 'Visitante', telefone: '(11) 99999-8888' },
+      responsavelId: marina.id,
+      inicio: '2026-10-23T10:00:00-03:00',
+    });
+    expect(criada.experimental).toBe(true);
+    expect(criada.aluno).toMatchObject({ nome: 'Visitante', categoria: null });
+    const gravado = await orm.em.fork().findOneOrFail(Aluno, { nome: 'Visitante' });
+    expect(gravado.temporario).toBe(true);
+    expect(gravado.telefone).toBe('11999998888');
+    expect(gravado.plano).toBeNull();
+    expect((await s.alunos.listar()).some((aluno) => aluno.nome === 'Visitante')).toBe(false);
+    await expect(s.aulas.criar({
+      experimental: false,
+      alunoId: gravado.id,
+      responsavelId: marina.id,
+      inicio: '2026-10-23T11:00:00-03:00',
+    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.criar({
+      experimental: false,
+      responsavelId: marina.id,
+      inicio: '2026-10-23T12:00:00-03:00',
+    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const efetivo = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
+    await expect(s.aulas.criar({
+      alunoId: efetivo.id,
+      responsavelId: marina.id,
+      inicio: '2020-01-02T10:00:00-03:00',
+      experimental: false,
+    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.eventos.criar({
+      tipo: 'FERIADO',
+      nome: 'Passado',
+      inicio: '2020-01-02T10:00:00-03:00',
+      fim: '2020-01-02T12:00:00-03:00',
+      responsavelId: null,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
   });
 
   it('depois do início muda o status e recusa mudar o horário', async () => {

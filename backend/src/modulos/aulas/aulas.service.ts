@@ -3,9 +3,10 @@ import { Injectable } from '@nestjs/common';
 import type { AulaResposta } from '../../comum/contrato';
 import { ErroApi, MENSAGEM_JA_INICIOU, naoEncontrado, traduzirErroBanco } from '../../comum/erros';
 import { serializarAula } from '../../comum/serializar';
-import { alunoAtivo, booleanoDe, exigirIntervalo, exigirObjeto, instanteDe, responsavelAtivo, statusDe, uuidDe, veio } from '../../comum/validacao';
+import { alunoAtivo, booleanoDe, exigirIntervalo, exigirObjeto, instanteDe, responsavelAtivo, statusDe, telefoneOpcional, textoObrigatorio, uuidDe, veio } from '../../comum/validacao';
 import { fimDaAula, jaComecou } from '../../comum/tempo';
 import { AgendaService } from '../../dominio/agenda.service';
+import { Aluno } from '../../entidades/aluno.entity';
 import { Aula } from '../../entidades/aula.entity';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class AulasService {
     try {
       return await this.em.transactional(async (em) => {
         const aula = await this.montarAvulsa(em, dados, false);
+        this.agenda.exigirDataAgenda(aula.inicio);
         await this.agenda.assertPodeAgendar(em, {
           alunoId: aula.aluno.id,
           responsavelId: aula.responsavel.id,
@@ -134,15 +136,45 @@ export class AulasService {
 
   private async montarAvulsa(em: EntityManager, dados: Record<string, unknown>, reposicao: boolean): Promise<Aula> {
     const aula = new Aula();
-    aula.aluno = await alunoAtivo(em, uuidDe(dados.alunoId, 'Aluno'));
+    const experimental = reposicao ? false : (veio(dados, 'experimental') ? booleanoDe(dados.experimental, 'Experimental') : false);
+    aula.aluno = await this.resolverAluno(em, dados, experimental);
     aula.responsavel = await responsavelAtivo(em, uuidDe(dados.responsavelId, 'Responsável'));
     aula.inicio = instanteDe(dados.inicio, 'O início');
     aula.fim = fimDaAula(aula.inicio);
     aula.status = 'AGUARDANDO';
-    aula.experimental = reposicao ? false : (veio(dados, 'experimental') ? booleanoDe(dados.experimental, 'Experimental') : false);
+    aula.experimental = experimental;
     aula.reposicaoDe = null;
     aula.ligadaAoPlano = false;
     return aula;
+  }
+
+  private async resolverAluno(em: EntityManager, dados: Record<string, unknown>, experimental: boolean): Promise<Aluno> {
+    const temporario = experimental && veio(dados, 'alunoTemporario') ? dados.alunoTemporario : null;
+    if (temporario != null && !dados.alunoId) {
+      return this.criarTemporario(em, temporario);
+    }
+    const aluno = await alunoAtivo(em, uuidDe(dados.alunoId, 'Aluno'));
+    if (aluno.temporario && !experimental) {
+      throw new ErroApi(400, 'DADOS_INVALIDOS', 'Aluno temporário só entra em aula experimental.');
+    }
+    return aluno;
+  }
+
+  private async criarTemporario(em: EntityManager, corpo: unknown): Promise<Aluno> {
+    const dados = exigirObjeto(corpo);
+    const aluno = new Aluno();
+    aluno.nome = textoObrigatorio(dados.nome, 'o nome');
+    aluno.telefone = telefoneOpcional(dados.telefone);
+    aluno.email = null;
+    aluno.plano = null;
+    aluno.categoria = null;
+    aluno.temporario = true;
+    aluno.diasSemana = [];
+    aluno.horarioInicio = null;
+    aluno.responsavel = null;
+    aluno.cadastradoEm = new Date();
+    em.persist(aluno);
+    return aluno;
   }
 
   private async montarReposicao(em: EntityManager, origem: Aula, corpo: unknown): Promise<Aula> {

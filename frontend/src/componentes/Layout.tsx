@@ -16,14 +16,16 @@ export function Layout() {
   const { usuario, sair, definirUsuario } = useSessao()
   const navigate = useNavigate()
   const location = useLocation()
-  const [recado, setRecado] = useState<string | null>(null)
+  const [recado, setRecado] = useState<{ texto: string; tom: 'aviso' | 'ok' } | null>(null)
   const [erroSaida, setErroSaida] = useState<string | null>(null)
   const [saindo, setSaindo] = useState(false)
 
   useEffect(() => {
-    const state = location.state as { aviso?: unknown } | null
-    if (state && typeof state.aviso === 'string' && state.aviso) {
-      setRecado(state.aviso)
+    const state = location.state as { aviso?: unknown; sucesso?: unknown } | null
+    const sucesso = state && typeof state.sucesso === 'string' ? state.sucesso : ''
+    const aviso = state && typeof state.aviso === 'string' ? state.aviso : ''
+    if (sucesso || aviso) {
+      setRecado(sucesso ? { texto: sucesso, tom: 'ok' } : { texto: aviso, tom: 'aviso' })
       navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     }
   }, [location, navigate])
@@ -93,8 +95,8 @@ export function Layout() {
       <main className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl">
           {recado ? (
-            <Banner tom="aviso" onFechar={() => setRecado(null)}>
-              {recado}
+            <Banner tom={recado.tom} onFechar={() => setRecado(null)}>
+              {recado.texto}
             </Banner>
           ) : null}
           {erroSaida ? <Banner tom="erro">{erroSaida}</Banner> : null}
