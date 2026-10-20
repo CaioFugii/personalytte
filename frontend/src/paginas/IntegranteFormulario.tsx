@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api, ErroApi, mensagemDeErro } from '../api/client'
 import type { Funcao, Integrante } from '../api/types'
 import { useGet } from '../api/useGet'
+import { useConfirmacao } from '../componentes/confirmacao'
 import { Banner, Botao, Cabecalho, Campo, classeCampo, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { civilValida, digitosTelefone } from '../lib/calendario'
@@ -52,6 +53,7 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const { pedir, dialogo } = useConfirmacao()
 
   const chave = modo === 'novo' ? 'novo' : integrante?.id ?? null
   if (chave && chave !== chaveVista) {
@@ -129,7 +131,13 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   async function inativar() {
     if (!integrante) return
-    if (!window.confirm(`Inativar ${integrante.nome}? O login deixa de funcionar na hora.`)) return
+    const confirma = await pedir({
+      titulo: 'Inativar integrante',
+      mensagem: `Inativar ${integrante.nome}? O login deixa de funcionar na hora.`,
+      confirmar: 'Inativar',
+      perigo: true,
+    })
+    if (!confirma) return
     setErro(null)
     try {
       await api(`/api/integrantes/${integrante.id}/inativar`, { method: 'POST' })
@@ -147,6 +155,7 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo={modo === 'novo' ? 'Novo integrante' : integrante?.nome || 'Integrante'}
         acoes={

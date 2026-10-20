@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Categoria, DiaSemana, Plano, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
+import { useConfirmacao } from '../componentes/confirmacao'
 import {
   Banner,
   Botao,
@@ -68,6 +69,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const { pedir, dialogo } = useConfirmacao()
 
   const chave = modo === 'novo' ? 'novo' : aluno?.id ?? null
   if (chave && chave !== chaveVista) {
@@ -146,7 +148,13 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   async function inativar() {
     if (!aluno) return
-    if (!window.confirm(`Inativar ${aluno.nome}? As aulas futuras ainda em Aguardando saem da agenda.`)) return
+    const confirma = await pedir({
+      titulo: 'Inativar aluno',
+      mensagem: `Inativar ${aluno.nome}? As aulas futuras ainda em Aguardando saem da agenda.`,
+      confirmar: 'Inativar',
+      perigo: true,
+    })
+    if (!confirma) return
     setErro(null)
     try {
       await api(`/api/alunos/${aluno.id}/inativar`, { method: 'POST' })
@@ -160,6 +168,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo={modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno'}
         descricao={somenteLeitura ? 'Consulta. Só o administrador altera o cadastro.' : undefined}

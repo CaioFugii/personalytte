@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
 import { useGet } from '../api/useGet'
+import { useConfirmacao } from '../componentes/confirmacao'
 import {
   Banner,
   Botao,
@@ -80,6 +81,7 @@ export function AulaDetalhe() {
   const [ok, setOk] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const { pedir, dialogo } = useConfirmacao()
 
   const chave = aula ? chaveAula(aula) : null
   if (chave !== chaveVista) {
@@ -142,7 +144,13 @@ export function AulaDetalhe() {
       }
     }
     if (form.status === 'CANCELADA' && aula.status !== 'CANCELADA') {
-      if (!window.confirm('Gravar esta aula como Cancelada?')) return
+      const confirma = await pedir({
+        titulo: 'Cancelar aula',
+        mensagem: 'Gravar esta aula como Cancelada?',
+        confirmar: 'Gravar',
+        perigo: true,
+      })
+      if (!confirma) return
     }
 
     const corpo: Record<string, unknown> = {}
@@ -192,7 +200,13 @@ export function AulaDetalhe() {
 
   async function cancelar() {
     if (!aula || aula.status === 'CANCELADA') return
-    if (!window.confirm('Cancelar esta aula? O horário fica livre.')) return
+    const confirma = await pedir({
+      titulo: 'Cancelar aula',
+      mensagem: 'Cancelar esta aula? O horário fica livre.',
+      confirmar: 'Cancelar aula',
+      perigo: true,
+    })
+    if (!confirma) return
     setErro(null)
     setOk(null)
     setCancelando(true)
@@ -215,6 +229,7 @@ export function AulaDetalhe() {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo={aula ? aula.aluno.nome : 'Aula'}
         descricao={aula ? formatarIntervalo(aula.inicio, aula.fim) : undefined}

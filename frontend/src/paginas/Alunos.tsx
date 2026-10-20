@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno } from '../api/types'
 import { useGet } from '../api/useGet'
+import { useConfirmacao } from '../componentes/confirmacao'
 import { Banner, Botao, Cabecalho, classeCampo, LinkBotao, PainelEstado, SeloCategoria, useTitulo } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { useBusca } from '../lib/busca'
@@ -19,9 +20,16 @@ export function Alunos() {
   const lista = Array.isArray(consulta.dados) ? consulta.dados : null
   const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [pendente, setPendente] = useState<string | null>(null)
+  const { pedir, dialogo } = useConfirmacao()
 
   async function inativar(aluno: Aluno) {
-    if (!window.confirm(`Inativar ${aluno.nome}? As aulas futuras ainda em Aguardando saem da agenda.`)) return
+    const confirma = await pedir({
+      titulo: 'Inativar aluno',
+      mensagem: `Inativar ${aluno.nome}? As aulas futuras ainda em Aguardando saem da agenda.`,
+      confirmar: 'Inativar',
+      perigo: true,
+    })
+    if (!confirma) return
     setPendente(aluno.id)
     setErroAcao(null)
     try {
@@ -36,6 +44,7 @@ export function Alunos() {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo="Alunos"
         descricao={admin ? 'Cadastro ativo da escola.' : 'Consulta. Só o administrador altera o cadastro.'}

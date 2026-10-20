@@ -16,6 +16,7 @@ import {
   SeloStatus,
   useTitulo,
 } from '../componentes/ui'
+import { useConfirmacao } from '../componentes/confirmacao'
 import { useSessao } from '../contexto/Sessao'
 import { formatarDiaLongo, formatarIntervalo, hojeSP, partesSP, saudacao } from '../lib/calendario'
 
@@ -101,6 +102,7 @@ export function Painel() {
   const [salvando, setSalvando] = useState(false)
   const [erroAviso, setErroAviso] = useState<string | null>(null)
   const [erroEvento, setErroEvento] = useState<string | null>(null)
+  const { pedir, dialogo } = useConfirmacao()
   const dados = ehPainel(consulta.dados) ? consulta.dados : null
   const formatoInvalido = Boolean(consulta.dados) && !dados
 
@@ -124,7 +126,13 @@ export function Painel() {
 
   async function apagarAviso(aviso: Aviso) {
     if (!aviso.id) return
-    if (!window.confirm('Apagar este aviso? Ele sai do painel para toda a equipe.')) return
+    const confirma = await pedir({
+      titulo: 'Apagar aviso',
+      mensagem: 'Apagar este aviso? Ele sai do painel para toda a equipe.',
+      confirmar: 'Apagar',
+      perigo: true,
+    })
+    if (!confirma) return
     setErroAviso(null)
     try {
       await api(`/api/avisos/${aviso.id}`, { method: 'DELETE' })
@@ -137,6 +145,7 @@ export function Painel() {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo={usuario ? `${saudacao()}, ${usuario.nome}` : 'Painel'}
         descricao={formatarDiaLongo(hoje)}

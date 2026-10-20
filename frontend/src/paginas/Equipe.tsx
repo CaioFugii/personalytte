@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Integrante } from '../api/types'
 import { useGet } from '../api/useGet'
+import { useConfirmacao } from '../componentes/confirmacao'
 import { Banner, Botao, Cabecalho, classeCampo, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
 import { useBusca } from '../lib/busca'
 import { formatarCadastro, formatarDataCivil, formatarTelefone } from '../lib/calendario'
@@ -16,9 +17,16 @@ export function Equipe() {
   const lista = Array.isArray(consulta.dados) ? consulta.dados : null
   const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [pendente, setPendente] = useState<string | null>(null)
+  const { pedir, dialogo } = useConfirmacao()
 
   async function inativar(pessoa: Integrante) {
-    if (!window.confirm(`Inativar ${pessoa.nome}? O login deixa de funcionar na hora.`)) return
+    const confirma = await pedir({
+      titulo: 'Inativar integrante',
+      mensagem: `Inativar ${pessoa.nome}? O login deixa de funcionar na hora.`,
+      confirmar: 'Inativar',
+      perigo: true,
+    })
+    if (!confirma) return
     setPendente(pessoa.id)
     setErroAcao(null)
     try {
@@ -33,6 +41,7 @@ export function Equipe() {
 
   return (
     <div>
+      {dialogo}
       <Cabecalho
         titulo="Equipe"
         descricao="Integrantes ativos. Só o administrador vê esta tela."
