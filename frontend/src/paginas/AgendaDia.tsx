@@ -6,7 +6,8 @@ import {
   Banner,
   Botao,
   Cabecalho,
-  LinkBotao,
+  classeTabela,
+  classeThead,
   Marcadores,
   PainelEstado,
   SeloCategoria,
@@ -16,6 +17,7 @@ import {
 import { useSessao } from '../contexto/Sessao'
 import { addDias, civilValida, formatarDiaLongo, formatarHora, hojeSP } from '../lib/calendario'
 import { Abas } from './AgendaSemana'
+import { LinkNovoAgendamento } from './NovoAgendamento'
 
 export function AgendaDia() {
   useTitulo('Agenda do dia')
@@ -42,6 +44,7 @@ export function AgendaDia() {
   return (
     <div>
       <Cabecalho
+        sobretitulo="Planejamento"
         titulo="Agenda do dia"
         descricao={formatarDiaLongo(data)}
         acoes={
@@ -65,9 +68,9 @@ export function AgendaDia() {
               onChange={(event) => {
                 if (civilValida(event.target.value)) ir(event.target.value)
               }}
-              className="h-10 rounded-md border border-line bg-paper px-3 text-sm"
+              className="h-10 rounded-full border border-line bg-paper px-3 text-sm"
             />
-            <LinkBotao to="/agenda/novo">Novo agendamento</LinkBotao>
+            <LinkNovoAgendamento />
           </>
         }
       />
@@ -91,21 +94,23 @@ export function AgendaDia() {
             </p>
           ) : null}
           <section>
-            <h2 className="mb-2 font-display text-xl font-semibold">Eventos</h2>
+            <h2 className="mb-2 text-xl font-bold">Eventos</h2>
             {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
             {agenda.eventos.length === 0 ? (
               <p className="text-muted">Nenhum evento neste dia.</p>
             ) : (
               <ul className="grid gap-2">
                 {agenda.eventos.map((evento, indice) => (
-                  <li key={evento.id ?? `${evento.inicio}-${indice}`} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                    <ResumoEvento evento={evento} nomes={agenda.nomes} dia={data} />
+                  <li key={evento.id ?? `${evento.inicio}-${indice}`} className="relative">
+                    <ResumoEvento evento={evento} nomes={agenda.nomes} dia={data} className={admin ? 'pr-20' : undefined} />
                     {admin ? (
-                      <AcoesEvento
-                        evento={evento}
-                        onApagado={agenda.recarregar}
-                        onErro={(mensagem) => setErroAcao(mensagem || null)}
-                      />
+                      <div className="absolute top-2 right-2">
+                        <AcoesEvento
+                          evento={evento}
+                          onApagado={agenda.recarregar}
+                          onErro={(mensagem) => setErroAcao(mensagem || null)}
+                        />
+                      </div>
                     ) : null}
                   </li>
                 ))}
@@ -113,30 +118,30 @@ export function AgendaDia() {
             )}
           </section>
           <section>
-            <h2 className="mb-2 font-display text-xl font-semibold">Aulas</h2>
+            <h2 className="mb-2 text-xl font-bold">Aulas</h2>
             {agenda.aulas.length === 0 ? (
               <p className="text-muted">Nenhuma aula neste dia.</p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-line bg-paper">
+              <div className={classeTabela}>
                 <table className="w-full min-w-[720px] border-collapse text-sm">
-                  <thead className="bg-sand/80 text-left text-muted">
+                  <thead className={classeThead}>
                     <tr>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Horário
                       </th>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Aluno
                       </th>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Responsável
                       </th>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Categoria
                       </th>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Status
                       </th>
-                      <th className="px-3 py-2 font-medium" scope="col">
+                      <th className="px-3 py-3" scope="col">
                         Marcador
                       </th>
                     </tr>

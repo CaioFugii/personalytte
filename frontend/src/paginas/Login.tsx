@@ -44,8 +44,8 @@ export function Login() {
           <Marca />
           <p className="mt-3 text-muted">Painel da equipe. Escola de beach tennis.</p>
         </div>
-        <form onSubmit={(event) => void aoEnviar(event)} className="rounded-xl border border-line bg-paper p-6" noValidate>
-          <h1 className="font-display text-2xl font-semibold">Entrar</h1>
+        <form onSubmit={(event) => void aoEnviar(event)} className="rounded-3xl bg-paper p-6 shadow-[0_16px_40px_rgba(14,60,67,0.08)]" noValidate>
+          <h1 className="text-2xl font-bold tracking-tight">Entrar</h1>
           <p className="mt-1 mb-5 text-sm text-muted">Use o e-mail e a senha que o administrador passou.</p>
           {erro ? <Banner tom="erro">{erro}</Banner> : null}
           <div className="grid gap-4">

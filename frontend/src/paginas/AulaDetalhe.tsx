@@ -231,6 +231,7 @@ export function AulaDetalhe() {
     <div>
       {dialogo}
       <Cabecalho
+        sobretitulo="Planejamento"
         titulo={aula ? aula.aluno.nome : 'Aula'}
         descricao={aula ? formatarIntervalo(aula.inicio, aula.fim) : undefined}
         acoes={
@@ -284,7 +285,7 @@ export function AulaDetalhe() {
             <Banner tom="aviso">Esta aula já começou. Data e horário não podem ser alterados.</Banner>
           ) : null}
 
-          <form onSubmit={(event) => void salvar(event)} className="grid gap-4 rounded-lg border border-line bg-paper p-4">
+          <form onSubmit={(event) => void salvar(event)} className="grid gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
             <div className="grid gap-4 md:grid-cols-2">
               <Campo label="Aluno" htmlFor="aluno">
                 <select

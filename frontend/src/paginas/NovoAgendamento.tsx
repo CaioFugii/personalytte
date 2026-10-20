@@ -1,5 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, mensagemDeErro, temId } from '../api/client'
 import type { Aluno, Evento, Responsavel, TipoEvento } from '../api/types'
 import { useGet } from '../api/useGet'
@@ -9,6 +10,7 @@ import {
   Cabecalho,
   Campo,
   classeCampo,
+  cx,
   LinkBotao,
   PainelEstado,
   useTitulo,
@@ -31,6 +33,7 @@ export function NovoAgendamento() {
   return (
     <div>
       <Cabecalho
+        sobretitulo="Planejamento"
         titulo="Novo agendamento"
         descricao={tipo === 'aula' ? 'Aula avulsa' : tipo === 'evento' ? 'Evento' : 'Escolha o que entra na agenda'}
         acoes={
@@ -41,43 +44,163 @@ export function NovoAgendamento() {
       />
       {tipo === 'aula' ? <FormAula /> : null}
       {tipo === 'evento' && admin ? <FormEvento /> : null}
-      {tipo !== 'aula' && tipo !== 'evento' ? <Escolha admin={Boolean(admin)} /> : null}
     </div>
   )
 }
 
-function Escolha({ admin }: { admin: boolean }) {
-  const [, setParams] = useSearchParams()
+export function LinkNovoAgendamento() {
+  const location = useLocation()
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <button
-        type="button"
-        onClick={() => setParams({ tipo: 'aula' })}
-        className="rounded-lg border border-line bg-paper p-5 text-left hover:border-tide"
+    <LinkBotao to="/agenda/novo" state={{ fundo: location }}>
+      + Novo agendamento
+    </LinkBotao>
+  )
+}
+
+export function ModalEscolha() {
+  useTitulo('Novo agendamento')
+  const { usuario } = useSessao()
+  const admin = usuario?.papel === 'administrador'
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [opcao, setOpcao] = useState<'aula' | 'evento'>('aula')
+  const tituloId = useId()
+  const fecharRef = useRef<HTMLButtonElement>(null)
+  const fecharAtual = useRef<() => void>(() => {})
+
+  function fechar() {
+    const fundo = (location.state as { fundo?: unknown } | null)?.fundo
+    if (fundo) navigate(-1)
+    else navigate('/agenda', { replace: true })
+  }
+
+  fecharAtual.current = fechar
+
+  useEffect(() => {
+    fecharRef.current?.focus()
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function aoTecla(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        fecharAtual.current()
+      }
+    }
+    document.addEventListener('keydown', aoTecla)
+    return () => {
+      document.body.style.overflow = anterior
+      document.removeEventListener('keydown', aoTecla)
+    }
+  }, [])
+
+  function agendar() {
+    if (opcao === 'evento' && !admin) return
+    navigate(`/agenda/novo?tipo=${opcao}`, { replace: true })
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onMouseDown={fechar}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        className="w-full max-w-2xl rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)] sm:p-8"
+        onMouseDown={(event) => event.stopPropagation()}
       >
-        <span className="font-display text-2xl font-semibold">Aula</span>
-        <span className="mt-2 block text-sm text-muted">
-          Horário avulso. A experimental também aceita um nome ainda sem cadastro.
-        </span>
-      </button>
-      {admin ? (
-        <button
-          type="button"
-          onClick={() => setParams({ tipo: 'evento' })}
-          className="rounded-lg border border-line bg-paper p-5 text-left hover:border-tide"
-        >
-          <span className="font-display text-2xl font-semibold">Evento</span>
-          <span className="mt-2 block text-sm text-muted">
-            Feriado, agenda fechada, ausência de professor, aniversário ou torneio.
-          </span>
-        </button>
-      ) : (
-        <div className="rounded-lg border border-dashed border-line bg-paper/70 p-5">
-          <span className="font-display text-2xl font-semibold text-muted">Evento</span>
-          <span className="mt-2 block text-sm text-muted">Somente o administrador agenda eventos.</span>
+        <div className="flex items-start justify-between gap-4">
+          <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
+            Novo agendamento
+          </h2>
+          <button
+            ref={fecharRef}
+            type="button"
+            className="grid h-9 w-9 place-items-center rounded-full text-ink hover:bg-sand"
+            aria-label="Fechar"
+            onClick={fechar}
+          >
+            <span aria-hidden="true" className="text-xl leading-none">
+              ×
+            </span>
+          </button>
         </div>
+        <p className="mt-6 text-center text-xl font-bold">O que você deseja agendar?</p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <CartaoOpcao
+            titulo="Aula"
+            texto="Agende uma aula para um aluno."
+            selecionado={opcao === 'aula'}
+            onClick={() => setOpcao('aula')}
+            icone={<IconeChapeu />}
+          />
+          <CartaoOpcao
+            titulo="Evento"
+            texto={admin ? 'Cadastre um torneio ou outro evento.' : 'Somente o administrador agenda eventos.'}
+            selecionado={opcao === 'evento'}
+            disabled={!admin}
+            onClick={() => setOpcao('evento')}
+            icone={<IconeTrofeu />}
+          />
+        </div>
+        <div className="mt-8 flex justify-center">
+          <Botao onClick={agendar} className="min-w-40">
+            Agendar
+          </Botao>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function CartaoOpcao({
+  titulo,
+  texto,
+  selecionado,
+  disabled,
+  onClick,
+  icone,
+}: {
+  titulo: string
+  texto: string
+  selecionado: boolean
+  disabled?: boolean
+  onClick: () => void
+  icone: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-pressed={selecionado}
+      onClick={onClick}
+      className={cx(
+        'rounded-2xl border bg-white px-4 py-6 text-center',
+        selecionado ? 'border-tide ring-2 ring-tide' : 'border-line hover:border-tide',
+        disabled && 'cursor-not-allowed opacity-60',
       )}
-    </div>
+    >
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-lime text-tide">{icone}</span>
+      <span className="mt-4 block text-lg font-bold">{titulo}</span>
+      <span className="mt-1 block text-sm text-muted">{texto}</span>
+    </button>
+  )
+}
+
+function IconeChapeu() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 10 12 5l9.5 5L12 15z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 12.2V16c1.6 1.6 3.4 2.4 5.5 2.4s3.9-.8 5.5-2.4v-3.8" />
+    </svg>
+  )
+}
+
+function IconeTrofeu() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 4h8v6a4 4 0 0 1-8 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 6H5.5A2.5 2.5 0 0 0 8 10.5M16 6h2.5A2.5 2.5 0 0 1 16 10.5M12 14v3M9 20h6M10 17h4" />
+    </svg>
   )
 }
 
@@ -181,8 +304,7 @@ function FormAula() {
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-lg border border-line bg-paper p-4">
-      <p className="text-sm text-muted">A aula nasce como Aguardando, dura 60 minutos e fica fora do plano semanal.</p>
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
       {erro ? <Banner tom="erro">{erro}</Banner> : null}
       {!experimental && alunos.length === 0 ? <Banner tom="aviso">Não há aluno ativo para agendar.</Banner> : null}
       <label className="flex items-center gap-2 text-sm font-semibold">
@@ -376,7 +498,7 @@ function FormEvento({ evento }: { evento?: Evento }) {
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-lg border border-line bg-paper p-4">
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
       {erro ? <Banner tom="erro">{erro}</Banner> : null}
       {respQ.erro ? <Banner tom="erro">{respQ.erro}</Banner> : null}
       <Campo label="Tipo" htmlFor="tipo-evento">
@@ -497,6 +619,7 @@ export function EditarEvento() {
   return (
     <div>
       <Cabecalho
+        sobretitulo="Planejamento"
         titulo="Editar evento"
         descricao={evento?.nome}
         acoes={

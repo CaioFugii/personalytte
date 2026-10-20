@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAgenda } from '../api/useAgenda'
-import { AcoesEvento, nomeDoResponsavel } from '../componentes/evento'
+import { nomeDoResponsavel } from '../componentes/evento'
+import { LinkNovoAgendamento } from './NovoAgendamento'
 import {
-  Banner,
   Botao,
   Cabecalho,
+  classeFundoStatus,
   cx,
-  LinkBotao,
   PainelEstado,
   SeloStatus,
   useTitulo,
 } from '../componentes/ui'
-import { useSessao } from '../contexto/Sessao'
 import {
   addDias,
   civilValida,
@@ -38,9 +37,6 @@ export function AgendaSemana() {
   const dias = diasDaSemana(segunda)
   const hoje = hojeSP()
   const agenda = useAgenda(segunda, domingo)
-  const { usuario } = useSessao()
-  const admin = usuario?.papel === 'administrador'
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
   const semanaVazia = !agenda.carregando && !agenda.erro && agenda.aulas.length === 0 && agenda.eventos.length === 0
 
   useEffect(() => {
@@ -56,6 +52,7 @@ export function AgendaSemana() {
   return (
     <div>
       <Cabecalho
+        sobretitulo="Planejamento"
         titulo="Agenda da semana"
         descricao={formatarIntervaloSemana(segunda)}
         acoes={
@@ -69,7 +66,7 @@ export function AgendaSemana() {
             <Botao variante="secundario" onClick={() => ir(addDias(segunda, 7))}>
               Próxima
             </Botao>
-            <LinkBotao to="/agenda/novo">Novo agendamento</LinkBotao>
+            <LinkNovoAgendamento />
           </>
         }
       />
@@ -88,7 +85,6 @@ export function AgendaSemana() {
       ) : null}
       {!agenda.erro && !(agenda.carregando && agenda.aulas.length === 0 && agenda.eventos.length === 0) ? (
         <>
-          {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
           {semanaVazia ? <p className="mb-3 text-muted">Nenhuma aula ou evento nesta semana.</p> : null}
           {agenda.carregando ? (
             <p role="status" className="mb-2 text-sm text-muted">
@@ -105,9 +101,6 @@ export function AgendaSemana() {
                   aulas={agenda.aulas.filter((aula) => partesSP(aula.inicio).data === dia)}
                   eventos={agenda.eventos.filter((evento) => eventoCruzaDia(evento.inicio, evento.fim, dia))}
                   nomes={agenda.nomes}
-                  admin={admin}
-                  onErro={(mensagem) => setErroAcao(mensagem || null)}
-                  onApagado={agenda.recarregar}
                 />
               ))}
             </div>
@@ -124,41 +117,30 @@ function DiaColuna({
   aulas,
   eventos,
   nomes,
-  admin,
-  onErro,
-  onApagado,
 }: {
   dia: string
   hoje: boolean
   aulas: Aula[]
   eventos: Evento[]
   nomes: Map<string, string>
-  admin: boolean
-  onErro: (mensagem: string) => void
-  onApagado: () => void
 }) {
   return (
-    <section className={cx('flex min-h-52 flex-col rounded-lg border bg-paper', hoje ? 'border-tide' : 'border-line')}>
+    <section className={cx('flex min-h-52 flex-col rounded-2xl bg-paper shadow-[0_8px_24px_rgba(14,60,67,0.05)]', hoje && 'ring-2 ring-tide')}>
       <Link to={`/agenda/dia?date=${dia}`} className="border-b border-line px-2 py-2 hover:bg-sand">
         <span className="block text-xs font-semibold tracking-wide text-muted uppercase">{formatarDiaCurto(dia)}</span>
-        <span className="font-display text-2xl leading-none">{Number(dia.slice(8))}</span>
+        <span className="text-2xl leading-none font-bold">{Number(dia.slice(8))}</span>
         {hoje ? <span className="ml-2 text-xs font-semibold text-tide">Hoje</span> : null}
       </Link>
       <ul className="flex flex-1 flex-col gap-1 p-1.5">
         {eventos.map((evento, indice) => {
           const responsavel = nomeDoResponsavel(evento, nomes)
           return (
-            <li key={evento.id ?? `${evento.inicio}-${indice}`} className="rounded-md bg-sand px-1.5 py-1 text-xs">
+            <li key={evento.id ?? `${evento.inicio}-${indice}`} className="rounded-xl bg-[#f6edd8] px-1.5 py-1 text-xs">
               <span className="font-semibold">{rotuloTipoEvento(evento.tipo)}</span>
               <span className="block">{evento.nome}</span>
               {evento.bloqueiaAulas ? <span className="block font-semibold text-clay">Bloqueia aulas</span> : null}
               {evento.tipo === 'AUSENCIA' && responsavel ? (
                 <span className="block text-muted">{responsavel}</span>
-              ) : null}
-              {admin ? (
-                <span className="mt-1 block">
-                  <AcoesEvento evento={evento} onApagado={onApagado} onErro={onErro} compacto />
-                </span>
               ) : null}
             </li>
           )
@@ -168,8 +150,9 @@ function DiaColuna({
             <Link
               to={`/agenda/aulas/${aula.id}`}
               className={cx(
-                'block rounded-md px-1.5 py-1 text-xs hover:bg-sand',
-                aula.status === 'CANCELADA' && 'opacity-60',
+                'block rounded-xl px-1.5 py-1 text-xs',
+                classeFundoStatus(aula.status),
+                aula.status === 'CANCELADA' && 'opacity-70',
               )}
             >
               <span className="font-semibold tabular-nums">{formatarHora(aula.inicio)}</span>
@@ -198,8 +181,8 @@ export function Abas({ semana, dia, atual }: { semana: string; dia: string; atua
         to={semana}
         aria-current={atual === 'semana' ? 'page' : undefined}
         className={cx(
-          'rounded-md px-3 py-1.5 text-sm font-semibold',
-          atual === 'semana' ? 'bg-tide text-white' : 'bg-paper text-ink hover:bg-sand',
+          'rounded-full px-3 py-1.5 text-sm font-semibold',
+          atual === 'semana' ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
         )}
       >
         Semana
@@ -208,8 +191,8 @@ export function Abas({ semana, dia, atual }: { semana: string; dia: string; atua
         to={dia}
         aria-current={atual === 'dia' ? 'page' : undefined}
         className={cx(
-          'rounded-md px-3 py-1.5 text-sm font-semibold',
-          atual === 'dia' ? 'bg-tide text-white' : 'bg-paper text-ink hover:bg-sand',
+          'rounded-full px-3 py-1.5 text-sm font-semibold',
+          atual === 'dia' ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
         )}
       >
         Dia

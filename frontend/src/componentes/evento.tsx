@@ -5,7 +5,7 @@ import { useConfirmacao } from './confirmacao'
 import type { Evento } from '../api/types'
 import { cobreDiaInteiro, formatarIntervalo } from '../lib/calendario'
 import { rotuloTipoEvento } from '../lib/rotulos'
-import { Botao, classeBotao, cx } from './ui'
+import { Botao, classeBotao, classeIconeAcao, cx, IconeLapis, IconeLixeira } from './ui'
 
 export function nomeDoResponsavel(evento: Evento, nomes: Map<string, string>): string | null {
   if (evento.responsavel?.nome) return evento.responsavel.nome
@@ -18,11 +18,13 @@ export function ResumoEvento({
   nomes,
   dia,
   href,
+  className,
 }: {
   evento: Evento
   nomes: Map<string, string>
   dia?: string
   href?: string
+  className?: string
 }) {
   const responsavel = nomeDoResponsavel(evento, nomes)
   const quando =
@@ -39,7 +41,7 @@ export function ResumoEvento({
       {evento.contato ? <span className="mt-1 block text-xs text-muted">Contato: {evento.contato}</span> : null}
     </>
   )
-  const classe = 'block rounded-md border border-line bg-sand/70 px-3 py-2'
+  const classe = cx('block rounded-xl border border-line bg-sand/70 px-3 py-2', className)
   if (href) {
     return (
       <Link to={href} className={cx(classe, 'hover:border-tide')}>
@@ -54,46 +56,24 @@ export function AcoesEvento({
   evento,
   onApagado,
   onErro,
-  compacto = false,
 }: {
   evento: Evento
   onApagado: () => void
   onErro: (mensagem: string) => void
-  compacto?: boolean
 }) {
   if (!evento.id) return null
-  const classeIcone = 'h-7 w-7 px-0'
   return (
-    <div className={cx('flex', compacto ? 'gap-1' : 'flex-wrap gap-2')}>
+    <div className="flex gap-1">
       <Link
         to={`/agenda/eventos/${evento.id}`}
         aria-label={`Editar ${evento.nome}`}
         title="Editar"
-        className={cx(classeBotao('secundario'), compacto && classeIcone)}
+        className={cx(classeBotao('secundario'), classeIconeAcao)}
       >
-        {compacto ? <IconeLapis /> : 'Editar'}
+        <IconeLapis />
       </Link>
-      <BotaoApagarEvento evento={evento} onApagado={onApagado} onErro={onErro} compacto />
+      <BotaoApagarEvento evento={evento} onApagado={onApagado} onErro={onErro} />
     </div>
-  )
-}
-
-function IconeLapis() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6.5l3 3" />
-    </svg>
-  )
-}
-
-function IconeLixeira() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 7V5h6v2" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7l1 13h8l1-13" />
-    </svg>
   )
 }
 
@@ -101,12 +81,10 @@ export function BotaoApagarEvento({
   evento,
   onApagado,
   onErro,
-  compacto = false,
 }: {
   evento: Evento
   onApagado: () => void
   onErro: (mensagem: string) => void
-  compacto?: boolean
 }) {
   const [apagando, setApagando] = useState(false)
   const { pedir, dialogo } = useConfirmacao()
@@ -139,11 +117,11 @@ export function BotaoApagarEvento({
         variante="perigo"
         onClick={() => void apagar()}
         disabled={apagando}
-        aria-label={`Apagar ${evento.nome}`}
-        title="Apagar"
-        className={compacto ? 'h-7 w-7 px-0' : undefined}
+        aria-label={apagando ? `Apagando ${evento.nome}` : `Apagar ${evento.nome}`}
+        title={apagando ? 'Apagando…' : 'Apagar'}
+        className={classeIconeAcao}
       >
-        {compacto ? <IconeLixeira /> : apagando ? 'Apagando…' : 'Apagar'}
+        <IconeLixeira />
       </Botao>
     </>
   )

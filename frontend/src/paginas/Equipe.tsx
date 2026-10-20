@@ -4,7 +4,7 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Integrante } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
-import { Banner, Botao, Cabecalho, classeCampo, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
+import { Banner, Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabela, classeThead, cx, IconeLapis, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
 import { useBusca } from '../lib/busca'
 import { formatarCadastro, formatarDataCivil, formatarTelefone } from '../lib/calendario'
 import { rotuloFuncao } from '../lib/rotulos'
@@ -43,21 +43,22 @@ export function Equipe() {
     <div>
       {dialogo}
       <Cabecalho
+        sobretitulo="Time Personalytte"
         titulo="Equipe"
         descricao="Integrantes ativos. Só o administrador vê esta tela."
-        acoes={<LinkBotao to="/equipe/novo">Novo integrante</LinkBotao>}
+        acoes={<LinkBotao to="/equipe/novo">+ Novo integrante</LinkBotao>}
       />
       <form role="search" className="mb-4" onSubmit={(event) => event.preventDefault()}>
-        <label htmlFor="busca-equipe" className="mb-1 block text-sm font-semibold">
+        <label htmlFor="busca-equipe" className="sr-only">
           Busca
         </label>
         <input
           id="busca-equipe"
           value={texto}
           onChange={(event) => setTexto(event.target.value)}
-          placeholder="Nome, e-mail ou telefone"
+          placeholder="Buscar integrante por nome, e-mail ou telefone"
           autoComplete="off"
-          className={classeCampo}
+          className={classeBusca}
         />
       </form>
       {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
@@ -72,21 +73,21 @@ export function Equipe() {
       ) : null}
       {consulta.dados && !lista ? <Banner tom="erro">A resposta da lista veio em um formato inesperado.</Banner> : null}
       {lista ? (
-        <div className="overflow-x-auto rounded-lg border border-line bg-paper">
+        <div className={classeTabela}>
           {consulta.carregando ? (
             <p role="status" className="px-3 py-2 text-sm text-muted">
               Atualizando…
             </p>
           ) : null}
           <table className="w-full min-w-[820px] border-collapse text-sm">
-            <thead className="bg-sand/80 text-left text-muted">
+            <thead className={classeThead}>
               <tr>
-                <th className="px-3 py-2 font-medium" scope="col">Nome</th>
-                <th className="px-3 py-2 font-medium" scope="col">Telefone</th>
-                <th className="px-3 py-2 font-medium" scope="col">Função</th>
-                <th className="px-3 py-2 font-medium" scope="col">Data de nascimento</th>
-                <th className="px-3 py-2 font-medium" scope="col">Cadastro</th>
-                <th className="px-3 py-2 font-medium" scope="col">Ações</th>
+                <th className="px-3 py-3" scope="col">Nome</th>
+                <th className="px-3 py-3" scope="col">Telefone</th>
+                <th className="px-3 py-3" scope="col">Função</th>
+                <th className="px-3 py-3" scope="col">Data de nascimento</th>
+                <th className="px-3 py-3" scope="col">Cadastro</th>
+                <th className="px-3 py-3 text-right" scope="col">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -106,10 +107,15 @@ export function Equipe() {
                       {pessoa.dataNascimento ? formatarDataCivil(pessoa.dataNascimento) : '—'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">{formatarCadastro(pessoa.cadastradoEm)}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Link to={`/equipe/${pessoa.id}`} className="font-semibold text-tide-dark">
-                          Editar
+                    <td className="px-3 py-3 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Link
+                          to={`/equipe/${pessoa.id}`}
+                          aria-label={`Editar ${pessoa.nome}`}
+                          title="Editar"
+                          className={cx(classeBotao('secundario'), classeIconeAcao)}
+                        >
+                          <IconeLapis />
                         </Link>
                         <button
                           type="button"

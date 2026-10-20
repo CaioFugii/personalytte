@@ -2,14 +2,18 @@
 
 @theme {
   --font-sans: 'Source Sans 3', 'Segoe UI', sans-serif;
-  --font-display: 'Fraunces', Georgia, serif;
-  --color-sand: #f4f0e6;
-  --color-paper: #fffdf8;
-  --color-ink: #1e2c33;
-  --color-muted: #4d5c64;
-  --color-line: #e3d9c8;
-  --color-tide: #0f6b66;
-  --color-tide-dark: #0b524e;
+  --font-display: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --color-sand: #f4f1ea;
+  --color-paper: #fffcf8;
+  --color-ink: #163238;
+  --color-muted: #5c6b72;
+  --color-line: #e6dfd2;
+  --color-tide: #0f4f4c;
+  --color-tide-dark: #0c3e3c;
+  --color-sidebar: #0e3c43;
+  --color-lime: #d6ef6a;
+  --color-blush: #f6d4ce;
+  --color-mint: #e5f6d8;
   --color-clay: #a33b2c;
 }
 

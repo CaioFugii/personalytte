@@ -157,6 +157,7 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
     <div>
       {dialogo}
       <Cabecalho
+        sobretitulo="Time Personalytte"
         titulo={modo === 'novo' ? 'Novo integrante' : integrante?.nome || 'Integrante'}
         acoes={
           <LinkBotao to="/equipe" variante="secundario">
@@ -177,7 +178,7 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       {listaQ.dados && !lista ? <Banner tom="erro">A resposta da lista veio em um formato inesperado.</Banner> : null}
 
       {(modo === 'novo' || integrante) && (
-        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-lg border border-line bg-paper p-4" noValidate>
+        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]" noValidate>
           {erro ? <Banner tom="erro">{erro}</Banner> : null}
           {ok ? <Banner tom="ok">{ok}</Banner> : null}
           {semEmail ? (

@@ -4,13 +4,18 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Aviso, Dashboard } from '../api/types'
 import { useGet } from '../api/useGet'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
+import { LinkNovoAgendamento } from './NovoAgendamento'
 import {
   Banner,
   Botao,
   Cabecalho,
   Campo,
   classeCampo,
-  LinkBotao,
+  classeCartao,
+  classeIconeAcao,
+  cx,
+  IconeLapis,
+  IconeLixeira,
   PainelEstado,
   SeloCategoria,
   SeloStatus,
@@ -59,7 +64,7 @@ function EditorAviso({
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid gap-3 rounded-lg border border-line bg-sand/40 p-4">
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid gap-3 rounded-2xl bg-sand/70 p-4">
       {erro ? <Banner tom="erro">{erro}</Banner> : null}
       <Campo label="Título" htmlFor={inicial?.id ? `titulo-${inicial.id}` : 'titulo-novo'}>
         <input
@@ -147,11 +152,10 @@ export function Painel() {
     <div>
       {dialogo}
       <Cabecalho
+        sobretitulo="Visão geral"
         titulo={usuario ? `${saudacao()}, ${usuario.nome}` : 'Painel'}
         descricao={formatarDiaLongo(hoje)}
-        acoes={
-          <LinkBotao to="/agenda/novo">Novo agendamento</LinkBotao>
-        }
+        acoes={<LinkNovoAgendamento />}
       />
 
       {consulta.carregando && !dados ? <PainelEstado status>Carregando…</PainelEstado> : null}
@@ -177,8 +181,8 @@ export function Painel() {
           </section>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-lg border border-line bg-paper p-4">
-              <h2 className="font-display text-xl font-semibold">Próximo horário</h2>
+            <section className={cx(classeCartao, 'p-5')}>
+              <h2 className="text-xl font-bold">Próximo horário</h2>
               {dados.proximoHorario?.aluno && dados.proximoHorario.responsavel ? (
                 <Link
                   to={`/agenda/aulas/${dados.proximoHorario.id}`}
@@ -199,9 +203,9 @@ export function Painel() {
               )}
             </section>
 
-            <section className="rounded-lg border border-line bg-paper p-4">
+            <section className={cx(classeCartao, 'p-5')}>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold">Eventos da semana</h2>
+                <h2 className="text-xl font-bold">Eventos da semana</h2>
                 <Link to="/agenda" className="text-sm font-semibold text-tide-dark">
                   Abrir a semana
                 </Link>
@@ -212,18 +216,21 @@ export function Painel() {
               ) : (
                 <ul className="grid gap-2">
                   {dados.eventosDaSemana.map((evento, indice) => (
-                    <li key={evento.id ?? `${evento.inicio}-${indice}`} className="grid gap-2">
+                    <li key={evento.id ?? `${evento.inicio}-${indice}`} className="relative">
                       <ResumoEvento
                         evento={evento}
                         nomes={new Map()}
                         href={`/agenda/dia?date=${partesSP(evento.inicio).data}`}
+                        className={admin ? 'pr-20' : undefined}
                       />
                       {admin ? (
-                        <AcoesEvento
-                          evento={evento}
-                          onApagado={consulta.recarregar}
-                          onErro={(mensagem) => setErroEvento(mensagem || null)}
-                        />
+                        <div className="absolute top-2 right-2">
+                          <AcoesEvento
+                            evento={evento}
+                            onApagado={consulta.recarregar}
+                            onErro={(mensagem) => setErroEvento(mensagem || null)}
+                          />
+                        </div>
                       ) : null}
                     </li>
                   ))}
@@ -232,9 +239,9 @@ export function Painel() {
             </section>
           </div>
 
-          <section className="rounded-lg border border-line bg-paper p-4">
+          <section className={cx(classeCartao, 'p-5')}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display text-xl font-semibold">Avisos</h2>
+              <h2 className="text-xl font-bold">Avisos</h2>
               {admin && editor !== 'novo' ? (
                 <Botao
                   onClick={() => {
@@ -261,7 +268,7 @@ export function Painel() {
             ) : (
               <ul className="grid gap-3">
                 {dados.avisos.map((aviso, indice) => (
-                  <li key={aviso.id ?? `aviso-${indice}`} className="rounded-lg border border-line px-4 py-3">
+                  <li key={aviso.id ?? `aviso-${indice}`} className="relative rounded-2xl bg-sand px-4 py-3">
                     {editor === aviso.id && aviso.id ? (
                       <EditorAviso
                         inicial={aviso}
@@ -271,18 +278,30 @@ export function Painel() {
                       />
                     ) : (
                       <>
-                        <h3 className="font-semibold">{aviso.titulo}</h3>
-                        <p className="mt-1 whitespace-pre-wrap text-sm">{aviso.mensagem}</p>
                         {admin && aviso.id ? (
-                          <div className="mt-3 flex gap-2">
-                            <Botao variante="secundario" onClick={() => setEditor(aviso.id ?? null)}>
-                              Editar
+                          <div className="absolute top-3 right-3 flex gap-1">
+                            <Botao
+                              variante="secundario"
+                              className={classeIconeAcao}
+                              aria-label={`Editar ${aviso.titulo}`}
+                              title="Editar"
+                              onClick={() => setEditor(aviso.id ?? null)}
+                            >
+                              <IconeLapis />
                             </Botao>
-                            <Botao variante="perigo" onClick={() => void apagarAviso(aviso)}>
-                              Apagar
+                            <Botao
+                              variante="perigo"
+                              className={classeIconeAcao}
+                              aria-label={`Apagar ${aviso.titulo}`}
+                              title="Apagar"
+                              onClick={() => void apagarAviso(aviso)}
+                            >
+                              <IconeLixeira />
                             </Botao>
                           </div>
                         ) : null}
+                        <h3 className={cx('font-semibold', admin && aviso.id && 'pr-20')}>{aviso.titulo}</h3>
+                        <p className={cx('mt-1 whitespace-pre-wrap text-sm', admin && aviso.id && 'pr-20')}>{aviso.mensagem}</p>
                       </>
                     )}
                   </li>
@@ -298,9 +317,9 @@ export function Painel() {
 
 function Numero({ to, rotulo, valor }: { to: string; rotulo: string; valor: number }) {
   return (
-    <Link to={to} className="rounded-lg border border-line bg-paper px-4 py-4 hover:border-tide">
-      <p className="text-sm font-medium text-muted">{rotulo}</p>
-      <p className="mt-2 font-display text-4xl leading-none tabular-nums">{Number.isFinite(valor) ? valor : '—'}</p>
+    <Link to={to} className={cx(classeCartao, 'px-5 py-4')}>
+      <p className="text-4xl leading-none font-bold tabular-nums">{Number.isFinite(valor) ? valor : '—'}</p>
+      <p className="mt-2 text-sm text-muted">{rotulo}</p>
     </Link>
   )
 }

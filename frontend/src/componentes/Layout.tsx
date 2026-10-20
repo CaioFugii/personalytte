@@ -7,9 +7,14 @@ import { Banner, cx, Marca } from './ui'
 
 function classeLink({ isActive }: { isActive: boolean }) {
   return cx(
-    'rounded-md px-3 py-2 text-sm font-semibold whitespace-nowrap',
-    isActive ? 'bg-tide text-white' : 'text-ink hover:bg-sand',
+    'rounded-full px-3 py-2 text-sm font-semibold whitespace-nowrap',
+    isActive ? 'bg-white/15 text-white' : 'text-white/80 hover:bg-white/10',
   )
+}
+
+function inicial(nome: string | undefined) {
+  const letra = nome?.trim().charAt(0).toUpperCase()
+  return letra || '?'
 }
 
 export function Layout() {
@@ -50,25 +55,31 @@ export function Layout() {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="border-b border-line bg-paper lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-r lg:border-b-0">
-        <div className="flex items-center justify-between gap-3 px-4 py-4">
+      <aside className="bg-sidebar text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+        <div className="flex items-center justify-between gap-3 px-4 py-5">
           <NavLink to="/" end className="rounded-md">
-            <Marca />
+            <Marca clara />
           </NavLink>
           <div className="text-right lg:hidden">
             <p className="max-w-40 truncate text-sm font-semibold">{usuario?.nome}</p>
-            <button type="button" onClick={() => void aoSair()} className="text-sm font-semibold text-tide-dark" disabled={saindo}>
+            <button type="button" onClick={() => void aoSair()} className="text-sm font-semibold text-lime" disabled={saindo}>
               Sair
             </button>
           </div>
         </div>
-        <nav aria-label="Principal" className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col">
+        <nav aria-label="Principal" className="flex gap-1 overflow-x-auto px-3 pb-4 lg:flex-col">
+          <p className="hidden px-3 pt-2 pb-1 text-[11px] font-bold tracking-[0.14em] text-white/45 uppercase lg:block">
+            Visão geral
+          </p>
           <NavLink to="/" end className={classeLink}>
             Painel
           </NavLink>
           <NavLink to="/agenda" className={classeLink}>
             Agenda
           </NavLink>
+          <p className="hidden px-3 pt-4 pb-1 text-[11px] font-bold tracking-[0.14em] text-white/45 uppercase lg:block">
+            Gestão
+          </p>
           <NavLink to="/alunos" className={classeLink}>
             Alunos
           </NavLink>
@@ -78,15 +89,21 @@ export function Layout() {
             </NavLink>
           ) : null}
         </nav>
-        <div className="mt-auto hidden border-t border-line p-4 lg:block">
-          <p className="text-xs tracking-wide text-muted uppercase">Escola de beach tennis</p>
-          <p className="mt-3 font-semibold">{usuario?.nome}</p>
-          <p className="text-sm text-muted">{usuario ? rotuloFuncao(usuario.funcao) : ''}</p>
+        <div className="mt-auto hidden p-4 lg:block">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-lime text-sm font-bold text-sidebar">
+              {inicial(usuario?.nome)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{usuario?.nome}</p>
+              <p className="truncate text-xs text-white/60">{usuario ? rotuloFuncao(usuario.funcao) : ''}</p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => void aoSair()}
             disabled={saindo}
-            className="mt-3 text-sm font-semibold text-tide-dark disabled:opacity-50"
+            className="mt-3 text-sm font-semibold text-lime disabled:opacity-50"
           >
             {saindo ? 'Saindo…' : 'Sair'}
           </button>

@@ -170,6 +170,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
     <div>
       {dialogo}
       <Cabecalho
+        sobretitulo="Relacionamento"
         titulo={modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno'}
         descricao={somenteLeitura ? 'Consulta. Só o administrador altera o cadastro.' : undefined}
         acoes={
@@ -189,7 +190,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       ) : null}
       {respQ.erro ? <Banner tom="erro">{respQ.erro}</Banner> : null}
       {(modo === 'novo' || aluno) && (
-        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-lg border border-line bg-paper p-4" noValidate>
+        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]" noValidate>
           {erro ? <Banner tom="erro">{erro}</Banner> : null}
           {ok ? <Banner tom="ok">{ok}</Banner> : null}
           <div className="grid gap-4 md:grid-cols-2">
