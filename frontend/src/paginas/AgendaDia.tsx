@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAgenda } from '../api/useAgenda'
-import { ResumoEvento } from '../componentes/evento'
+import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import {
+  Banner,
   Botao,
   Cabecalho,
   LinkBotao,
@@ -12,6 +13,7 @@ import {
   SeloStatus,
   useTitulo,
 } from '../componentes/ui'
+import { useSessao } from '../contexto/Sessao'
 import { addDias, civilValida, formatarDiaLongo, formatarHora, hojeSP } from '../lib/calendario'
 import { Abas } from './AgendaSemana'
 
@@ -21,6 +23,9 @@ export function AgendaDia() {
   const bruta = params.get('date')
   const data = bruta && civilValida(bruta) ? bruta : hojeSP()
   const agenda = useAgenda(data, data)
+  const { usuario } = useSessao()
+  const admin = usuario?.papel === 'administrador'
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   useEffect(() => {
     if (bruta !== null && !civilValida(bruta)) {
@@ -87,13 +92,21 @@ export function AgendaDia() {
           ) : null}
           <section>
             <h2 className="mb-2 font-display text-xl font-semibold">Eventos</h2>
+            {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
             {agenda.eventos.length === 0 ? (
               <p className="text-muted">Nenhum evento neste dia.</p>
             ) : (
               <ul className="grid gap-2">
                 {agenda.eventos.map((evento, indice) => (
-                  <li key={evento.id ?? `${evento.inicio}-${indice}`}>
+                  <li key={evento.id ?? `${evento.inicio}-${indice}`} className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
                     <ResumoEvento evento={evento} nomes={agenda.nomes} dia={data} />
+                    {admin ? (
+                      <AcoesEvento
+                        evento={evento}
+                        onApagado={agenda.recarregar}
+                        onErro={(mensagem) => setErroAcao(mensagem || null)}
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

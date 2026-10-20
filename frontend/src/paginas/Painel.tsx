@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aviso, Dashboard } from '../api/types'
 import { useGet } from '../api/useGet'
-import { ResumoEvento } from '../componentes/evento'
+import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import {
   Banner,
   Botao,
@@ -100,6 +100,7 @@ export function Painel() {
   const [editor, setEditor] = useState<'novo' | string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [erroAviso, setErroAviso] = useState<string | null>(null)
+  const [erroEvento, setErroEvento] = useState<string | null>(null)
   const dados = ehPainel(consulta.dados) ? consulta.dados : null
   const formatoInvalido = Boolean(consulta.dados) && !dados
 
@@ -196,17 +197,25 @@ export function Painel() {
                   Abrir a semana
                 </Link>
               </div>
+              {erroEvento ? <Banner tom="erro">{erroEvento}</Banner> : null}
               {dados.eventosDaSemana.length === 0 ? (
                 <p className="text-muted">Nenhum evento nesta semana.</p>
               ) : (
                 <ul className="grid gap-2">
                   {dados.eventosDaSemana.map((evento, indice) => (
-                    <li key={evento.id ?? `${evento.inicio}-${indice}`}>
+                    <li key={evento.id ?? `${evento.inicio}-${indice}`} className="grid gap-2">
                       <ResumoEvento
                         evento={evento}
                         nomes={new Map()}
                         href={`/agenda/dia?date=${partesSP(evento.inicio).data}`}
                       />
+                      {admin ? (
+                        <AcoesEvento
+                          evento={evento}
+                          onApagado={consulta.recarregar}
+                          onErro={(mensagem) => setErroEvento(mensagem || null)}
+                        />
+                      ) : null}
                     </li>
                   ))}
                 </ul>

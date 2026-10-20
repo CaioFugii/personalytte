@@ -23,6 +23,13 @@ export class EventosService {
     return eventos.map(serializarEvento);
   }
 
+  async obter(id: string): Promise<EventoResposta> {
+    uuidDe(id, 'Identificador');
+    const evento = await this.em.findOne(Evento, { id }, { populate: ['responsavel'] });
+    if (!evento) throw naoEncontrado('Evento não encontrado.');
+    return serializarEvento(evento);
+  }
+
   async criar(corpo: unknown, agora = new Date()): Promise<EventoResposta> {
     const dados = exigirObjeto(corpo);
     try {

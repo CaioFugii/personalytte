@@ -116,7 +116,7 @@ Leitura e escrita de aula: professor e administrador.
 
 Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
 
-`PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`.
+`PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`.
 
 Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem:
 
@@ -135,7 +135,7 @@ Aula na resposta:
 ```json
 {
   "id": "uuid",
-  "aluno": { "id": "uuid", "nome": "string", "categoria": "D" },
+  "aluno": { "id": "uuid", "nome": "string", "categoria": "D", "telefone": "11999990000", "temporario": false },
   "responsavel": { "id": "uuid", "nome": "string" },
   "inicio": "2026-10-20T19:00:00-03:00",
   "fim": "2026-10-20T20:00:00-03:00",
@@ -153,6 +153,8 @@ Aula na resposta:
 Leitura: professor e administrador. Escrita: administrador. Professor recebe `403` em POST, PATCH e DELETE.
 
 `GET /api/eventos?de=YYYY-MM-DD&ate=YYYY-MM-DD` eventos que cruzam o intervalo.
+
+`GET /api/eventos/:id` devolve um evento. Professor e administrador podem ler.
 
 `POST /api/eventos` e `PATCH /api/eventos/:id`:
 

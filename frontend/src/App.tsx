@@ -7,7 +7,7 @@ import { Painel } from './paginas/Painel'
 import { AgendaSemana } from './paginas/AgendaSemana'
 import { AgendaDia } from './paginas/AgendaDia'
 import { AulaDetalhe } from './paginas/AulaDetalhe'
-import { NovoAgendamento } from './paginas/NovoAgendamento'
+import { EditarEvento, NovoAgendamento } from './paginas/NovoAgendamento'
 import { Alunos } from './paginas/Alunos'
 import { AlunoFormulario } from './paginas/AlunoFormulario'
 import { Equipe } from './paginas/Equipe'
@@ -67,6 +67,7 @@ export function App() {
               <Route path="/alunos/novo" element={<AlunoFormulario modo="novo" />} />
               <Route path="/alunos/:id" element={<AlunoFormulario modo="editar" />} />
               <Route element={<RotaAdministrador />}>
+                <Route path="/agenda/eventos/:id" element={<EditarEvento />} />
                 <Route path="/equipe" element={<Equipe />} />
                 <Route path="/equipe/novo" element={<IntegranteFormulario modo="novo" />} />
                 <Route path="/equipe/:id" element={<IntegranteFormulario modo="editar" />} />

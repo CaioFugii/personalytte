@@ -88,6 +88,12 @@ export class AulasService {
             mudouAgenda = true;
           }
         }
+        if (veio(dados, 'telefone')) {
+          if (!aula.aluno.temporario) {
+            throw new ErroApi(400, 'DADOS_INVALIDOS', 'O telefone de aluno cadastrado se edita na ficha do aluno.');
+          }
+          aula.aluno.telefone = telefoneOpcional(dados.telefone);
+        }
         if (veio(dados, 'experimental')) aula.experimental = booleanoDe(dados.experimental, 'Experimental');
         if (veio(dados, 'status')) aula.status = statusDe(dados.status);
         const voltouAOcupar = statusAnterior === 'CANCELADA' && aula.status !== 'CANCELADA';

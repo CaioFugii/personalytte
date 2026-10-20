@@ -436,10 +436,12 @@ describe('regras de domínio', () => {
       inicio: '2026-10-23T10:00:00-03:00',
     });
     expect(criada.experimental).toBe(true);
-    expect(criada.aluno).toMatchObject({ nome: 'Visitante', categoria: null });
+    expect(criada.aluno).toMatchObject({ nome: 'Visitante', categoria: null, telefone: '11999998888', temporario: true });
     const gravado = await orm.em.fork().findOneOrFail(Aluno, { nome: 'Visitante' });
     expect(gravado.temporario).toBe(true);
     expect(gravado.telefone).toBe('11999998888');
+    const comTelefone = await s.aulas.atualizar(criada.id, { telefone: '11888887777' }, AGORA);
+    expect(comTelefone.aluno.telefone).toBe('11888887777');
     expect(gravado.plano).toBeNull();
     expect((await s.alunos.listar()).some((aluno) => aluno.nome === 'Visitante')).toBe(false);
     await expect(s.aulas.criar({

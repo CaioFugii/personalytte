@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAgenda } from '../api/useAgenda'
-import { nomeDoResponsavel } from '../componentes/evento'
+import { AcoesEvento, nomeDoResponsavel } from '../componentes/evento'
 import {
+  Banner,
   Botao,
   Cabecalho,
   cx,
@@ -11,6 +12,7 @@ import {
   SeloStatus,
   useTitulo,
 } from '../componentes/ui'
+import { useSessao } from '../contexto/Sessao'
 import {
   addDias,
   civilValida,
@@ -36,6 +38,9 @@ export function AgendaSemana() {
   const dias = diasDaSemana(segunda)
   const hoje = hojeSP()
   const agenda = useAgenda(segunda, domingo)
+  const { usuario } = useSessao()
+  const admin = usuario?.papel === 'administrador'
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
   const semanaVazia = !agenda.carregando && !agenda.erro && agenda.aulas.length === 0 && agenda.eventos.length === 0
 
   useEffect(() => {
@@ -83,6 +88,7 @@ export function AgendaSemana() {
       ) : null}
       {!agenda.erro && !(agenda.carregando && agenda.aulas.length === 0 && agenda.eventos.length === 0) ? (
         <>
+          {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
           {semanaVazia ? <p className="mb-3 text-muted">Nenhuma aula ou evento nesta semana.</p> : null}
           {agenda.carregando ? (
             <p role="status" className="mb-2 text-sm text-muted">
@@ -99,6 +105,9 @@ export function AgendaSemana() {
                   aulas={agenda.aulas.filter((aula) => partesSP(aula.inicio).data === dia)}
                   eventos={agenda.eventos.filter((evento) => eventoCruzaDia(evento.inicio, evento.fim, dia))}
                   nomes={agenda.nomes}
+                  admin={admin}
+                  onErro={(mensagem) => setErroAcao(mensagem || null)}
+                  onApagado={agenda.recarregar}
                 />
               ))}
             </div>
@@ -115,12 +124,18 @@ function DiaColuna({
   aulas,
   eventos,
   nomes,
+  admin,
+  onErro,
+  onApagado,
 }: {
   dia: string
   hoje: boolean
   aulas: Aula[]
   eventos: Evento[]
   nomes: Map<string, string>
+  admin: boolean
+  onErro: (mensagem: string) => void
+  onApagado: () => void
 }) {
   return (
     <section className={cx('flex min-h-52 flex-col rounded-lg border bg-paper', hoje ? 'border-tide' : 'border-line')}>
@@ -139,6 +154,11 @@ function DiaColuna({
               {evento.bloqueiaAulas ? <span className="block font-semibold text-clay">Bloqueia aulas</span> : null}
               {evento.tipo === 'AUSENCIA' && responsavel ? (
                 <span className="block text-muted">{responsavel}</span>
+              ) : null}
+              {admin ? (
+                <span className="mt-1 block">
+                  <AcoesEvento evento={evento} onApagado={onApagado} onErro={onErro} compacto />
+                </span>
               ) : null}
             </li>
           )

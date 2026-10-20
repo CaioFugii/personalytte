@@ -148,6 +148,10 @@ describe('sessão http', () => {
       responsavelId: paulo.id,
     });
 
+    const um = await admin.get(`/api/eventos/${ausencia.id}`);
+    expect(um.status).toBe(200);
+    expect(um.body).toEqual(ausencia);
+
     const editado = await admin.patch(`/api/eventos/${ausencia.id}`).send({ nome: 'Ausência editada' });
     expect(editado.status).toBe(200);
     expect(editado.body.id).toBe(ausencia.id);

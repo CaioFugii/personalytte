@@ -61,7 +61,13 @@ export function serializarAluno(aluno: Aluno): AlunoResposta {
 export function serializarAula(aula: Aula): AulaResposta {
   return {
     id: aula.id,
-    aluno: { id: aula.aluno.id, nome: aula.aluno.nome, categoria: aula.aluno.categoria },
+    aluno: {
+      id: aula.aluno.id,
+      nome: aula.aluno.nome,
+      categoria: aula.aluno.categoria,
+      telefone: aula.aluno.telefone,
+      temporario: aula.aluno.temporario,
+    },
     responsavel: { id: aula.responsavel.id, nome: aula.responsavel.nome },
     inicio: formatarInstante(aula.inicio),
     fim: formatarInstante(aula.fim),

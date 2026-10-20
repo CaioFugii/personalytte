@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, mensagemDeErro, temId } from '../api/client'
-import type { Aluno, Responsavel, TipoEvento } from '../api/types'
+import type { Aluno, Evento, Responsavel, TipoEvento } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
   Banner,
@@ -14,7 +14,7 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { civilValida, hojeSP, instanteBrasilia } from '../lib/calendario'
+import { civilValida, hojeSP, instanteBrasilia, partesSP } from '../lib/calendario'
 import { rotuloFuncao, TIPOS_EVENTO } from '../lib/rotulos'
 
 export function NovoAgendamento() {
@@ -117,7 +117,7 @@ function FormAula() {
 
   const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === texto.trim().toLowerCase())
   const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
-  const nomeTemporario = experimental && !alunoEscolhido && texto.trim().length > 0
+  const cadastroTemporario = experimental && !alunoEscolhido
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
   const erroCarga = alunosQ.erro || respQ.erro
 
@@ -221,11 +221,11 @@ function FormAula() {
             className={classeCampo}
             autoComplete="off"
           />
-          {aberto && sugestoes.length > 0 ? (
+          {aberto && texto.trim() && sugestoes.length > 0 ? (
             <ul
               id="sugestoes-aluno"
               role="listbox"
-              className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-paper shadow-sm"
+              className="mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-paper shadow-sm"
             >
               {sugestoes.map((aluno) => (
                 <li key={aluno.id} role="option" aria-selected={aluno.id === alunoId}>
@@ -245,7 +245,7 @@ function FormAula() {
           ) : null}
         </div>
       </Campo>
-      {nomeTemporario ? (
+      {cadastroTemporario ? (
         <Campo label="Telefone (opcional)" htmlFor="telefone-temporario" dica="Só deste cadastro temporário. Não entra na lista de alunos.">
           <input
             id="telefone-temporario"
@@ -308,19 +308,22 @@ function FormAula() {
   )
 }
 
-function FormEvento() {
+function FormEvento({ evento }: { evento?: Evento }) {
   const navigate = useNavigate()
   const respQ = useGet<Responsavel[]>('/api/integrantes/responsaveis')
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
-  const [tipo, setTipo] = useState<TipoEvento>('FERIADO')
-  const [nome, setNome] = useState('')
-  const [dataInicio, setDataInicio] = useState('')
-  const [horaInicio, setHoraInicio] = useState('')
-  const [dataFim, setDataFim] = useState('')
-  const [horaFim, setHoraFim] = useState('')
-  const [contato, setContato] = useState('')
-  const [responsavelId, setResponsavelId] = useState('')
+  const inicioOriginal = evento ? partesSP(evento.inicio) : null
+  const fimOriginal = evento ? partesSP(evento.fim) : null
+  const [tipo, setTipo] = useState<TipoEvento>(evento?.tipo ?? 'FERIADO')
+  const [nome, setNome] = useState(evento?.nome ?? '')
+  const [dataInicio, setDataInicio] = useState(inicioOriginal?.data ?? '')
+  const [horaInicio, setHoraInicio] = useState(inicioOriginal?.hora ?? '')
+  const [dataFim, setDataFim] = useState(fimOriginal?.data ?? '')
+  const [horaFim, setHoraFim] = useState(fimOriginal?.hora ?? '')
+  const [contato, setContato] = useState(evento?.contato ?? '')
+  const [responsavelId, setResponsavelId] = useState(evento?.responsavelId ?? '')
   const hoje = hojeSP()
+  const editando = Boolean(evento?.id)
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -334,12 +337,18 @@ function FormEvento() {
       setErro('Informe o responsável da ausência.')
       return
     }
-    if (dataInicio < hoje || dataFim < hoje) {
+    if (dataFim < dataInicio) {
+      setErro('A data de fim não pode ser anterior à data de início.')
+      return
+    }
+    const mudouInicio = !inicioOriginal || dataInicio !== inicioOriginal.data || horaInicio !== inicioOriginal.hora
+    const mudouFim = !fimOriginal || dataFim !== fimOriginal.data || horaFim !== fimOriginal.hora
+    if ((mudouInicio && dataInicio < hoje) || (mudouFim && dataFim < hoje)) {
       setErro('Não é possível agendar uma data anterior a hoje.')
       return
     }
-    const inicio = instanteBrasilia(dataInicio, horaInicio)
-    const fim = instanteBrasilia(dataFim, horaFim)
+    const inicio = evento && !mudouInicio ? evento.inicio : instanteBrasilia(dataInicio, horaInicio)
+    const fim = evento && !mudouFim ? evento.fim : instanteBrasilia(dataFim, horaFim)
     if (new Date(fim).getTime() <= new Date(inicio).getTime()) {
       setErro('O fim precisa ser posterior ao início.')
       return
@@ -347,8 +356,8 @@ function FormEvento() {
     setErro(null)
     setEnviando(true)
     try {
-      await api('/api/eventos', {
-        method: 'POST',
+      await api(editando ? `/api/eventos/${evento?.id}` : '/api/eventos', {
+        method: editando ? 'PATCH' : 'POST',
         body: JSON.stringify({
           tipo,
           nome: nome.trim(),
@@ -398,9 +407,13 @@ function FormEvento() {
             id="data-inicio"
             type="date"
             required
-            min={hoje}
+            min={dataInicio && dataInicio < hoje ? undefined : hoje}
             value={dataInicio}
-            onChange={(event) => setDataInicio(event.target.value)}
+            onChange={(event) => {
+              const valor = event.target.value
+              setDataInicio(valor)
+              if (valor && (!dataFim || dataFim < valor)) setDataFim(valor)
+            }}
             className={classeCampo}
           />
         </Campo>
@@ -414,14 +427,17 @@ function FormEvento() {
             className={classeCampo}
           />
         </Campo>
-        <Campo label="Data de fim" htmlFor="data-fim">
+        <Campo label="Data de fim" htmlFor="data-fim" dica="Não fica antes da data de início. No mesmo dia, o horário de fim precisa ser depois.">
           <input
             id="data-fim"
             type="date"
             required
-            min={hoje}
+            min={dataInicio || (dataFim && dataFim < hoje ? undefined : hoje)}
             value={dataFim}
-            onChange={(event) => setDataFim(event.target.value)}
+            onChange={(event) => {
+              const valor = event.target.value
+              setDataFim(dataInicio && valor && valor < dataInicio ? dataInicio : valor)
+            }}
             className={classeCampo}
           />
         </Campo>
@@ -461,13 +477,45 @@ function FormEvento() {
       ) : null}
       <div className="flex gap-2">
         <Botao type="submit" disabled={enviando}>
-          {enviando ? 'Salvando…' : 'Agendar evento'}
+          {enviando ? 'Salvando…' : editando ? 'Salvar' : 'Agendar evento'}
         </Botao>
-        <LinkBotao to="/agenda/novo" variante="secundario">
-          Voltar à escolha
+        <LinkBotao to={editando ? `/agenda/dia?date=${dataInicio || hoje}` : '/agenda/novo'} variante="secundario">
+          {editando ? 'Voltar à agenda' : 'Voltar à escolha'}
         </LinkBotao>
       </div>
     </form>
+  )
+}
+
+export function EditarEvento() {
+  const { id = '' } = useParams()
+  const consulta = useGet<Evento>(id ? `/api/eventos/${id}` : null)
+  const evento = consulta.dados?.id === id ? consulta.dados : null
+  useTitulo(evento ? `Editar ${evento.nome}` : 'Editar evento')
+  const volta = evento ? `/agenda/dia?date=${partesSP(evento.inicio).data}` : '/agenda'
+
+  return (
+    <div>
+      <Cabecalho
+        titulo="Editar evento"
+        descricao={evento?.nome}
+        acoes={
+          <LinkBotao to={volta} variante="secundario">
+            Voltar à agenda
+          </LinkBotao>
+        }
+      />
+      {consulta.carregando && !evento ? <PainelEstado status>Carregando…</PainelEstado> : null}
+      {consulta.erro && !evento ? (
+        <PainelEstado>
+          <p className="mb-3 text-clay">{consulta.erro}</p>
+          <Botao variante="secundario" onClick={consulta.recarregar}>
+            Tentar de novo
+          </Botao>
+        </PainelEstado>
+      ) : null}
+      {evento ? <FormEvento key={evento.id} evento={evento} /> : null}
+    </div>
   )
 }
 

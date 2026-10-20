@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api, mensagemDeErro } from '../api/client'
 import type { Evento } from '../api/types'
 import { cobreDiaInteiro, formatarIntervalo } from '../lib/calendario'
 import { rotuloTipoEvento } from '../lib/rotulos'
-import { cx } from './ui'
+import { Botao, classeBotao, cx } from './ui'
 
 export function nomeDoResponsavel(evento: Evento, nomes: Map<string, string>): string | null {
   if (evento.responsavel?.nome) return evento.responsavel.nome
@@ -45,4 +47,67 @@ export function ResumoEvento({
     )
   }
   return <div className={classe}>{corpo}</div>
+}
+
+export function AcoesEvento({
+  evento,
+  onApagado,
+  onErro,
+  compacto = false,
+}: {
+  evento: Evento
+  onApagado: () => void
+  onErro: (mensagem: string) => void
+  compacto?: boolean
+}) {
+  if (!evento.id) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Link to={`/agenda/eventos/${evento.id}`} className={cx(classeBotao('secundario'), compacto && 'h-7 px-2 text-xs')}>
+        Editar
+      </Link>
+      <BotaoApagarEvento evento={evento} onApagado={onApagado} onErro={onErro} compacto />
+    </div>
+  )
+}
+
+export function BotaoApagarEvento({
+  evento,
+  onApagado,
+  onErro,
+  compacto = false,
+}: {
+  evento: Evento
+  onApagado: () => void
+  onErro: (mensagem: string) => void
+  compacto?: boolean
+}) {
+  const [apagando, setApagando] = useState(false)
+  if (!evento.id) return null
+
+  async function apagar() {
+    if (!evento.id || apagando) return
+    const confirma = window.confirm(`Apagar o evento "${evento.nome}"? O horário fica livre para uma aula nova.`)
+    if (!confirma) return
+    setApagando(true)
+    onErro('')
+    try {
+      await api(`/api/eventos/${evento.id}`, { method: 'DELETE' })
+      onApagado()
+    } catch (erro) {
+      onErro(mensagemDeErro(erro) || 'Não foi possível apagar o evento.')
+      setApagando(false)
+    }
+  }
+
+  return (
+    <Botao
+      variante="perigo"
+      onClick={() => void apagar()}
+      disabled={apagando}
+      className={compacto ? 'h-7 px-2 text-xs' : undefined}
+    >
+      {apagando ? 'Apagando…' : 'Apagar'}
+    </Botao>
+  )
 }

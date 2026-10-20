@@ -25,6 +25,7 @@ type FormAula = {
   hora: string
   status: StatusAula
   experimental: boolean
+  telefone: string
   criarReposicao: boolean
   reposicaoResponsavelId: string
   reposicaoData: string
@@ -40,6 +41,7 @@ function doAula(aula: Aula): FormAula {
     hora: partes.hora,
     status: aula.status,
     experimental: aula.experimental,
+    telefone: aula.aluno.telefone ?? '',
     criarReposicao: false,
     reposicaoResponsavelId: aula.responsavel.id,
     reposicaoData: '',
@@ -54,6 +56,7 @@ function chaveAula(aula: Aula): string {
     aula.fim,
     aula.status,
     aula.experimental,
+    aula.aluno.telefone ?? '',
     aula.aluno.id,
     aula.aluno.categoria,
     aula.responsavel.id,
@@ -147,6 +150,10 @@ export function AulaDetalhe() {
     if (form.responsavelId !== aula.responsavel.id) corpo.responsavelId = form.responsavelId
     if (form.status !== aula.status) corpo.status = form.status
     if (form.experimental !== aula.experimental) corpo.experimental = form.experimental
+    const temporarioSelecionado = aula.aluno.temporario && form.alunoId === aula.aluno.id
+    if (temporarioSelecionado && form.telefone.trim() !== (aula.aluno.telefone ?? '')) {
+      corpo.telefone = form.telefone.trim() ? form.telefone.trim() : null
+    }
     if (!comecou) {
       const atual = partesSP(aula.inicio)
       if (form.data !== atual.data || form.hora !== atual.hora) {
@@ -279,6 +286,18 @@ export function AulaDetalhe() {
                   ))}
                 </select>
               </Campo>
+              {aula.aluno.temporario && form.alunoId === aula.aluno.id ? (
+                <Campo label="Telefone (opcional)" htmlFor="telefone" dica="Cadastro temporário desta aula experimental.">
+                  <input
+                    id="telefone"
+                    value={form.telefone}
+                    onChange={(event) => setForm({ ...form, telefone: event.target.value })}
+                    className={classeCampo}
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </Campo>
+              ) : null}
               <Campo label="Responsável" htmlFor="responsavel">
                 <select
                   id="responsavel"

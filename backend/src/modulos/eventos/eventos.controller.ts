@@ -11,6 +11,11 @@ export class EventosController {
     return this.eventos.listar(de, ate);
   }
 
+  @Get(':id')
+  obter(@Param('id') id: string) {
+    return this.eventos.obter(id);
+  }
+
   @Post()
   @HttpCode(201)
   @UseGuards(GuardAdministrador)
