@@ -76,6 +76,9 @@ export function Layout() {
           <NavLink to="/agenda" className={classeLink}>
             Agenda
           </NavLink>
+          <NavLink to="/checkins" className={classeLink}>
+            Check-ins
+          </NavLink>
           <p className="hidden px-3 pt-4 pb-1 text-[11px] font-bold tracking-[0.14em] text-white/45 uppercase lg:block">
             Gestão
           </p>

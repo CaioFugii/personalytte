@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 
-export const TRUNCAR = 'truncate table aulas, eventos, avisos, alunos, integrantes restart identity cascade';
+export const TRUNCAR = 'truncate table checkins, aulas, eventos, avisos, alunos, integrantes restart identity cascade';
 
 export async function garantirBancoTeste(): Promise<void> {
   const url = process.env.DATABASE_URL;

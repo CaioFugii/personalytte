@@ -16,6 +16,10 @@ Não há cadastro público. O administrador define a senha, com no mínimo 8 car
 
 Dias da semana, horário e responsável entram os três juntos ou ficam os três vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo sai da lista e da busca de um agendamento novo.
 
+## Check-in
+
+Gympass e TotalPass avisam a visita por webhook. O painel guarda os dois na mesma lista e não confirma o check-in no provedor. O dia da lista é America/Sao_Paulo. E-mail ou telefone que aponte um único aluno ativo liga o nome à ficha. CPF não é guardado.
+
 ## Aula
 
 Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.

@@ -13,6 +13,9 @@ export type StatusAula = (typeof STATUS_AULA)[number];
 export const TIPOS_EVENTO = ['FERIADO', 'AGENDA_FECHADA', 'AUSENCIA', 'ANIVERSARIO', 'TORNEIO'] as const;
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
 
+export const PROVEDORES_CHECKIN = ['GYMPASS', 'TOTALPASS'] as const;
+export type ProvedorCheckin = (typeof PROVEDORES_CHECKIN)[number];
+
 export function papelDe(funcao: FuncaoIntegrante): 'professor' | 'administrador' {
   return funcao === 'SOCIO' ? 'administrador' : 'professor';
 }

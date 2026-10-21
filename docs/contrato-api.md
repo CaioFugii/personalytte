@@ -203,6 +203,32 @@ Cada aviso traz `id`, `titulo`, `mensagem` e `criadoEm`.
 
 `proximoHorario` é uma aula no formato acima, ou `null`.
 
+## Check-ins
+
+`GET /api/checkins?data=YYYY-MM-DD` autenticado, professor e administrador. Sem `data`, o dia é hoje em America/Sao_Paulo. Data inválida responde `400` `DADOS_INVALIDOS`.
+
+```json
+{
+  "itens": [
+    {
+      "id": "uuid",
+      "provedor": "GYMPASS",
+      "nome": "Ana Lima",
+      "email": "ana@exemplo.com",
+      "telefone": "11911110001",
+      "iniciadoEm": "2026-10-21T10:00:00-03:00",
+      "alunoId": "uuid"
+    }
+  ],
+  "gympass": true,
+  "totalpass": false
+}
+```
+
+`provedor`: `GYMPASS` ou `TOTALPASS`. `alunoId` é `null` quando o e-mail e o telefone não apontam um único aluno ativo. `gympass` e `totalpass` dizem se as chaves daquele provedor estão no ambiente. A lista vem do mais recente ao mais antigo e junta os dois.
+
+`POST /api/webhooks/gympass` e `POST /api/webhooks/totalpass` são públicos. O Gympass exige o cabeçalho `X-Gympass-Signature`. A TotalPass exige `token` na query, igual ao cadastrado em `TOTALPASS_WEBHOOK_TOKEN`. Assinatura ou token inválido responde `401` `CREDENCIAIS_INVALIDAS`. O corpo gravado não inclui CPF. Estes endpoints não confirmam a visita no provedor.
+
 ## Desenvolvimento
 
 - Postgres local via `docker-compose.yml` na raiz, banco `personalytte`, usuário e senha `personalytte`.

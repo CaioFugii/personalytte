@@ -12,6 +12,8 @@ import { AulasController } from './modulos/aulas/aulas.controller';
 import { AulasService } from './modulos/aulas/aulas.service';
 import { AvisosController } from './modulos/avisos/avisos.controller';
 import { AvisosService } from './modulos/avisos/avisos.service';
+import { CheckinsController } from './modulos/checkins/checkins.controller';
+import { CheckinsService } from './modulos/checkins/checkins.service';
 import { DashboardController } from './modulos/dashboard/dashboard.controller';
 import { DashboardService } from './modulos/dashboard/dashboard.service';
 import { EventosController } from './modulos/eventos/eventos.controller';
@@ -31,6 +33,7 @@ import { SessaoService } from './modulos/sessao/sessao.service';
     EventosController,
     AvisosController,
     DashboardController,
+    CheckinsController,
   ],
   providers: [
     AgendaService,
@@ -41,6 +44,7 @@ import { SessaoService } from './modulos/sessao/sessao.service';
     EventosService,
     AvisosService,
     DashboardService,
+    CheckinsService,
     InicializacaoService,
     GuardAdministrador,
     { provide: APP_GUARD, useClass: GuardSessao },

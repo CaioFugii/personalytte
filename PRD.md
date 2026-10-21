@@ -143,12 +143,17 @@ Os números usam o dia corrente em Brasília. Aula cancelada fica de fora das co
 - **Eventos da semana:** eventos que cruzam a semana corrente, de segunda a domingo.
 - **Avisos:** a lista descrita em 5.4.
 
+### 5.7 Check-in
+
+O painel lista, num dia de Brasília, os check-ins que o Gympass e a TotalPass avisam. Os dois aparecem na mesma tela. A confirmação da visita continua no portal de cada provedor: o sistema não valida o check-in. Quando o e-mail ou o telefone bate com um único aluno ativo, o nome abre a ficha. Sem essa correspondência, o nome fica só na lista. O CPF recebido da TotalPass não é guardado.
+
 ## 6. Telas
 
 A referência visual é o Canva. O comportamento abaixo é o contrato.
 
 - **Login.** E-mail e senha. Sem botão de criar conta e sem recuperação de senha.
 - **Dashboard.** Saudação da equipe, os números de 5.6, próximo horário, eventos da semana e avisos. Atalho para novo agendamento. O administrador também cria aviso daqui.
+- **Check-ins.** Lista do dia, visível para professor e administrador, com horário, nome, contato e provedor. Gympass e TotalPass na mesma tabela.
 - **Agenda da semana.** Grade de segunda a domingo, com aulas e eventos. Dá para ir à semana anterior, à seguinte e a hoje.
 - **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição.
 - **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta.
@@ -176,6 +181,7 @@ Variáveis previstas na Heroku:
 - `BOOTSTRAP_ADMIN_EMAIL`
 - `BOOTSTRAP_ADMIN_PASSWORD`
 - segredo usado para assinar a sessão
+- `PUBLIC_BASE_URL`, `GYMPASS_API_TOKEN`, `GYMPASS_GYM_ID`, `GYMPASS_WEBHOOK_SECRET`, `TOTALPASS_PARTNER_API_KEY`, `TOTALPASS_PLACE_API_KEY` e `TOTALPASS_WEBHOOK_TOKEN`, quando a escola for receber check-in
 
 ## 8. Critérios de aceite
 

@@ -28,6 +28,8 @@ O primeiro sócio administrador nasce na subida quando não existe usuário, a p
 | `/api/eventos` | administrador; professor só lê |
 | `/api/avisos` | administrador; professor só lê |
 | `/api/dashboard` | professor e administrador |
+| `/api/checkins` | professor e administrador |
+| `/api/webhooks/gympass` e `/api/webhooks/totalpass` | os provedores, sem sessão |
 
 O formato de cada corpo está em [docs/contrato-api.md](docs/contrato-api.md). Erros saem como `{ "codigo", "mensagem" }`, com a mensagem em português.
 
@@ -36,6 +38,10 @@ O formato de cada corpo está em [docs/contrato-api.md](docs/contrato-api.md). E
 `backend/src/dominio/agenda.service.ts` gera o horizonte de 8 semanas, recusa sobreposição, aplica bloqueio de evento e recria as ocorrências ligadas ao plano. `pnpm horizonte` executa `backend/dist/horizonte.js` para o agendamento diário da Heroku.
 
 O instante fica no banco com fuso. A comparação de “hoje”, “futura” e “já começou” usa America/Sao_Paulo.
+
+## Check-in
+
+Na subida, se `PUBLIC_BASE_URL` e as chaves existirem, a API registra o webhook de cada provedor. Sem chave, o painel sobe e aquele provedor aparece como não configurado. As variáveis são `GYMPASS_API_TOKEN`, `GYMPASS_GYM_ID`, `GYMPASS_WEBHOOK_SECRET`, `TOTALPASS_PARTNER_API_KEY`, `TOTALPASS_PLACE_API_KEY` e `TOTALPASS_WEBHOOK_TOKEN`.
 
 ## Deploy
 

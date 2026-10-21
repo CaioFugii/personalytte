@@ -30,7 +30,7 @@ export function configurarAplicacao(app: NestExpressApplication): void {
 }
 
 async function iniciar(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   configurarAplicacao(app);
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

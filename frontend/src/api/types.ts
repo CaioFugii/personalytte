@@ -5,6 +5,23 @@ export type Categoria = 'D' | 'C' | 'B' | 'A'
 export type DiaSemana = 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom'
 export type StatusAula = 'AGUARDANDO' | 'CONFIRMADA' | 'FALTA' | 'CANCELADA'
 export type TipoEvento = 'FERIADO' | 'AGENDA_FECHADA' | 'AUSENCIA' | 'ANIVERSARIO' | 'TORNEIO'
+export type ProvedorCheckin = 'GYMPASS' | 'TOTALPASS'
+
+export type Checkin = {
+  id: string
+  provedor: ProvedorCheckin
+  nome: string
+  email: string | null
+  telefone: string | null
+  iniciadoEm: string
+  alunoId: string | null
+}
+
+export type ListaCheckins = {
+  itens: Checkin[]
+  gympass: boolean
+  totalpass: boolean
+}
 
 export type IntegranteAtual = {
   id: string

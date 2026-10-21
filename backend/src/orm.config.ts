@@ -7,11 +7,13 @@ import { Aluno } from './entidades/aluno.entity';
 import { Aula } from './entidades/aula.entity';
 import { Aviso } from './entidades/aviso.entity';
 import { Evento } from './entidades/evento.entity';
+import { Checkin } from './entidades/checkin.entity';
 import { Integrante } from './entidades/integrante.entity';
 import { Migration20261019120000_inicial } from './migrations/Migration20261019120000_inicial';
 import { Migration20261020140000_aluno_temporario } from './migrations/Migration20261020140000_aluno_temporario';
 import { Migration20261021140000_aluno_instagram } from './migrations/Migration20261021140000_aluno_instagram';
 import { Migration20261021150000_integrante_outros } from './migrations/Migration20261021150000_integrante_outros';
+import { Migration20261021160000_checkins } from './migrations/Migration20261021160000_checkins';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -20,7 +22,7 @@ export function criarOrmConfig() {
   const local = /localhost|127\.0\.0\.1/.test(url);
   return defineConfig({
     clientUrl: url,
-    entities: [Integrante, Aluno, Aula, Evento, Aviso],
+    entities: [Integrante, Aluno, Aula, Evento, Aviso, Checkin],
     extensions: [Migrator],
     allowGlobalContext: true,
     debug: process.env.DEBUG_SQL === '1',
@@ -34,6 +36,7 @@ export function criarOrmConfig() {
         { name: 'Migration20261020140000_aluno_temporario', class: Migration20261020140000_aluno_temporario },
         { name: 'Migration20261021140000_aluno_instagram', class: Migration20261021140000_aluno_instagram },
         { name: 'Migration20261021150000_integrante_outros', class: Migration20261021150000_integrante_outros },
+        { name: 'Migration20261021160000_checkins', class: Migration20261021160000_checkins },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },
