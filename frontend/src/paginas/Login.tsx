@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { mensagemDeErro } from '../api/client'
 import { useSessao } from '../contexto/Sessao'
-import { Banner, Botao, Campo, CarregandoTela, classeCampo, Marca, useTitulo } from '../componentes/ui'
+import { notificar } from '../componentes/toast'
+import { Botao, Campo, CarregandoTela, classeCampo, Marca, useTitulo } from '../componentes/ui'
 
 function destinoSeguro(state: unknown): string {
   const from = state && typeof state === 'object' && 'from' in state ? (state as { from?: unknown }).from : null
@@ -17,7 +18,6 @@ export function Login() {
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
-  const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   useTitulo('Entrar')
 
@@ -26,13 +26,12 @@ export function Login() {
 
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
-    setErro(null)
     setEnviando(true)
     try {
       await entrar(email.trim(), senha)
       navigate(destinoSeguro(location.state), { replace: true })
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
       setEnviando(false)
     }
   }
@@ -47,7 +46,6 @@ export function Login() {
         <form onSubmit={(event) => void aoEnviar(event)} className="rounded-3xl bg-paper p-6 shadow-[0_16px_40px_rgba(14,60,67,0.08)]" noValidate>
           <h1 className="text-2xl font-bold tracking-tight">Entrar</h1>
           <p className="mt-1 mb-5 text-sm text-muted">Use o e-mail e a senha que o administrador passou.</p>
-          {erro ? <Banner tom="erro">{erro}</Banner> : null}
           <div className="grid gap-4">
             <Campo label="E-mail" htmlFor="email">
               <input

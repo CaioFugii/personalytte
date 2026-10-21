@@ -1,11 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { api, mensagemDeErro, temId } from '../api/client'
+import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Evento, Responsavel, TipoEvento } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
-  Banner,
   Botao,
   Cabecalho,
   Campo,
@@ -16,8 +15,17 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { civilValida, hojeSP, instanteBrasilia, partesSP } from '../lib/calendario'
-import { rotuloFuncao, TIPOS_EVENTO } from '../lib/rotulos'
+import { notificar, useNotificar } from '../componentes/toast'
+import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
+import { TIPOS_EVENTO } from '../lib/rotulos'
+
+function professoresDe(lista: Responsavel[], atual?: { id: string; nome: string } | null): Responsavel[] {
+  const professores = lista.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
+  if (atual && !professores.some((pessoa) => pessoa.id === atual.id)) {
+    professores.unshift({ id: atual.id, nome: atual.nome, funcao: 'PROFESSOR' })
+  }
+  return professores.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+}
 
 export function NovoAgendamento() {
   useTitulo('Novo agendamento')
@@ -219,7 +227,6 @@ function FormAula() {
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [experimental, setExperimental] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
   const sugestoes = useMemo(() => {
@@ -243,6 +250,7 @@ function FormAula() {
   const cadastroTemporario = experimental && !alunoEscolhido
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
   const erroCarga = alunosQ.erro || respQ.erro
+  useNotificar(!carregando && !erroCarga && !experimental && alunos.length === 0 ? 'aviso' : null, 'Não há aluno ativo para agendar.')
 
   function escolher(aluno: Aluno) {
     setAlunoId(aluno.id)
@@ -256,14 +264,13 @@ function FormAula() {
     const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === nome.toLowerCase())
     const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
     if (!responsavelId || !civilValida(data) || !hora || (!alunoEscolhido && !(experimental && nome))) {
-      setErro(experimental ? 'Informe o aluno, o responsável, a data e o horário.' : 'Selecione um aluno cadastrado, o responsável, a data e o horário.')
+      notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
       return
     }
     if (data < hoje) {
-      setErro('Não é possível agendar uma data anterior a hoje.')
+      notificar('erro', 'Não é possível agendar uma data anterior a hoje.')
       return
     }
-    setErro(null)
     setEnviando(true)
     const corpo: Record<string, unknown> = {
       responsavelId,
@@ -273,14 +280,13 @@ function FormAula() {
     if (alunoEscolhido) corpo.alunoId = alunoEscolhido
     else corpo.alunoTemporario = { nome, telefone: telefone.trim() ? telefone.trim() : null }
     try {
-      const criada = await api<unknown>('/api/aulas', {
+      await api('/api/aulas', {
         method: 'POST',
         body: JSON.stringify(corpo),
       })
-      if (temId(criada)) navigate(`/agenda/aulas/${criada.id}`)
-      else navigate(`/agenda/dia?date=${data}`)
+      navigate(`/agenda?semana=${inicioDaSemana(data)}`, { state: { sucesso: 'Aula agendada.' } })
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
       setEnviando(false)
     }
   }
@@ -305,8 +311,6 @@ function FormAula() {
 
   return (
     <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
-      {erro ? <Banner tom="erro">{erro}</Banner> : null}
-      {!experimental && alunos.length === 0 ? <Banner tom="aviso">Não há aluno ativo para agendar.</Banner> : null}
       <label className="flex items-center gap-2 text-sm font-semibold">
         <input
           type="checkbox"
@@ -378,7 +382,7 @@ function FormAula() {
         </Campo>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
-        <Campo label="Responsável" htmlFor="resp-aula">
+        <Campo label="Professor" htmlFor="resp-aula">
           <select
             id="resp-aula"
             required
@@ -387,13 +391,11 @@ function FormAula() {
             className={classeCampo}
           >
             <option value="">Selecione</option>
-            {[...responsaveis]
-              .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-              .map((pessoa) => (
-                <option key={pessoa.id} value={pessoa.id}>
-                  {pessoa.nome} · {rotuloFuncao(pessoa.funcao)}
-                </option>
-              ))}
+            {professoresDe(responsaveis).map((pessoa) => (
+              <option key={pessoa.id} value={pessoa.id}>
+                {pessoa.nome}
+              </option>
+            ))}
           </select>
         </Campo>
         <Campo label="Data" htmlFor="data-aula" dica="Horário de Brasília">
@@ -446,36 +448,35 @@ function FormEvento({ evento }: { evento?: Evento }) {
   const [responsavelId, setResponsavelId] = useState(evento?.responsavelId ?? '')
   const hoje = hojeSP()
   const editando = Boolean(evento?.id)
-  const [erro, setErro] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  useNotificar(respQ.erro ? 'erro' : null, respQ.erro)
 
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
     if (!nome.trim() || !civilValida(dataInicio) || !horaInicio || !civilValida(dataFim) || !horaFim) {
-      setErro('Informe nome, início e fim.')
+      notificar('erro', 'Informe nome, início e fim.')
       return
     }
     if (tipo === 'AUSENCIA' && !responsavelId) {
-      setErro('Informe o responsável da ausência.')
+      notificar('erro', 'Informe o professor da ausência.')
       return
     }
     if (dataFim < dataInicio) {
-      setErro('A data de fim não pode ser anterior à data de início.')
+      notificar('erro', 'A data de fim não pode ser anterior à data de início.')
       return
     }
     const mudouInicio = !inicioOriginal || dataInicio !== inicioOriginal.data || horaInicio !== inicioOriginal.hora
     const mudouFim = !fimOriginal || dataFim !== fimOriginal.data || horaFim !== fimOriginal.hora
     if ((mudouInicio && dataInicio < hoje) || (mudouFim && dataFim < hoje)) {
-      setErro('Não é possível agendar uma data anterior a hoje.')
+      notificar('erro', 'Não é possível agendar uma data anterior a hoje.')
       return
     }
     const inicio = evento && !mudouInicio ? evento.inicio : instanteBrasilia(dataInicio, horaInicio)
     const fim = evento && !mudouFim ? evento.fim : instanteBrasilia(dataFim, horaFim)
     if (new Date(fim).getTime() <= new Date(inicio).getTime()) {
-      setErro('O fim precisa ser posterior ao início.')
+      notificar('erro', 'O fim precisa ser posterior ao início.')
       return
     }
-    setErro(null)
     setEnviando(true)
     try {
       await api(editando ? `/api/eventos/${evento?.id}` : '/api/eventos', {
@@ -490,17 +491,17 @@ function FormEvento({ evento }: { evento?: Evento }) {
           responsavelId: tipo === 'AUSENCIA' ? responsavelId : null,
         }),
       })
-      navigate(`/agenda/dia?date=${dataInicio}`)
+      navigate(`/agenda?semana=${inicioDaSemana(dataInicio)}`, {
+        state: { sucesso: editando ? 'Evento salvo.' : 'Evento agendado.' },
+      })
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
       setEnviando(false)
     }
   }
 
   return (
     <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
-      {erro ? <Banner tom="erro">{erro}</Banner> : null}
-      {respQ.erro ? <Banner tom="erro">{respQ.erro}</Banner> : null}
       <Campo label="Tipo" htmlFor="tipo-evento">
         <select
           id="tipo-evento"
@@ -578,7 +579,7 @@ function FormEvento({ evento }: { evento?: Evento }) {
         <input id="contato-evento" value={contato} onChange={(event) => setContato(event.target.value)} className={classeCampo} />
       </Campo>
       {tipo === 'AUSENCIA' ? (
-        <Campo label="Responsável" htmlFor="resp-ausencia">
+        <Campo label="Professor" htmlFor="resp-ausencia">
           <select
             id="resp-ausencia"
             required
@@ -587,13 +588,11 @@ function FormEvento({ evento }: { evento?: Evento }) {
             className={classeCampo}
           >
             <option value="">Selecione</option>
-            {[...responsaveis]
-              .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-              .map((pessoa) => (
-                <option key={pessoa.id} value={pessoa.id}>
-                  {pessoa.nome} · {rotuloFuncao(pessoa.funcao)}
-                </option>
-              ))}
+            {professoresDe(responsaveis, evento?.responsavel).map((pessoa) => (
+              <option key={pessoa.id} value={pessoa.id}>
+                {pessoa.nome}
+              </option>
+            ))}
           </select>
         </Campo>
       ) : null}
@@ -601,7 +600,7 @@ function FormEvento({ evento }: { evento?: Evento }) {
         <Botao type="submit" disabled={enviando}>
           {enviando ? 'Salvando…' : editando ? 'Salvar' : 'Agendar evento'}
         </Botao>
-        <LinkBotao to={editando ? `/agenda/dia?date=${dataInicio || hoje}` : '/agenda/novo'} variante="secundario">
+        <LinkBotao to={editando ? `/agenda?semana=${inicioDaSemana(dataInicio || hoje)}` : '/agenda/novo'} variante="secundario">
           {editando ? 'Voltar à agenda' : 'Voltar à escolha'}
         </LinkBotao>
       </div>
@@ -614,7 +613,7 @@ export function EditarEvento() {
   const consulta = useGet<Evento>(id ? `/api/eventos/${id}` : null)
   const evento = consulta.dados?.id === id ? consulta.dados : null
   useTitulo(evento ? `Editar ${evento.nome}` : 'Editar evento')
-  const volta = evento ? `/agenda/dia?date=${partesSP(evento.inicio).data}` : '/agenda'
+  const volta = evento ? `/agenda?semana=${inicioDaSemana(partesSP(evento.inicio).data)}` : '/agenda'
 
   return (
     <div>

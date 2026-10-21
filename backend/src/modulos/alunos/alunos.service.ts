@@ -6,6 +6,7 @@ import { serializarAluno } from '../../comum/serializar';
 import {
   categoriaDe,
   emailOpcional,
+  instagramOpcional,
   escaparLike,
   exigirObjeto,
   idRelacao,
@@ -51,6 +52,7 @@ export class AlunosService {
         aluno.nome = textoObrigatorio(dados.nome, 'o nome');
         aluno.telefone = telefoneObrigatorio(dados.telefone);
         aluno.email = emailOpcional(dados.email);
+        aluno.instagram = instagramOpcional(dados.instagram);
         aluno.plano = planoDe(dados.plano);
         aluno.categoria = categoriaDe(dados.categoria);
         aluno.cadastradoEm = new Date();
@@ -80,6 +82,7 @@ export class AlunosService {
         if (veio(dados, 'nome')) aluno.nome = textoObrigatorio(dados.nome, 'o nome');
         if (veio(dados, 'telefone')) aluno.telefone = telefoneObrigatorio(dados.telefone);
         if (veio(dados, 'email')) aluno.email = emailOpcional(dados.email);
+        if (veio(dados, 'instagram')) aluno.instagram = instagramOpcional(dados.instagram);
         if (veio(dados, 'plano')) aluno.plano = planoDe(dados.plano);
         if (veio(dados, 'categoria')) aluno.categoria = categoriaDe(dados.categoria);
         const antes = {
@@ -129,8 +132,13 @@ export class AlunosService {
     const termo = busca?.trim();
     if (!termo) return { ativo: true, temporario: false };
     const like = `%${escaparLike(termo)}%`;
+    const likeInstagram = `%${escaparLike(termo.replace(/^@+/, ''))}%`;
     const digitos = termo.replace(/\D/g, '');
-    const ou: FilterQuery<Aluno>[] = [{ nome: { $ilike: like } }, { email: { $ilike: like } }];
+    const ou: FilterQuery<Aluno>[] = [
+      { nome: { $ilike: like } },
+      { email: { $ilike: like } },
+      { instagram: { $ilike: likeInstagram } },
+    ];
     if (digitos) ou.push({ telefone: { $ilike: `%${digitos}%` } });
     return { ativo: true, temporario: false, $or: ou };
   }

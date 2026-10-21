@@ -1,4 +1,4 @@
-export type Funcao = 'PROFESSOR' | 'SOCIO'
+export type Funcao = 'PROFESSOR' | 'SOCIO' | 'OUTROS'
 export type Papel = 'professor' | 'administrador'
 export type Plano = 'PARTICULAR' | 'GYMPASS' | 'MENSAL'
 export type Categoria = 'D' | 'C' | 'B' | 'A'
@@ -38,6 +38,7 @@ export type Aluno = {
   nome: string
   telefone: string
   email: string | null
+  instagram: string | null
   plano: Plano
   categoria: Categoria
   diasSemana: DiaSemana[] | null

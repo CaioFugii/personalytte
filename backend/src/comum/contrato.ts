@@ -27,6 +27,7 @@ export type AlunoResposta = {
   nome: string;
   telefone: string | null;
   email: string | null;
+  instagram: string | null;
   plano: PlanoAluno | null;
   categoria: CategoriaAluno | null;
   temporario: boolean;

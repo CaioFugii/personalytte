@@ -111,35 +111,6 @@ export function Campo({
   )
 }
 
-export function Banner({
-  tom,
-  children,
-  onFechar,
-}: {
-  tom: 'erro' | 'ok' | 'aviso'
-  children: ReactNode
-  onFechar?: () => void
-}) {
-  const classe = {
-    erro: 'border-[#efc7c0] bg-[#fdf3f1] text-[#7d2c24]',
-    ok: 'border-[#b7dfc6] bg-[#f1faf4] text-[#1c6b3c]',
-    aviso: 'border-[#e3d3a4] bg-[#fbf6e8] text-[#6d5310]',
-  }[tom]
-  return (
-    <div
-      role={tom === 'erro' ? 'alert' : 'status'}
-      className={cx('mb-4 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm', classe)}
-    >
-      <div>{children}</div>
-      {onFechar ? (
-        <button type="button" onClick={onFechar} className="shrink-0 font-semibold">
-          Fechar
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
 export function Cabecalho({
   titulo,
   descricao,

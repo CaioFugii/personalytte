@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, type Location } from 'react-router-dom'
 import { Layout } from './componentes/Layout'
+import { Notificacoes } from './componentes/toast'
 import { CarregandoTela, LinkBotao, useTitulo } from './componentes/ui'
 import { SessaoProvider, useSessao } from './contexto/Sessao'
 import { Login } from './paginas/Login'
@@ -94,6 +95,7 @@ export function App() {
     <BrowserRouter>
       <SessaoProvider>
         <Rotas />
+        <Notificacoes />
       </SessaoProvider>
     </BrowserRouter>
   )

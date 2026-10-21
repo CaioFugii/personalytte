@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAgenda } from '../api/useAgenda'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
+import { notificar } from '../componentes/toast'
 import {
-  Banner,
   Botao,
   Cabecalho,
   classeTabela,
@@ -27,7 +27,6 @@ export function AgendaDia() {
   const agenda = useAgenda(data, data)
   const { usuario } = useSessao()
   const admin = usuario?.papel === 'administrador'
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   useEffect(() => {
     if (bruta !== null && !civilValida(bruta)) {
@@ -95,7 +94,6 @@ export function AgendaDia() {
           ) : null}
           <section>
             <h2 className="mb-2 text-xl font-bold">Eventos</h2>
-            {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
             {agenda.eventos.length === 0 ? (
               <p className="text-muted">Nenhum evento neste dia.</p>
             ) : (
@@ -108,7 +106,9 @@ export function AgendaDia() {
                         <AcoesEvento
                           evento={evento}
                           onApagado={agenda.recarregar}
-                          onErro={(mensagem) => setErroAcao(mensagem || null)}
+                          onErro={(mensagem) => {
+                            if (mensagem) notificar('erro', mensagem)
+                          }}
                         />
                       </div>
                     ) : null}

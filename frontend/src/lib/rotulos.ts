@@ -11,6 +11,7 @@ export const CATEGORIAS: Categoria[] = ['D', 'C', 'B', 'A']
 export const FUNCOES: { value: Funcao; label: string }[] = [
   { value: 'PROFESSOR', label: 'Professor(a)' },
   { value: 'SOCIO', label: 'Sócio' },
+  { value: 'OUTROS', label: 'Outros' },
 ]
 
 export const STATUS: { value: StatusAula; label: string }[] = [

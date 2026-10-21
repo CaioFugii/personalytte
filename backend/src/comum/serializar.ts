@@ -47,6 +47,7 @@ export function serializarAluno(aluno: Aluno): AlunoResposta {
     nome: aluno.nome,
     telefone: aluno.telefone,
     email: aluno.email,
+    instagram: aluno.instagram,
     plano: aluno.plano,
     categoria: aluno.categoria,
     diasSemana: aluno.diasSemana,

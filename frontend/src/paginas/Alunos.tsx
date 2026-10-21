@@ -4,7 +4,8 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Aluno } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
-import { Banner, Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabela, classeThead, cx, IconeLapis, LinkBotao, PainelEstado, SeloCategoria, useTitulo } from '../componentes/ui'
+import { notificar, useNotificar } from '../componentes/toast'
+import { Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabela, classeThead, cx, IconeLapis, LinkBotao, PainelEstado, SeloCategoria, useTitulo } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { useBusca } from '../lib/busca'
 import { formatarCadastro, formatarTelefone } from '../lib/calendario'
@@ -18,8 +19,8 @@ export function Alunos() {
   const caminho = busca ? `/api/alunos?busca=${encodeURIComponent(busca)}` : '/api/alunos'
   const consulta = useGet<Aluno[]>(caminho)
   const lista = Array.isArray(consulta.dados) ? consulta.dados : null
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [pendente, setPendente] = useState<string | null>(null)
+  useNotificar(consulta.dados && !lista ? 'erro' : null, 'A resposta da lista veio em um formato inesperado.')
   const { pedir, dialogo } = useConfirmacao()
 
   async function inativar(aluno: Aluno) {
@@ -31,12 +32,11 @@ export function Alunos() {
     })
     if (!confirma) return
     setPendente(aluno.id)
-    setErroAcao(null)
     try {
       await api(`/api/alunos/${aluno.id}/inativar`, { method: 'POST' })
       consulta.recarregar()
     } catch (erro) {
-      setErroAcao(mensagemDeErro(erro))
+      notificar('erro', mensagemDeErro(erro))
     } finally {
       setPendente(null)
     }
@@ -59,12 +59,11 @@ export function Alunos() {
           id="busca-alunos"
           value={texto}
           onChange={(event) => setTexto(event.target.value)}
-          placeholder="Buscar aluno por nome, e-mail ou telefone"
+          placeholder="Buscar aluno por nome, e-mail, telefone ou Instagram"
           autoComplete="off"
           className={classeBusca}
         />
       </form>
-      {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
       {consulta.carregando && !lista ? <PainelEstado status>Carregando…</PainelEstado> : null}
       {consulta.erro && !lista ? (
         <PainelEstado>
@@ -74,7 +73,6 @@ export function Alunos() {
           </Botao>
         </PainelEstado>
       ) : null}
-      {consulta.dados && !lista ? <Banner tom="erro">A resposta da lista veio em um formato inesperado.</Banner> : null}
       {lista ? (
         <div className={classeTabela}>
           {consulta.carregando ? (
@@ -82,11 +80,12 @@ export function Alunos() {
               Atualizando…
             </p>
           ) : null}
-          <table className="w-full min-w-[760px] border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead className={classeThead}>
               <tr>
                 <th className="px-3 py-3" scope="col">Nome</th>
                 <th className="px-3 py-3" scope="col">Telefone</th>
+                <th className="px-3 py-3" scope="col">Instagram</th>
                 <th className="px-3 py-3" scope="col">Plano</th>
                 <th className="px-3 py-3" scope="col">Categoria</th>
                 <th className="px-3 py-3" scope="col">Cadastro</th>
@@ -96,7 +95,7 @@ export function Alunos() {
             <tbody>
               {lista.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-10 text-center text-muted">
+                  <td colSpan={7} className="px-3 py-10 text-center text-muted">
                     {busca ? 'Nenhum aluno encontrado.' : 'Nenhum aluno cadastrado.'}
                   </td>
                 </tr>
@@ -105,6 +104,15 @@ export function Alunos() {
                   <tr key={aluno.id} className="border-t border-line">
                     <td className="px-3 py-3 font-semibold">{aluno.nome}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{formatarTelefone(aluno.telefone)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {aluno.instagram ? (
+                        <a href={`https://instagram.com/${aluno.instagram}`} target="_blank" rel="noreferrer" className="font-semibold text-tide-dark">
+                          @{aluno.instagram}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="px-3 py-3">{rotuloPlano(aluno.plano)}</td>
                     <td className="px-3 py-3">
                       <SeloCategoria categoria={aluno.categoria} />

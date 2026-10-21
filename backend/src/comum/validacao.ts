@@ -43,6 +43,16 @@ export function emailOpcional(valor: unknown): string | null {
   return email ? email.toLowerCase() : null;
 }
 
+export function instagramOpcional(valor: unknown): string | null {
+  const texto = textoOpcional(valor, 'Instagram');
+  if (!texto) return null;
+  const usuario = texto.replace(/^@+/, '');
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(usuario)) {
+    throw dadosInvalidos('Informe o usuário do Instagram, sem o endereço.');
+  }
+  return usuario;
+}
+
 export function senhaObrigatoria(valor: unknown): string {
   if (typeof valor !== 'string' || valor.length < 8) throw dadosInvalidos('A senha precisa ter no mínimo 8 caracteres.');
   if (valor.length > 72) throw dadosInvalidos('A senha pode ter no máximo 72 caracteres.');

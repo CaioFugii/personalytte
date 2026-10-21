@@ -4,8 +4,8 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Categoria, DiaSemana, Plano, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
+import { notificar, useNotificar } from '../componentes/toast'
 import {
-  Banner,
   Botao,
   Cabecalho,
   Campo,
@@ -16,12 +16,13 @@ import {
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { digitosTelefone, horaCurta } from '../lib/calendario'
-import { CATEGORIAS, DIAS, ordenarDias, PLANOS, rotuloFuncao } from '../lib/rotulos'
+import { CATEGORIAS, DIAS, ordenarDias, PLANOS } from '../lib/rotulos'
 
 type FormAluno = {
   nome: string
   telefone: string
   email: string
+  instagram: string
   plano: Plano | ''
   categoria: Categoria | ''
   dias: DiaSemana[]
@@ -33,6 +34,7 @@ const VAZIO: FormAluno = {
   nome: '',
   telefone: '',
   email: '',
+  instagram: '',
   plano: '',
   categoria: '',
   dias: [],
@@ -45,6 +47,7 @@ function doAluno(aluno: Aluno): FormAluno {
     nome: aluno.nome ?? '',
     telefone: digitosTelefone(aluno.telefone ?? ''),
     email: aluno.email ?? '',
+    instagram: aluno.instagram ?? '',
     plano: aluno.plano,
     categoria: aluno.categoria,
     dias: ordenarDias(aluno.diasSemana ?? []),
@@ -66,10 +69,9 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   const [chaveVista, setChaveVista] = useState<string | null>(null)
   const [form, setForm] = useState<FormAluno>(VAZIO)
-  const [erro, setErro] = useState<string | null>(null)
-  const [ok, setOk] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const { pedir, dialogo } = useConfirmacao()
+  useNotificar(respQ.erro ? 'erro' : null, respQ.erro)
 
   const chave = modo === 'novo' ? 'novo' : aluno?.id ?? null
   if (chave && chave !== chaveVista) {
@@ -82,9 +84,9 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   }
 
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
-  const opcoes = [...responsaveis]
+  const opcoes = responsaveis.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
   if (aluno?.responsavelId && !opcoes.some((item) => item.id === aluno.responsavelId)) {
-    opcoes.unshift({ id: aluno.responsavelId, nome: 'Responsável atual', funcao: 'PROFESSOR' })
+    opcoes.unshift({ id: aluno.responsavelId, nome: 'Professor atual', funcao: 'PROFESSOR' })
   }
   opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
@@ -98,37 +100,36 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
     if (somenteLeitura) return
-    setOk(null)
     if (!form.nome.trim()) {
-      setErro('Informe o nome.')
+      notificar('erro', 'Informe o nome.')
       return
     }
     if (form.telefone.length < 10 || form.telefone.length > 11) {
-      setErro('Informe um telefone com 10 ou 11 dígitos.')
+      notificar('erro', 'Informe um telefone com 10 ou 11 dígitos.')
       return
     }
     if (!form.plano || !form.categoria) {
-      setErro('Informe o plano e a categoria.')
+      notificar('erro', 'Informe o plano e a categoria.')
       return
     }
     const dias = ordenarDias(form.dias)
     const algum = dias.length > 0 || form.horarioInicio !== '' || form.responsavelId !== ''
     const todos = dias.length > 0 && form.horarioInicio !== '' && form.responsavelId !== ''
     if (algum && !todos) {
-      setErro('Preencha dias, horário e responsável, ou deixe os três vazios.')
+      notificar('erro', 'Preencha dias, horário e professor, ou deixe os três vazios.')
       return
     }
     const corpo = {
       nome: form.nome.trim(),
       telefone: form.telefone,
       email: form.email.trim() ? form.email.trim() : null,
+      instagram: form.instagram.trim() ? form.instagram.trim() : null,
       plano: form.plano,
       categoria: form.categoria,
       diasSemana: todos ? dias : [],
       horarioInicio: todos ? form.horarioInicio : null,
       responsavelId: todos ? form.responsavelId : null,
     }
-    setErro(null)
     setEnviando(true)
     try {
       if (modo === 'novo') {
@@ -137,10 +138,10 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
         return
       }
       await api(`/api/alunos/${id}`, { method: 'PATCH', body: JSON.stringify(corpo) })
-      setOk('Alterações salvas.')
+      notificar('ok', 'Alterações salvas.')
       alunoQ.recarregar()
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
     } finally {
       setEnviando(false)
     }
@@ -155,12 +156,11 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       perigo: true,
     })
     if (!confirma) return
-    setErro(null)
     try {
       await api(`/api/alunos/${aluno.id}/inativar`, { method: 'POST' })
       navigate('/alunos')
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
     }
   }
 
@@ -188,11 +188,8 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
           </Botao>
         </PainelEstado>
       ) : null}
-      {respQ.erro ? <Banner tom="erro">{respQ.erro}</Banner> : null}
       {(modo === 'novo' || aluno) && (
         <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]" noValidate>
-          {erro ? <Banner tom="erro">{erro}</Banner> : null}
-          {ok ? <Banner tom="ok">{ok}</Banner> : null}
           <div className="grid gap-4 md:grid-cols-2">
             <Campo label="Nome" htmlFor="nome">
               <input
@@ -213,6 +210,16 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                 value={form.telefone}
                 onChange={(event) => setForm({ ...form, telefone: digitosTelefone(event.target.value) })}
                 className={classeCampo}
+              />
+            </Campo>
+            <Campo label="Instagram (opcional)" htmlFor="instagram" dica="Usuário do perfil, para marcação nos stories. Sem o endereço.">
+              <input
+                id="instagram"
+                readOnly={somenteLeitura}
+                value={form.instagram}
+                onChange={(event) => setForm({ ...form, instagram: event.target.value })}
+                className={classeCampo}
+                autoComplete="off"
               />
             </Campo>
             <Campo label="E-mail (opcional)" htmlFor="email">
@@ -263,7 +270,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
           <fieldset className="rounded-lg border border-line p-4" disabled={somenteLeitura}>
             <legend className="px-1 font-semibold">Plano semanal</legend>
             <p className="mb-3 text-sm text-muted">
-              Dias, horário e responsável entram os três juntos, ou ficam os três vazios. Vazio cadastra o aluno sem
+              Dias, horário e professor entram os três juntos, ou ficam os três vazios. Vazio cadastra o aluno sem
               aula. Preenchido gera ocorrências por 8 semanas, sempre com 60 minutos.
             </p>
             <div className="mb-4 flex flex-wrap gap-3">
@@ -289,7 +296,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                   className={classeCampo}
                 />
               </Campo>
-              <Campo label="Responsável" htmlFor="responsavel-plano">
+              <Campo label="Professor" htmlFor="responsavel-plano">
                 <select
                   id="responsavel-plano"
                   value={form.responsavelId}
@@ -300,7 +307,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                   {opcoes.map((pessoa) => (
                     <option key={pessoa.id} value={pessoa.id}>
                       {pessoa.nome}
-                      {pessoa.nome === 'Responsável atual' ? '' : ` · ${rotuloFuncao(pessoa.funcao)}`}
                     </option>
                   ))}
                 </select>

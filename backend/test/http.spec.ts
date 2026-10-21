@@ -54,6 +54,15 @@ describe('sessão http', () => {
     });
     expect(professor.status).toBe(201);
 
+    const outros = await admin.post('/api/integrantes').send({
+      nome: 'Recepção',
+      email: 'recepcao-http@personalytte.local',
+      senha: 'professor1',
+      funcao: 'OUTROS',
+    });
+    expect(outros.status).toBe(201);
+    expect(outros.body).toMatchObject({ funcao: 'OUTROS', papel: 'professor' });
+
     const sessaoProfessor = request.agent(app.getHttpServer());
     await sessaoProfessor.post('/api/sessao').send({ email: 'marina-http@personalytte.local', senha: 'professor1' });
     const negado = await sessaoProfessor.post('/api/alunos').send({

@@ -44,7 +44,7 @@ Integrante atual:
 }
 ```
 
-`funcao`: `PROFESSOR` ou `SOCIO`. `papel`: `professor` ou `administrador`.
+`funcao`: `PROFESSOR`, `SOCIO` ou `OUTROS`. `papel`: `professor` ou `administrador`. `OUTROS` entra como `professor`.
 
 ## Integrantes
 
@@ -52,7 +52,7 @@ Lista e escrita: só administrador.
 
 `GET /api/integrantes?busca=` lista só ativos. Busca em nome, e-mail e telefone.
 
-`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve o seletor de responsável. Professor e administrador.
+`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve os seletores de responsável. Professor e administrador. No novo agendamento e no cadastro do aluno, o painel mostra só `funcao` `PROFESSOR` e chama o campo de Professor.
 
 `POST /api/integrantes` cria a conta. Campos: `nome`, `email`, `senha` (mínimo 8), `funcao`, `telefone` opcional, `dataNascimento` opcional (`YYYY-MM-DD`).
 
@@ -68,7 +68,7 @@ Resposta de integrante: `id`, `nome`, `email`, `telefone`, `funcao`, `papel`, `a
 
 Leitura: professor e administrador. Escrita: administrador.
 
-`GET /api/alunos?busca=` só ativos. Busca em nome, e-mail e telefone.
+`GET /api/alunos?busca=` só ativos. Busca em nome, e-mail, telefone e Instagram.
 
 `GET /api/alunos/:id`
 
@@ -79,6 +79,7 @@ Leitura: professor e administrador. Escrita: administrador.
   "nome": "string",
   "telefone": "11999990000",
   "email": null,
+  "instagram": "anacosta",
   "plano": "PARTICULAR",
   "categoria": "D",
   "diasSemana": ["ter", "qui"],
@@ -89,7 +90,7 @@ Leitura: professor e administrador. Escrita: administrador.
 
 `plano`: `PARTICULAR`, `GYMPASS`, `MENSAL`. `categoria`: `D`, `C`, `B`, `A`. `diasSemana`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
 
-`diasSemana`, `horarioInicio` e `responsavelId` vão os três vazios ou os três preenchidos. Vazio é `diasSemana: []`, `horarioInicio: null` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos.
+`diasSemana`, `horarioInicio` e `responsavelId` vão os três vazios ou os três preenchidos. Vazio é `diasSemana: []`, `horarioInicio: null` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial.
 
 `POST /api/alunos/:id/inativar` remove as aulas futuras daquele aluno que estejam Aguardando. O restante do histórico fica.
 

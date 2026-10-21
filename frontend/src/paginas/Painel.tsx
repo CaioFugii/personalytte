@@ -4,9 +4,9 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Aviso, Dashboard } from '../api/types'
 import { useGet } from '../api/useGet'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
+import { notificar, useNotificar } from '../componentes/toast'
 import { LinkNovoAgendamento } from './NovoAgendamento'
 import {
-  Banner,
   Botao,
   Cabecalho,
   Campo,
@@ -51,21 +51,18 @@ function EditorAviso({
 }) {
   const [titulo, setTitulo] = useState(inicial?.titulo ?? '')
   const [mensagem, setMensagem] = useState(inicial?.mensagem ?? '')
-  const [erro, setErro] = useState<string | null>(null)
 
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
     if (!titulo.trim() || !mensagem.trim()) {
-      setErro('Informe o título e a mensagem.')
+      notificar('erro', 'Informe o título e a mensagem.')
       return
     }
-    setErro(null)
     await onSalvar(titulo.trim(), mensagem.trim())
   }
 
   return (
     <form onSubmit={(event) => void aoEnviar(event)} className="grid gap-3 rounded-2xl bg-sand/70 p-4">
-      {erro ? <Banner tom="erro">{erro}</Banner> : null}
       <Campo label="Título" htmlFor={inicial?.id ? `titulo-${inicial.id}` : 'titulo-novo'}>
         <input
           id={inicial?.id ? `titulo-${inicial.id}` : 'titulo-novo'}
@@ -105,15 +102,13 @@ export function Painel() {
   const hoje = hojeSP()
   const [editor, setEditor] = useState<'novo' | string | null>(null)
   const [salvando, setSalvando] = useState(false)
-  const [erroAviso, setErroAviso] = useState<string | null>(null)
-  const [erroEvento, setErroEvento] = useState<string | null>(null)
   const { pedir, dialogo } = useConfirmacao()
   const dados = ehPainel(consulta.dados) ? consulta.dados : null
   const formatoInvalido = Boolean(consulta.dados) && !dados
+  useNotificar(formatoInvalido ? 'erro' : null, 'A resposta do painel veio em um formato inesperado.')
 
   async function salvarAviso(titulo: string, mensagem: string, id?: string) {
     setSalvando(true)
-    setErroAviso(null)
     try {
       if (id) {
         await api(`/api/avisos/${id}`, { method: 'PATCH', body: JSON.stringify({ titulo, mensagem }) })
@@ -123,7 +118,7 @@ export function Painel() {
       setEditor(null)
       consulta.recarregar()
     } catch (erro) {
-      setErroAviso(mensagemDeErro(erro))
+      notificar('erro', mensagemDeErro(erro))
     } finally {
       setSalvando(false)
     }
@@ -138,13 +133,12 @@ export function Painel() {
       perigo: true,
     })
     if (!confirma) return
-    setErroAviso(null)
     try {
       await api(`/api/avisos/${aviso.id}`, { method: 'DELETE' })
       if (editor === aviso.id) setEditor(null)
       consulta.recarregar()
     } catch (erro) {
-      setErroAviso(mensagemDeErro(erro))
+      notificar('erro', mensagemDeErro(erro))
     }
   }
 
@@ -167,10 +161,6 @@ export function Painel() {
           </Botao>
         </PainelEstado>
       ) : null}
-      {formatoInvalido ? (
-        <Banner tom="erro">A resposta do painel veio em um formato inesperado.</Banner>
-      ) : null}
-
       {dados ? (
         <div className="grid gap-6">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -210,7 +200,6 @@ export function Painel() {
                   Abrir a semana
                 </Link>
               </div>
-              {erroEvento ? <Banner tom="erro">{erroEvento}</Banner> : null}
               {dados.eventosDaSemana.length === 0 ? (
                 <p className="text-muted">Nenhum evento nesta semana.</p>
               ) : (
@@ -228,7 +217,9 @@ export function Painel() {
                           <AcoesEvento
                             evento={evento}
                             onApagado={consulta.recarregar}
-                            onErro={(mensagem) => setErroEvento(mensagem || null)}
+                            onErro={(mensagem) => {
+                              if (mensagem) notificar('erro', mensagem)
+                            }}
                           />
                         </div>
                       ) : null}
@@ -243,17 +234,11 @@ export function Painel() {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold">Avisos</h2>
               {admin && editor !== 'novo' ? (
-                <Botao
-                  onClick={() => {
-                    setErroAviso(null)
-                    setEditor('novo')
-                  }}
-                >
+                <Botao onClick={() => setEditor('novo')}>
                   Novo aviso
                 </Botao>
               ) : null}
             </div>
-            {erroAviso ? <Banner tom="erro">{erroAviso}</Banner> : null}
             {editor === 'novo' ? (
               <div className="mb-4">
                 <EditorAviso

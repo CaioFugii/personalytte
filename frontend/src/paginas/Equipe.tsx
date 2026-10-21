@@ -4,7 +4,8 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Integrante } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
-import { Banner, Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabela, classeThead, cx, IconeLapis, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
+import { notificar, useNotificar } from '../componentes/toast'
+import { Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabela, classeThead, cx, IconeLapis, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
 import { useBusca } from '../lib/busca'
 import { formatarCadastro, formatarDataCivil, formatarTelefone } from '../lib/calendario'
 import { rotuloFuncao } from '../lib/rotulos'
@@ -15,8 +16,8 @@ export function Equipe() {
   const caminho = busca ? `/api/integrantes?busca=${encodeURIComponent(busca)}` : '/api/integrantes'
   const consulta = useGet<Integrante[]>(caminho)
   const lista = Array.isArray(consulta.dados) ? consulta.dados : null
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
   const [pendente, setPendente] = useState<string | null>(null)
+  useNotificar(consulta.dados && !lista ? 'erro' : null, 'A resposta da lista veio em um formato inesperado.')
   const { pedir, dialogo } = useConfirmacao()
 
   async function inativar(pessoa: Integrante) {
@@ -28,12 +29,11 @@ export function Equipe() {
     })
     if (!confirma) return
     setPendente(pessoa.id)
-    setErroAcao(null)
     try {
       await api(`/api/integrantes/${pessoa.id}/inativar`, { method: 'POST' })
       consulta.recarregar()
     } catch (erro) {
-      setErroAcao(mensagemDeErro(erro))
+      notificar('erro', mensagemDeErro(erro))
     } finally {
       setPendente(null)
     }
@@ -61,7 +61,6 @@ export function Equipe() {
           className={classeBusca}
         />
       </form>
-      {erroAcao ? <Banner tom="erro">{erroAcao}</Banner> : null}
       {consulta.carregando && !lista ? <PainelEstado status>Carregando…</PainelEstado> : null}
       {consulta.erro && !lista ? (
         <PainelEstado>
@@ -71,7 +70,6 @@ export function Equipe() {
           </Botao>
         </PainelEstado>
       ) : null}
-      {consulta.dados && !lista ? <Banner tom="erro">A resposta da lista veio em um formato inesperado.</Banner> : null}
       {lista ? (
         <div className={classeTabela}>
           {consulta.carregando ? (

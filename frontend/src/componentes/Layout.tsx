@@ -3,7 +3,8 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ErroApi, mensagemDeErro } from '../api/client'
 import { useSessao } from '../contexto/Sessao'
 import { rotuloFuncao } from '../lib/rotulos'
-import { Banner, cx, Marca } from './ui'
+import { notificar } from './toast'
+import { cx, Marca } from './ui'
 
 function classeLink({ isActive }: { isActive: boolean }) {
   return cx(
@@ -21,28 +22,26 @@ export function Layout() {
   const { usuario, sair, definirUsuario } = useSessao()
   const navigate = useNavigate()
   const location = useLocation()
-  const [recado, setRecado] = useState<{ texto: string; tom: 'aviso' | 'ok' } | null>(null)
-  const [erroSaida, setErroSaida] = useState<string | null>(null)
   const [saindo, setSaindo] = useState(false)
 
   useEffect(() => {
     const state = location.state as { aviso?: unknown; sucesso?: unknown } | null
     const sucesso = state && typeof state.sucesso === 'string' ? state.sucesso : ''
     const aviso = state && typeof state.aviso === 'string' ? state.aviso : ''
+    if (sucesso) notificar('ok', sucesso)
+    else if (aviso) notificar('aviso', aviso)
     if (sucesso || aviso) {
-      setRecado(sucesso ? { texto: sucesso, tom: 'ok' } : { texto: aviso, tom: 'aviso' })
       navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
     }
   }, [location, navigate])
 
   async function aoSair() {
-    setErroSaida(null)
     setSaindo(true)
     try {
       await sair()
     } catch (erro) {
       if (!(erro instanceof ErroApi && erro.status === 401)) {
-        setErroSaida(mensagemDeErro(erro) || 'Não foi possível encerrar a sessão.')
+        notificar('erro', mensagemDeErro(erro) || 'Não foi possível encerrar a sessão.')
         setSaindo(false)
         return
       }
@@ -111,12 +110,6 @@ export function Layout() {
       </aside>
       <main className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl">
-          {recado ? (
-            <Banner tom={recado.tom} onFechar={() => setRecado(null)}>
-              {recado.texto}
-            </Banner>
-          ) : null}
-          {erroSaida ? <Banner tom="erro">{erroSaida}</Banner> : null}
           <Outlet />
         </div>
       </main>

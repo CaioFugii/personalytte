@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
+import { notificar, useNotificar } from '../componentes/toast'
 import {
-  Banner,
   Botao,
   Cabecalho,
   Campo,
@@ -16,7 +16,7 @@ import {
   SeloCategoria,
   useTitulo,
 } from '../componentes/ui'
-import { aulaJaComecou, formatarIntervalo, instanteBrasilia, partesSP } from '../lib/calendario'
+import { aulaJaComecou, formatarIntervalo, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
 import { rotuloStatus, STATUS } from '../lib/rotulos'
 
 type FormAula = {
@@ -68,6 +68,7 @@ function chaveAula(aula: Aula): string {
 
 export function AulaDetalhe() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const aulaQ = useGet<Aula>(id ? `/api/aulas/${id}` : null)
   const alunosQ = useGet<Aluno[]>('/api/alunos')
   const respQ = useGet<Responsavel[]>('/api/integrantes/responsaveis')
@@ -77,8 +78,6 @@ export function AulaDetalhe() {
   const [agora, setAgora] = useState(() => new Date())
   const [chaveVista, setChaveVista] = useState<string | null>(null)
   const [form, setForm] = useState<FormAula | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
-  const [ok, setOk] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const { pedir, dialogo } = useConfirmacao()
@@ -123,23 +122,23 @@ export function AulaDetalhe() {
     (respQ.carregando && !Array.isArray(respQ.dados))
   const erroCarga = aulaQ.erro || (!aula && (alunosQ.erro || respQ.erro))
   const comecou = aula ? aulaJaComecou(aula.inicio, agora) : false
+  useNotificar(aula && (alunosQ.erro || respQ.erro) ? 'erro' : null, alunosQ.erro || respQ.erro)
+  useNotificar(comecou ? 'aviso' : null, 'Esta aula já começou. Data e horário não podem ser alterados.')
 
   async function salvar(event: FormEvent) {
     event.preventDefault()
     if (!aula || !form) return
-    setErro(null)
-    setOk(null)
     if (!form.alunoId || !form.responsavelId) {
-      setErro('Informe o aluno e o responsável.')
+      notificar('erro', 'Informe o aluno e o responsável.')
       return
     }
     if (!comecou && (!civilPreenchida(form.data) || !form.hora)) {
-      setErro('Informe a data e o horário.')
+      notificar('erro', 'Informe a data e o horário.')
       return
     }
     if (form.status === 'FALTA' && form.criarReposicao) {
       if (!form.reposicaoResponsavelId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora) {
-        setErro('Informe o responsável e o início da reposição, ou salve a falta sem reposição.')
+        notificar('erro', 'Informe o responsável e o início da reposição, ou salve a falta sem reposição.')
         return
       }
     }
@@ -177,22 +176,19 @@ export function AulaDetalhe() {
       }
     }
     if (Object.keys(corpo).length === 0) {
-      setOk('Nada para salvar.')
+      notificar('ok', 'Nada para salvar.')
       return
     }
 
     setSalvando(true)
     try {
       await api(`/api/aulas/${aula.id}`, { method: 'PATCH', body: JSON.stringify(corpo) })
-      setOk(criaReposicao ? 'Falta registrada e reposição criada.' : 'Alterações salvas.')
-      setForm((atual) =>
-        atual
-          ? { ...atual, criarReposicao: false, reposicaoData: '', reposicaoHora: '' }
-          : atual,
-      )
-      aulaQ.recarregar()
+      const dataAgenda = !comecou && civilPreenchida(form.data) ? form.data : partesSP(aula.inicio).data
+      navigate(`/agenda?semana=${inicioDaSemana(dataAgenda)}`, {
+        state: { sucesso: criaReposicao ? 'Falta registrada e reposição criada.' : 'Alterações salvas.' },
+      })
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
     } finally {
       setSalvando(false)
     }
@@ -207,15 +203,12 @@ export function AulaDetalhe() {
       perigo: true,
     })
     if (!confirma) return
-    setErro(null)
-    setOk(null)
     setCancelando(true)
     try {
       await api(`/api/aulas/${aula.id}/cancelar`, { method: 'POST' })
-      setOk('Aula cancelada.')
-      aulaQ.recarregar()
+      navigate(`/agenda?semana=${inicioDaSemana(partesSP(aula.inicio).data)}`, { state: { sucesso: 'Aula cancelada.' } })
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
     } finally {
       setCancelando(false)
     }
@@ -276,14 +269,6 @@ export function AulaDetalhe() {
             ) : null}
           </div>
           <p className="text-sm text-muted">Responsável: {aula.responsavel.nome}</p>
-          {(alunosQ.erro || respQ.erro) && (
-            <Banner tom="erro">{alunosQ.erro || respQ.erro}</Banner>
-          )}
-          {erro ? <Banner tom="erro">{erro}</Banner> : null}
-          {ok ? <Banner tom="ok">{ok}</Banner> : null}
-          {comecou ? (
-            <Banner tom="aviso">Esta aula já começou. Data e horário não podem ser alterados.</Banner>
-          ) : null}
 
           <form onSubmit={(event) => void salvar(event)} className="grid gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
             <div className="grid gap-4 md:grid-cols-2">

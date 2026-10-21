@@ -1,4 +1,4 @@
-export const FUNCOES = ['PROFESSOR', 'SOCIO'] as const;
+export const FUNCOES = ['PROFESSOR', 'SOCIO', 'OUTROS'] as const;
 export type FuncaoIntegrante = (typeof FUNCOES)[number];
 
 export const PLANOS = ['PARTICULAR', 'GYMPASS', 'MENSAL'] as const;

@@ -19,6 +19,9 @@ export class Aluno {
   email: string | null = null;
 
   @Property({ type: 'text', nullable: true })
+  instagram: string | null = null;
+
+  @Property({ type: 'text', nullable: true })
   plano: PlanoAluno | null = null;
 
   @Property({ type: 'text', nullable: true })

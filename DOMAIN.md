@@ -4,7 +4,7 @@ Uma escola. O aluno não entra no sistema. O fuso das regras é America/Sao_Paul
 
 ## Pessoas
 
-**Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` entra como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal.
+**Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` e `OUTROS` entram como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal. No cadastro do aluno e no novo agendamento, o campo se chama Professor e a lista traz só a função `PROFESSOR`.
 
 O professor vê o dashboard, a agenda inteira e os alunos, com telefone. Cria, edita, cancela e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
 
@@ -12,7 +12,7 @@ O administrador faz o que o professor faz e ainda grava alunos, integrantes, eve
 
 Não há cadastro público. O administrador define a senha, com no mínimo 8 caracteres. Inativar um integrante corta o login na hora. A API recusa inativar quem ainda é responsável por um plano de aluno ativo ou por uma aula futura não cancelada. O último administrador ativo permanece.
 
-**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `MENSAL`) e categoria (`D`, `C`, `B` ou `A`). E-mail é opcional. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
+**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `MENSAL`) e categoria (`D`, `C`, `B` ou `A`). E-mail e Instagram são opcionais. O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
 
 Dias da semana, horário e responsável entram os três juntos ou ficam os três vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo sai da lista e da busca de um agendamento novo.
 

@@ -47,6 +47,7 @@ Há dois logins. A função do integrante define o papel.
 | Função | Papel | O que faz |
 | --- | --- | --- |
 | Professor(a) | Professor | Vê o dashboard, a agenda inteira e a lista de alunos, com telefone. Cria, edita, cancela e muda o status das aulas. |
+| Outros | Professor | Entra com o mesmo acesso do professor. Não entra na lista de Professor do cadastro do aluno nem do novo agendamento. |
 | Sócio | Administrador | Faz o que o professor faz. Também cria, edita e inativa alunos e integrantes, cria e edita eventos, e cria, edita e apaga avisos. |
 
 O sócio pode ser o responsável por uma aula ou por um plano semanal. O login dele continua de administrador.
@@ -65,9 +66,9 @@ Obrigatórios: nome, telefone, plano e categoria.
 - Plano: Particular, Gympass ou Mensal.
 - Categoria: D, C, B ou A.
 
-E-mail é opcional. A busca encontra nome, e-mail ou telefone.
+E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A busca encontra nome, e-mail, telefone ou Instagram.
 
-Dias da semana, horário de início e responsável entram os três juntos, ou ficam os três vazios. Vazio significa aluno cadastrado sem aula gerada. Preenchido forma o plano semanal: um horário só, o mesmo para todos os dias marcados, e um responsável.
+Dias da semana, horário de início e professor entram os três juntos, ou ficam os três vazios. Vazio significa aluno cadastrado sem aula gerada. Preenchido forma o plano semanal: um horário só, o mesmo para todos os dias marcados, e um professor. No cadastro do aluno e no novo agendamento, esse campo se chama Professor e lista só integrantes com função Professor.
 
 A categoria fica só no aluno. A agenda mostra a categoria atual dele.
 
@@ -122,7 +123,7 @@ Título e mensagem são obrigatórios. Os dois papéis veem a lista no dashboard
 
 Obrigatórios: nome, e-mail e função. Telefone e data de nascimento são opcionais. O e-mail de login é único.
 
-Criar integrante já cria o login. Professor(a) entra como professor. Sócio entra como administrador.
+Criar integrante já cria o login. Professor(a) e Outros entram como professor. Sócio entra como administrador. Outros não aparece na lista de Professor do cadastro do aluno nem do novo agendamento.
 
 Apagar inativa e corta o login na hora. A API recusa inativar quem ainda é responsável por um plano semanal de aluno ativo, ou por uma aula futura que não esteja cancelada. O administrador troca essa pessoa antes. O último administrador ativo também não pode ser inativado.
 

@@ -4,7 +4,8 @@ import { api, ErroApi, mensagemDeErro } from '../api/client'
 import type { Funcao, Integrante } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
-import { Banner, Botao, Cabecalho, Campo, classeCampo, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
+import { notificar, useNotificar } from '../componentes/toast'
+import { Botao, Cabecalho, Campo, classeCampo, LinkBotao, PainelEstado, useTitulo } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { civilValida, digitosTelefone } from '../lib/calendario'
 import { FUNCOES } from '../lib/rotulos'
@@ -50,8 +51,6 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   const [chaveVista, setChaveVista] = useState<string | null>(null)
   const [form, setForm] = useState<FormIntegrante>(VAZIO)
-  const [erro, setErro] = useState<string | null>(null)
-  const [ok, setOk] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const { pedir, dialogo } = useConfirmacao()
 
@@ -62,37 +61,42 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   }
 
   const semEmail = modo === 'editar' && Boolean(integrante) && !integrante?.email
+  useNotificar(naoEncontrado ? 'erro' : null, 'Integrante não encontrado.')
+  useNotificar(listaQ.dados && !lista ? 'erro' : null, 'A resposta da lista veio em um formato inesperado.')
+  useNotificar(
+    semEmail ? 'erro' : null,
+    'A lista não trouxe o e-mail deste integrante. A edição não é salva para não apagar o login.',
+  )
 
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
     if (semEmail) return
-    setOk(null)
     if (!form.nome.trim() || !form.email.trim()) {
-      setErro('Informe nome e e-mail.')
+      notificar('erro', 'Informe nome e e-mail.')
       return
     }
     if (!form.email.includes('@')) {
-      setErro('Informe um e-mail válido.')
+      notificar('erro', 'Informe um e-mail válido.')
       return
     }
     if (!form.funcao) {
-      setErro('Informe a função.')
+      notificar('erro', 'Informe a função.')
       return
     }
     if (form.telefone && (form.telefone.length < 10 || form.telefone.length > 11)) {
-      setErro('O telefone, se informado, precisa ter 10 ou 11 dígitos.')
+      notificar('erro', 'O telefone, se informado, precisa ter 10 ou 11 dígitos.')
       return
     }
     if (form.dataNascimento && !civilValida(form.dataNascimento)) {
-      setErro('A data de nascimento não é válida.')
+      notificar('erro', 'A data de nascimento não é válida.')
       return
     }
     if (modo === 'novo' && form.senha.length < 8) {
-      setErro('A senha precisa ter no mínimo 8 caracteres.')
+      notificar('erro', 'A senha precisa ter no mínimo 8 caracteres.')
       return
     }
     if (modo === 'editar' && form.senha && form.senha.length < 8) {
-      setErro('A senha precisa ter no mínimo 8 caracteres.')
+      notificar('erro', 'A senha precisa ter no mínimo 8 caracteres.')
       return
     }
 
@@ -105,7 +109,6 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
     }
     if (modo === 'novo' || form.senha) corpo.senha = form.senha
 
-    setErro(null)
     setEnviando(true)
     try {
       if (modo === 'novo') {
@@ -120,10 +123,10 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
         return
       }
       setForm((atual) => ({ ...atual, senha: '' }))
-      setOk('Alterações salvas.')
+      notificar('ok', 'Alterações salvas.')
       listaQ.recarregar()
     } catch (err) {
-      setErro(mensagemDeErro(err))
+      notificar('erro', mensagemDeErro(err))
     } finally {
       setEnviando(false)
     }
@@ -138,7 +141,6 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       perigo: true,
     })
     if (!confirma) return
-    setErro(null)
     try {
       await api(`/api/integrantes/${integrante.id}/inativar`, { method: 'POST' })
       if (integrante.id === usuario?.id) {
@@ -148,8 +150,7 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       }
       navigate('/equipe')
     } catch (err) {
-      if (err instanceof ErroApi) setErro(err.mensagem)
-      else setErro(mensagemDeErro(err))
+      notificar('erro', err instanceof ErroApi ? err.mensagem : mensagemDeErro(err))
     }
   }
 
@@ -174,19 +175,9 @@ export function IntegranteFormulario({ modo }: { modo: 'novo' | 'editar' }) {
           </Botao>
         </PainelEstado>
       ) : null}
-      {naoEncontrado ? <Banner tom="erro">Integrante não encontrado.</Banner> : null}
-      {listaQ.dados && !lista ? <Banner tom="erro">A resposta da lista veio em um formato inesperado.</Banner> : null}
-
       {(modo === 'novo' || integrante) && (
         <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]" noValidate>
-          {erro ? <Banner tom="erro">{erro}</Banner> : null}
-          {ok ? <Banner tom="ok">{ok}</Banner> : null}
-          {semEmail ? (
-            <Banner tom="erro">
-              A lista não trouxe o e-mail deste integrante. A edição não é salva para não apagar o login.
-            </Banner>
-          ) : null}
-          <p className="text-sm text-muted">Professor(a) entra como professor. Sócio entra como administrador.</p>
+          <p className="text-sm text-muted">Professor(a) e Outros entram como professor. Sócio entra como administrador.</p>
           <div className="grid gap-4 md:grid-cols-2">
             <Campo label="Nome" htmlFor="nome-equipe">
               <input
