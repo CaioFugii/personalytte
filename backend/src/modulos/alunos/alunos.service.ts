@@ -5,6 +5,7 @@ import { naoEncontrado, traduzirErroBanco } from '../../comum/erros';
 import { serializarAluno } from '../../comum/serializar';
 import {
   categoriaDe,
+  dataOpcional,
   emailOpcional,
   instagramOpcional,
   escaparLike,
@@ -53,12 +54,12 @@ export class AlunosService {
         aluno.telefone = telefoneObrigatorio(dados.telefone);
         aluno.email = emailOpcional(dados.email);
         aluno.instagram = instagramOpcional(dados.instagram);
+        aluno.dataNascimento = dataOpcional(dados.dataNascimento, 'Data de nascimento');
         aluno.plano = planoDe(dados.plano);
         aluno.categoria = categoriaDe(dados.categoria);
         aluno.cadastradoEm = new Date();
-        const plano = interpretarPlano(veio(dados, 'diasSemana'), dados.diasSemana, veio(dados, 'horarioInicio'), dados.horarioInicio, veio(dados, 'responsavelId'), dados.responsavelId);
-        aluno.diasSemana = plano.diasSemana;
-        aluno.horarioInicio = plano.horarioInicio;
+        const plano = interpretarPlano(veio(dados, 'horarios'), dados.horarios, veio(dados, 'responsavelId'), dados.responsavelId);
+        aluno.horarios = plano.horarios;
         aluno.responsavel = plano.responsavelId ? await responsavelAtivo(em, plano.responsavelId) : null;
         em.persist(aluno);
         if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');
@@ -83,25 +84,22 @@ export class AlunosService {
         if (veio(dados, 'telefone')) aluno.telefone = telefoneObrigatorio(dados.telefone);
         if (veio(dados, 'email')) aluno.email = emailOpcional(dados.email);
         if (veio(dados, 'instagram')) aluno.instagram = instagramOpcional(dados.instagram);
+        if (veio(dados, 'dataNascimento')) aluno.dataNascimento = dataOpcional(dados.dataNascimento, 'Data de nascimento');
         if (veio(dados, 'plano')) aluno.plano = planoDe(dados.plano);
         if (veio(dados, 'categoria')) aluno.categoria = categoriaDe(dados.categoria);
         const antes = {
-          diasSemana: [...aluno.diasSemana],
-          horarioInicio: aluno.horarioInicio,
+          horarios: aluno.horarios.map((horario) => ({ ...horario })),
           responsavelId: idRelacao(aluno.responsavel),
         };
         const plano = interpretarPlano(
-          veio(dados, 'diasSemana'),
-          dados.diasSemana,
-          veio(dados, 'horarioInicio'),
-          dados.horarioInicio,
+          veio(dados, 'horarios'),
+          dados.horarios,
           veio(dados, 'responsavelId'),
           dados.responsavelId,
           antes,
         );
         if (planoMudou(antes, plano)) {
-          aluno.diasSemana = plano.diasSemana;
-          aluno.horarioInicio = plano.horarioInicio;
+          aluno.horarios = plano.horarios;
           aluno.responsavel = plano.responsavelId ? await responsavelAtivo(em, plano.responsavelId) : null;
           await this.agenda.removerAguardandoFuturas(em, aluno.id, agora, true);
           if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');

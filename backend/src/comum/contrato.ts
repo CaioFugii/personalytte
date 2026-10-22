@@ -1,5 +1,5 @@
 import type { CategoriaAluno, FuncaoIntegrante, PlanoAluno, StatusAula, TipoEvento } from '../entidades/enums';
-import type { DiaSemana } from './tempo';
+import type { HorarioPlano } from './tempo';
 
 export type IntegranteAtual = {
   id: string;
@@ -28,11 +28,11 @@ export type AlunoResposta = {
   telefone: string | null;
   email: string | null;
   instagram: string | null;
+  dataNascimento: string | null;
   plano: PlanoAluno | null;
   categoria: CategoriaAluno | null;
   temporario: boolean;
-  diasSemana: DiaSemana[];
-  horarioInicio: string | null;
+  horarios: HorarioPlano[];
   responsavelId: string | null;
   ativo: boolean;
   cadastradoEm: string;

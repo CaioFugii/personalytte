@@ -8,8 +8,8 @@ import { Evento } from '../entidades/evento.entity';
 
 type PoliticaConflito = 'recusar' | 'ignorar';
 
-export function planoCompleto(aluno: Pick<Aluno, 'diasSemana' | 'horarioInicio' | 'responsavel'>): boolean {
-  return aluno.diasSemana.length > 0 && aluno.horarioInicio != null && aluno.responsavel != null;
+export function planoCompleto(aluno: Pick<Aluno, 'horarios' | 'responsavel'>): boolean {
+  return aluno.horarios.length > 0 && aluno.responsavel != null;
 }
 
 @Injectable()
@@ -83,8 +83,8 @@ export class AgendaService {
   }
 
   async gerarOcorrencias(em: EntityManager, aluno: Aluno, agora: Date, politica: PoliticaConflito): Promise<number> {
-    if (!planoCompleto(aluno) || !aluno.horarioInicio || !aluno.responsavel) return 0;
-    const slots = calcularOcorrencias(aluno.diasSemana, aluno.horarioInicio, agora);
+    if (!planoCompleto(aluno) || !aluno.responsavel) return 0;
+    const slots = calcularOcorrencias(aluno.horarios, agora);
     const pendentes: { inicio: number; fim: number }[] = [];
     let criadas = 0;
     for (const inicio of slots) {

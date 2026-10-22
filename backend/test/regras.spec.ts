@@ -104,22 +104,46 @@ describe('regras de domínio', () => {
     }, AGORA);
     expect(semPlano.telefone).toBe('11911110002');
     expect(semPlano.instagram).toBe('Bruno.Souza');
-    expect(semPlano.horarioInicio).toBeNull();
+    expect(semPlano.horarios).toEqual([]);
     expect(await aulasDe(orm, semPlano.id)).toHaveLength(0);
     await expect(s.alunos.criar({
       nome: 'Incompleto',
       telefone: '11911110009',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['seg'],
+      horarios: [{ dia: 'seg', horarioInicio: '19:00' }],
     }, AGORA)).rejects.toMatchObject({ codigo: 'PLANO_INCOMPLETO' });
     await expect(s.alunos.criar({
       nome: 'Madrugada',
       telefone: '11911110008',
       plano: 'PARTICULAR',
       categoria: 'A',
-      diasSemana: ['seg'],
-      horarioInicio: '23:30',
+      horarios: [{ dia: 'seg', horarioInicio: '23:30' }],
+      responsavelId: responsavel.id,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const caio = await s.alunos.criar({
+      nome: 'Caio',
+      telefone: '11911110007',
+      plano: 'PARTICULAR',
+      categoria: 'C',
+      horarios: [
+        { dia: 'seg', horarioInicio: '19:00' },
+        { dia: 'qui', horarioInicio: '09:00' },
+      ],
+      responsavelId: responsavel.id,
+    }, AGORA);
+    const horasCaio = (await aulasDe(orm, caio.id)).map((aula) => iso(aula.inicio));
+    expect(horasCaio).toContain('2026-10-22T09:00:00-03:00');
+    expect(horasCaio).toContain('2026-10-26T19:00:00-03:00');
+    await expect(s.alunos.criar({
+      nome: 'Repetido',
+      telefone: '11911110006',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      horarios: [
+        { dia: 'ter', horarioInicio: '19:00' },
+        { dia: 'ter', horarioInicio: '19:30' },
+      ],
       responsavelId: responsavel.id,
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
 
@@ -129,8 +153,7 @@ describe('regras de domínio', () => {
       email: 'ana@email.com',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: ['qui'],
-      horarioInicio: '19:00',
+      horarios: [{ dia: 'qui', horarioInicio: '19:00' }],
       responsavelId: responsavel.id,
     }, AGORA);
     const aulas = await aulasDe(orm, ana.id);
@@ -194,8 +217,10 @@ describe('regras de domínio', () => {
       telefone: '11911110001',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: ['ter', 'qui'],
-      horarioInicio: '19:00',
+      horarios: [
+        { dia: 'ter', horarioInicio: '19:00' },
+        { dia: 'qui', horarioInicio: '19:00' },
+      ],
       responsavelId: marina.id,
     }, AGORA);
     const antes = await aulasDe(orm, ana.id);
@@ -213,8 +238,10 @@ describe('regras de domínio', () => {
     expect((await aulasDe(orm, ana.id)).filter((aula) => aula.ligadaAoPlano && aula.status === 'AGUARDANDO').length).toBe(antes.length - 3);
 
     await s.alunos.atualizar(ana.id, {
-      diasSemana: ['qua', 'sex'],
-      horarioInicio: '18:00',
+      horarios: [
+        { dia: 'qua', horarioInicio: '18:00' },
+        { dia: 'sex', horarioInicio: '18:00' },
+      ],
       responsavelId: marina.id,
     }, AGORA);
     const depois = await aulasDe(orm, ana.id);
@@ -239,7 +266,7 @@ describe('regras de domínio', () => {
     expect(sexta).toBeTruthy();
     const trocada = await s.aulas.atualizar(sexta!.id, { responsavelId: socioAtual.id }, AGORA);
     expect(trocada.ligadaAoPlano).toBe(false);
-    await s.alunos.atualizar(ana.id, { diasSemana: ['qua'], horarioInicio: '18:00', responsavelId: marina.id }, AGORA);
+    await s.alunos.atualizar(ana.id, { horarios: [{ dia: 'qua', horarioInicio: '18:00' }], responsavelId: marina.id }, AGORA);
     const final = await aulasDe(orm, ana.id);
     expect(final.find((aula) => aula.id === sexta!.id)?.ligadaAoPlano).toBe(false);
     expect(final.find((aula) => aula.id === sexta!.id)?.responsavel.id).toBe(socioAtual.id);
@@ -254,8 +281,7 @@ describe('regras de domínio', () => {
       telefone: '11911110001',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['qui'],
-      horarioInicio: '19:00',
+      horarios: [{ dia: 'qui', horarioInicio: '19:00' }],
       responsavelId: marina.id,
     }, AGORA);
     const origemPlano = (await aulasDe(orm, ana.id))[0];
@@ -304,22 +330,21 @@ describe('regras de domínio', () => {
       telefone: '11911110001',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: ['qui'],
-      horarioInicio: '19:00',
+      horarios: [{ dia: 'qui', horarioInicio: '19:00' }],
       responsavelId: marina.id,
     }, AGORA);
     const bruno = await s.alunos.criar({ nome: 'Bruno', telefone: '11911110002', plano: 'GYMPASS', categoria: 'C' }, AGORA);
     const ocupada = await s.aulas.criar({
       alunoId: bruno.id,
       responsavelId: outro.id,
-      inicio: '2026-10-21T15:30:00-03:00',
+      inicio: '2026-10-22T15:30:00-03:00',
       experimental: false,
     });
     await expect(s.eventos.criar({
       tipo: 'AGENDA_FECHADA',
       nome: 'Fecha a tarde',
-      inicio: '2026-10-21T14:00:00-03:00',
-      fim: '2026-10-21T16:00:00-03:00',
+      inicio: '2026-10-22T14:00:00-03:00',
+      fim: '2026-10-22T16:00:00-03:00',
       bloqueiaAulas: false,
       responsavelId: null,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', status: 409 });
@@ -392,8 +417,7 @@ describe('regras de domínio', () => {
       telefone: '11911110003',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['sex'],
-      horarioInicio: '09:00',
+      horarios: [{ dia: 'sex', horarioInicio: '09:00' }],
       responsavelId: marina.id,
     }, AGORA);
     expect((await aulasDe(orm, bloqueado.id)).some((aula) => iso(aula.inicio) === '2026-10-23T09:00:00-03:00')).toBe(false);
@@ -477,23 +501,24 @@ describe('regras de domínio', () => {
     const s = servicos(orm);
     const marina = await professor(s);
     const ana = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'A' }, AGORA);
+    const depoisDoInicio = new Date('2026-10-22T15:00:00-03:00');
     const aula = await s.aulas.criar({
       alunoId: ana.id,
       responsavelId: marina.id,
-      inicio: '2026-10-21T10:00:00-03:00',
+      inicio: '2026-10-22T10:00:00-03:00',
       experimental: false,
     });
-    const atualizada = await s.aulas.atualizar(aula.id, { status: 'CONFIRMADA' }, AGORA);
+    const atualizada = await s.aulas.atualizar(aula.id, { status: 'CONFIRMADA' }, depoisDoInicio);
     expect(atualizada.status).toBe('CONFIRMADA');
-    expect(atualizada.inicio).toBe('2026-10-21T10:00:00-03:00');
-    await expect(s.aulas.atualizar(aula.id, { inicio: '2026-10-21T09:00:00-03:00' }, AGORA)).rejects.toMatchObject({
+    expect(atualizada.inicio).toBe('2026-10-22T10:00:00-03:00');
+    await expect(s.aulas.atualizar(aula.id, { inicio: '2026-10-22T09:00:00-03:00' }, depoisDoInicio)).rejects.toMatchObject({
       codigo: 'AULA_JA_INICIOU',
       status: 409,
     });
-    expect(iso((await aulasDe(orm, ana.id))[0].inicio)).toBe('2026-10-21T10:00:00-03:00');
-    const mesmoInstante = await s.aulas.atualizar(aula.id, { inicio: '2026-10-21T13:00:00Z', status: 'FALTA' }, AGORA);
+    expect(iso((await aulasDe(orm, ana.id))[0].inicio)).toBe('2026-10-22T10:00:00-03:00');
+    const mesmoInstante = await s.aulas.atualizar(aula.id, { inicio: '2026-10-22T13:00:00Z', status: 'FALTA' }, depoisDoInicio);
     expect(mesmoInstante.status).toBe('FALTA');
-    expect(mesmoInstante.inicio).toBe('2026-10-21T10:00:00-03:00');
+    expect(mesmoInstante.inicio).toBe('2026-10-22T10:00:00-03:00');
   });
 
   it('inativa aluno preservando histórico e recusa inativar integrante com agenda ou o último administrador', async () => {
@@ -505,8 +530,7 @@ describe('regras de domínio', () => {
       telefone: '11911110001',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: ['qui'],
-      horarioInicio: '19:00',
+      horarios: [{ dia: 'qui', horarioInicio: '19:00' }],
       responsavelId: marina.id,
     }, AGORA);
     const lista = await aulasDe(orm, ana.id);
@@ -516,19 +540,20 @@ describe('regras de domínio', () => {
     await s.aulas.atualizar(confirmada.id, { status: 'CONFIRMADA' }, AGORA);
     await s.aulas.atualizar(falta.id, { status: 'FALTA' }, AGORA);
     await s.aulas.atualizar(cancelada.id, { status: 'CANCELADA' }, AGORA);
+    const meioDoDia = new Date('2026-10-22T15:00:00-03:00');
     await s.aulas.criar({
       alunoId: ana.id,
       responsavelId: marina.id,
-      inicio: '2026-10-21T10:00:00-03:00',
+      inicio: '2026-10-22T10:00:00-03:00',
       experimental: false,
     });
-    await s.alunos.inativar(ana.id, AGORA);
+    await s.alunos.inativar(ana.id, meioDoDia);
     const historico = await aulasDe(orm, ana.id);
-    expect(historico.some((aula) => aula.status === 'AGUARDANDO' && aula.inicio.getTime() > AGORA.getTime())).toBe(false);
+    expect(historico.some((aula) => aula.status === 'AGUARDANDO' && aula.inicio.getTime() > meioDoDia.getTime())).toBe(false);
     expect(historico.some((aula) => aula.id === confirmada.id && aula.status === 'CONFIRMADA')).toBe(true);
     expect(historico.some((aula) => aula.id === falta.id && aula.status === 'FALTA')).toBe(true);
     expect(historico.some((aula) => aula.id === cancelada.id && aula.status === 'CANCELADA')).toBe(true);
-    expect(historico.some((aula) => iso(aula.inicio) === '2026-10-21T10:00:00-03:00' && aula.status === 'AGUARDANDO')).toBe(true);
+    expect(historico.some((aula) => iso(aula.inicio) === '2026-10-22T10:00:00-03:00' && aula.status === 'AGUARDANDO')).toBe(true);
     expect(await orm.em.fork().findOne(Aluno, { id: ana.id })).toMatchObject({ ativo: false });
     await expect(s.alunos.listar()).resolves.not.toEqual(expect.arrayContaining([expect.objectContaining({ id: ana.id })]));
 
@@ -538,12 +563,11 @@ describe('regras de domínio', () => {
       telefone: '11911110005',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['sex'],
-      horarioInicio: '07:00',
+      horarios: [{ dia: 'sex', horarioInicio: '07:00' }],
       responsavelId: paulo.id,
     }, AGORA);
     await expect(s.integrantes.inativar(paulo.id, AGORA)).rejects.toMatchObject({ codigo: 'INTEGRANTE_COM_AGENDA', status: 409 });
-    await s.alunos.atualizar(comPlano.id, { diasSemana: [], horarioInicio: null, responsavelId: null }, AGORA);
+    await s.alunos.atualizar(comPlano.id, { horarios: [], responsavelId: null }, AGORA);
     const futura = await s.aulas.criar({
       alunoId: comPlano.id,
       responsavelId: paulo.id,

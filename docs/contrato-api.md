@@ -80,17 +80,20 @@ Leitura: professor e administrador. Escrita: administrador.
   "telefone": "11999990000",
   "email": null,
   "instagram": "anacosta",
+  "dataNascimento": "1992-03-15",
   "plano": "PARTICULAR",
   "categoria": "D",
-  "diasSemana": ["ter", "qui"],
-  "horarioInicio": "19:00",
+  "horarios": [
+    { "dia": "seg", "horarioInicio": "19:00" },
+    { "dia": "qui", "horarioInicio": "09:00" }
+  ],
   "responsavelId": "uuid"
 }
 ```
 
-`plano`: `PARTICULAR`, `GYMPASS`, `MENSAL`. `categoria`: `D`, `C`, `B`, `A`. `diasSemana`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
+`plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `D`, `C`, `B`, `A`. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
 
-`diasSemana`, `horarioInicio` e `responsavelId` vão os três vazios ou os três preenchidos. Vazio é `diasSemana: []`, `horarioInicio: null` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial.
+`horarios` lista cada aula da semana com o próprio horário. O mesmo dia pode repetir com horários que não se cruzam. Dia e horário iguais são recusados. `horarios` e `responsavelId` vão os dois vazios ou os dois preenchidos. Vazio é `horarios: []` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial. `dataNascimento` é opcional, no formato `YYYY-MM-DD`. Vazio grava `null`.
 
 `POST /api/alunos/:id/inativar` remove as aulas futuras daquele aluno que estejam Aguardando. O restante do histórico fica.
 

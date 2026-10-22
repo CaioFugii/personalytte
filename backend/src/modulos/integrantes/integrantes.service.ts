@@ -104,7 +104,7 @@ export class IntegrantesService {
       const integrante = await em.findOne(Integrante, { id });
       if (!integrante || !integrante.ativo) throw naoEncontrado();
       const alunos = await em.find(Aluno, { ativo: true, responsavel: integrante.id });
-      if (alunos.some((aluno) => aluno.diasSemana.length > 0 && aluno.horarioInicio)) {
+      if (alunos.some((aluno) => aluno.horarios.length > 0)) {
         throw new ErroApi(409, 'INTEGRANTE_COM_AGENDA', MENSAGEM_AGENDA);
       }
       const aulaFutura = await em.findOne(Aula, {

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Categoria, DiaSemana, Plano, Responsavel } from '../api/types'
+import type { Aluno, Categoria, DiaSemana, HorarioPlano, Plano, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar, useNotificar } from '../componentes/toast'
@@ -15,18 +15,20 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { digitosTelefone, horaCurta } from '../lib/calendario'
-import { CATEGORIAS, DIAS, ordenarDias, PLANOS } from '../lib/rotulos'
+import { civilValida, digitosTelefone, horaCurta } from '../lib/calendario'
+import { CATEGORIAS, DIAS, PLANOS } from '../lib/rotulos'
+
+type LinhaHorario = { dia: DiaSemana | ''; horarioInicio: string }
 
 type FormAluno = {
   nome: string
   telefone: string
   email: string
   instagram: string
+  dataNascimento: string
   plano: Plano | ''
   categoria: Categoria | ''
-  dias: DiaSemana[]
-  horarioInicio: string
+  horarios: LinhaHorario[]
   responsavelId: string
 }
 
@@ -35,10 +37,10 @@ const VAZIO: FormAluno = {
   telefone: '',
   email: '',
   instagram: '',
+  dataNascimento: '',
   plano: '',
   categoria: '',
-  dias: [],
-  horarioInicio: '',
+  horarios: [],
   responsavelId: '',
 }
 
@@ -48,12 +50,20 @@ function doAluno(aluno: Aluno): FormAluno {
     telefone: digitosTelefone(aluno.telefone ?? ''),
     email: aluno.email ?? '',
     instagram: aluno.instagram ?? '',
+    dataNascimento: aluno.dataNascimento ?? '',
     plano: aluno.plano,
     categoria: aluno.categoria,
-    dias: ordenarDias(aluno.diasSemana ?? []),
-    horarioInicio: horaCurta(aluno.horarioInicio),
+    horarios: (aluno.horarios ?? []).map((horario) => ({
+      dia: horario.dia,
+      horarioInicio: horaCurta(horario.horarioInicio),
+    })),
     responsavelId: aluno.responsavelId ?? '',
   }
+}
+
+function minutosDe(horario: string): number {
+  const [hora, minuto] = horario.split(':').map(Number)
+  return hora * 60 + minuto
 }
 
 export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
@@ -90,10 +100,10 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   }
   opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
-  function alternarDia(dia: DiaSemana) {
+  function atualizarHorario(indice: number, parcial: Partial<LinhaHorario>) {
     setForm((atual) => ({
       ...atual,
-      dias: atual.dias.includes(dia) ? atual.dias.filter((item) => item !== dia) : [...atual.dias, dia],
+      horarios: atual.horarios.map((horario, posicao) => (posicao === indice ? { ...horario, ...parcial } : horario)),
     }))
   }
 
@@ -112,11 +122,37 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', 'Informe o plano e a categoria.')
       return
     }
-    const dias = ordenarDias(form.dias)
-    const algum = dias.length > 0 || form.horarioInicio !== '' || form.responsavelId !== ''
-    const todos = dias.length > 0 && form.horarioInicio !== '' && form.responsavelId !== ''
-    if (algum && !todos) {
-      notificar('erro', 'Preencha dias, horário e professor, ou deixe os três vazios.')
+    if (form.dataNascimento && !civilValida(form.dataNascimento)) {
+      notificar('erro', 'A data de nascimento não é válida.')
+      return
+    }
+    const preenchidas = form.horarios.filter((horario) => horario.dia || horario.horarioInicio)
+    if (preenchidas.some((horario) => !horario.dia || !horario.horarioInicio)) {
+      notificar('erro', 'Preencha o dia e o horário de cada aula.')
+      return
+    }
+    const horarios = preenchidas as HorarioPlano[]
+    const chaves = horarios.map((horario) => `${horario.dia} ${horario.horarioInicio}`)
+    if (new Set(chaves).size !== chaves.length) {
+      notificar('erro', 'Esse dia e horário já estão no plano.')
+      return
+    }
+    const cruza = horarios.some((horario, indice) =>
+      horarios.some(
+        (outro, outroIndice) =>
+          outroIndice > indice &&
+          outro.dia === horario.dia &&
+          Math.abs(minutosDe(horario.horarioInicio) - minutosDe(outro.horarioInicio)) < 60,
+      ),
+    )
+    if (cruza) {
+      notificar('erro', 'Dois horários do mesmo dia se cruzam.')
+      return
+    }
+    const temHorario = horarios.length > 0
+    const temProfessor = form.responsavelId !== ''
+    if (temHorario !== temProfessor) {
+      notificar('erro', 'Informe os horários e o professor, ou deixe os dois vazios.')
       return
     }
     const corpo = {
@@ -124,11 +160,11 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       telefone: form.telefone,
       email: form.email.trim() ? form.email.trim() : null,
       instagram: form.instagram.trim() ? form.instagram.trim() : null,
+      dataNascimento: form.dataNascimento || null,
       plano: form.plano,
       categoria: form.categoria,
-      diasSemana: todos ? dias : [],
-      horarioInicio: todos ? form.horarioInicio : null,
-      responsavelId: todos ? form.responsavelId : null,
+      horarios,
+      responsavelId: temProfessor ? form.responsavelId : null,
     }
     setEnviando(true)
     try {
@@ -222,6 +258,16 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                 autoComplete="off"
               />
             </Campo>
+            <Campo label="Data de nascimento (opcional)" htmlFor="nascimento">
+              <input
+                id="nascimento"
+                type="date"
+                readOnly={somenteLeitura}
+                value={form.dataNascimento}
+                onChange={(event) => setForm({ ...form, dataNascimento: event.target.value })}
+                className={classeCampo}
+              />
+            </Campo>
             <Campo label="E-mail (opcional)" htmlFor="email">
               <input
                 id="email"
@@ -270,32 +316,58 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
           <fieldset className="rounded-lg border border-line p-4" disabled={somenteLeitura}>
             <legend className="px-1 font-semibold">Plano semanal</legend>
             <p className="mb-3 text-sm text-muted">
-              Dias, horário e professor entram os três juntos, ou ficam os três vazios. Vazio cadastra o aluno sem
-              aula. Preenchido gera ocorrências por 8 semanas, sempre com 60 minutos.
+              Cada linha é um dia e um horário. O mesmo aluno pode ter horários diferentes, como segunda às 19h e
+              quinta às 9h. O professor vale para todos. Sem linhas e sem professor, o aluno fica sem aula.
             </p>
-            <div className="mb-4 flex flex-wrap gap-3">
-              {DIAS.map((dia) => (
-                <label key={dia.value} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.dias.includes(dia.value)}
-                    onChange={() => alternarDia(dia.value)}
-                    className="accent-tide"
-                  />
-                  {dia.label}
-                </label>
+            <div className="mb-4 flex flex-col gap-3">
+              {form.horarios.map((horario, indice) => (
+                <div key={indice} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                  <Campo label={indice === 0 ? 'Dia' : `Dia ${indice + 1}`} htmlFor={`dia-${indice}`}>
+                    <select
+                      id={`dia-${indice}`}
+                      value={horario.dia}
+                      onChange={(event) => atualizarHorario(indice, { dia: event.target.value as DiaSemana | '' })}
+                      className={classeCampo}
+                    >
+                      <option value="">Selecione</option>
+                      {DIAS.map((dia) => (
+                        <option key={dia.value} value={dia.value}>
+                          {dia.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Campo>
+                  <Campo label="Horário" htmlFor={`horario-${indice}`} dica={indice === 0 ? 'Horário de Brasília' : undefined}>
+                    <input
+                      id={`horario-${indice}`}
+                      type="time"
+                      value={horario.horarioInicio}
+                      onChange={(event) => atualizarHorario(indice, { horarioInicio: event.target.value })}
+                      className={classeCampo}
+                    />
+                  </Campo>
+                  <Botao
+                    type="button"
+                    variante="secundario"
+                    onClick={() =>
+                      setForm((atual) => ({ ...atual, horarios: atual.horarios.filter((_, posicao) => posicao !== indice) }))
+                    }
+                  >
+                    Remover
+                  </Botao>
+                </div>
               ))}
+              <div>
+                <Botao
+                  type="button"
+                  variante="secundario"
+                  onClick={() => setForm((atual) => ({ ...atual, horarios: [...atual.horarios, { dia: '', horarioInicio: '' }] }))}
+                >
+                  Adicionar horário
+                </Botao>
+              </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Campo label="Horário de início" htmlFor="horario" dica="Horário de Brasília">
-                <input
-                  id="horario"
-                  type="time"
-                  value={form.horarioInicio}
-                  onChange={(event) => setForm({ ...form, horarioInicio: event.target.value })}
-                  className={classeCampo}
-                />
-              </Campo>
               <Campo label="Professor" htmlFor="responsavel-plano">
                 <select
                   id="responsavel-plano"

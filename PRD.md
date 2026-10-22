@@ -38,7 +38,7 @@ Idioma da interface: português. Fuso das regras: America/Sao_Paulo. A semana co
 - Envio de e-mail e “esqueci minha senha”
 - Domínio próprio (a primeira versão usa o endereço padrão da Heroku)
 
-O plano do aluno (Particular, Gympass ou Mensal) é um dado cadastral. Ele não gera cobrança.
+O plano do aluno (Particular, Gympass, TotalPass ou Mensal) é um dado cadastral. Ele não gera cobrança.
 
 ## 4. Papéis
 
@@ -63,12 +63,12 @@ Não há cadastro público. O administrador cria cada conta e define a senha, co
 Obrigatórios: nome, telefone, plano e categoria.
 
 - Telefone brasileiro, com 10 ou 11 dígitos.
-- Plano: Particular, Gympass ou Mensal.
+- Plano: Particular, Gympass, TotalPass ou Mensal.
 - Categoria: D, C, B ou A.
 
-E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A busca encontra nome, e-mail, telefone ou Instagram.
+E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A data de nascimento é opcional, em dia civil, para os aniversariantes do mês. A busca encontra nome, e-mail, telefone ou Instagram.
 
-Dias da semana, horário de início e professor entram os três juntos, ou ficam os três vazios. Vazio significa aluno cadastrado sem aula gerada. Preenchido forma o plano semanal: um horário só, o mesmo para todos os dias marcados, e um professor. No cadastro do aluno e no novo agendamento, esse campo se chama Professor e lista só integrantes com função Professor.
+O plano semanal é uma lista de dias e horários. Cada item tem o próprio horário: segunda às 19h e quinta às 9h geram aulas diferentes. O mesmo dia pode ter mais de um horário, desde que as aulas de 60 minutos não se cruzem. O professor é um só e vale para todos os horários. Horários e professor entram juntos, ou ficam os dois vazios. Vazio significa aluno cadastrado sem aula gerada. No cadastro do aluno e no novo agendamento, esse campo se chama Professor e lista só integrantes com função Professor.
 
 A categoria fica só no aluno. A agenda mostra a categoria atual dele.
 
@@ -99,7 +99,7 @@ Um agendamento novo, de aula ou de evento, não aceita data anterior a hoje, no 
 
 O plano gera ocorrências com início no futuro, até completar 8 semanas a partir de hoje. Todo dia, um agendamento estende esse horizonte. Ocorrência nova que cair em qualquer evento não é criada.
 
-Mudar dias, horário ou responsável do plano recria só as ocorrências futuras ainda Aguardando e ainda ligadas ao plano. As demais permanecem.
+Mudar um horário ou o responsável do plano recria só as ocorrências futuras ainda Aguardando e ainda ligadas ao plano. As demais permanecem.
 
 Mudar aluno, responsável, data ou horário de um dia solta aquela ocorrência do plano. Mudar o status mantém o vínculo.
 
@@ -188,7 +188,7 @@ Variáveis previstas na Heroku:
 1. Professor e sócio entram com e-mail e senha. Não existe tela de cadastro aberto nem de esqueci a senha.
 2. Com o banco vazio, a primeira subida cria o sócio administrador a partir das variáveis de ambiente.
 3. Sócio dá aula e continua com permissão de administrador. Professor não grava aluno, equipe, evento nem aviso.
-4. Aluno sem dias, horário e responsável fica cadastrado e não ganha aula. Com os três preenchidos, surgem ocorrências futuras até 8 semanas, sempre às 60 minutos, no mesmo dia.
+4. Aluno sem horários e sem professor fica cadastrado e não ganha aula. Com os dois preenchidos, cada dia e horário do plano gera ocorrências futuras até 8 semanas, sempre de 60 minutos.
 5. Dois horários que se cruzam para o mesmo responsável, ou para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
 6. Mudar o plano recria só as futuras Aguardando ainda ligadas a ele. Editar aluno, responsável, data ou horário de um dia deixa essa ocorrência de fora das próximas recriações.
 7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.

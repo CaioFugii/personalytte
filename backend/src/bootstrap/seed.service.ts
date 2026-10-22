@@ -42,8 +42,10 @@ export class SeedService {
       email: 'ana.lima@email.com',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: ['ter', 'qui'],
-      horarioInicio: '19:00',
+      horarios: [
+        { dia: 'ter', horarioInicio: '19:00' },
+        { dia: 'qui', horarioInicio: '19:00' },
+      ],
       responsavelId: professora.id,
     }, agora);
     await alunos.criar({
@@ -52,8 +54,7 @@ export class SeedService {
       email: null,
       plano: 'GYMPASS',
       categoria: 'C',
-      diasSemana: [],
-      horarioInicio: null,
+      horarios: [],
       responsavelId: null,
     }, agora);
     await alunos.criar({
@@ -62,8 +63,11 @@ export class SeedService {
       email: 'carla.mendes@email.com',
       plano: 'MENSAL',
       categoria: 'B',
-      diasSemana: ['seg', 'qua', 'sex'],
-      horarioInicio: '07:00',
+      horarios: [
+        { dia: 'seg', horarioInicio: '07:00' },
+        { dia: 'qua', horarioInicio: '07:00' },
+        { dia: 'sex', horarioInicio: '07:00' },
+      ],
       responsavelId: admin.id,
     }, agora);
     await alunos.criar({
@@ -71,8 +75,7 @@ export class SeedService {
       telefone: '11911110004',
       plano: 'PARTICULAR',
       categoria: 'A',
-      diasSemana: ['sab'],
-      horarioInicio: '09:00',
+      horarios: [{ dia: 'sab', horarioInicio: '09:00' }],
       responsavelId: professora.id,
     }, agora);
     const elena = await alunos.criar({

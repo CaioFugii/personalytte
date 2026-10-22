@@ -14,6 +14,9 @@ import { Migration20261020140000_aluno_temporario } from './migrations/Migration
 import { Migration20261021140000_aluno_instagram } from './migrations/Migration20261021140000_aluno_instagram';
 import { Migration20261021150000_integrante_outros } from './migrations/Migration20261021150000_integrante_outros';
 import { Migration20261021160000_checkins } from './migrations/Migration20261021160000_checkins';
+import { Migration20261022120000_aluno_plano_totalpass } from './migrations/Migration20261022120000_aluno_plano_totalpass';
+import { Migration20261022140000_aluno_horarios } from './migrations/Migration20261022140000_aluno_horarios';
+import { Migration20261022160000_aluno_nascimento } from './migrations/Migration20261022160000_aluno_nascimento';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -37,6 +40,9 @@ export function criarOrmConfig() {
         { name: 'Migration20261021140000_aluno_instagram', class: Migration20261021140000_aluno_instagram },
         { name: 'Migration20261021150000_integrante_outros', class: Migration20261021150000_integrante_outros },
         { name: 'Migration20261021160000_checkins', class: Migration20261021160000_checkins },
+        { name: 'Migration20261022120000_aluno_plano_totalpass', class: Migration20261022120000_aluno_plano_totalpass },
+        { name: 'Migration20261022140000_aluno_horarios', class: Migration20261022140000_aluno_horarios },
+        { name: 'Migration20261022160000_aluno_nascimento', class: Migration20261022160000_aluno_nascimento },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

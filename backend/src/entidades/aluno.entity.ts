@@ -1,6 +1,6 @@
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
-import type { DiaSemana } from '../comum/tempo';
+import type { HorarioPlano } from '../comum/tempo';
 import type { CategoriaAluno, PlanoAluno } from './enums';
 import { Integrante } from './integrante.entity';
 
@@ -21,6 +21,9 @@ export class Aluno {
   @Property({ type: 'text', nullable: true })
   instagram: string | null = null;
 
+  @Property({ type: 'date', nullable: true })
+  dataNascimento: string | null = null;
+
   @Property({ type: 'text', nullable: true })
   plano: PlanoAluno | null = null;
 
@@ -31,10 +34,7 @@ export class Aluno {
   temporario = false;
 
   @Property({ type: 'jsonb' })
-  diasSemana: DiaSemana[] = [];
-
-  @Property({ type: 'text', nullable: true })
-  horarioInicio: string | null = null;
+  horarios: HorarioPlano[] = [];
 
   @ManyToOne(() => Integrante, { nullable: true })
   responsavel: Integrante | null = null;

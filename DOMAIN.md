@@ -12,9 +12,9 @@ O administrador faz o que o professor faz e ainda grava alunos, integrantes, eve
 
 Não há cadastro público. O administrador define a senha, com no mínimo 8 caracteres. Inativar um integrante corta o login na hora. A API recusa inativar quem ainda é responsável por um plano de aluno ativo ou por uma aula futura não cancelada. O último administrador ativo permanece.
 
-**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `MENSAL`) e categoria (`D`, `C`, `B` ou `A`). E-mail e Instagram são opcionais. O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
+**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`) e categoria (`D`, `C`, `B` ou `A`). E-mail, Instagram e data de nascimento são opcionais. A data é um dia civil (`YYYY-MM-DD`). O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
 
-Dias da semana, horário e responsável entram os três juntos ou ficam os três vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo sai da lista e da busca de um agendamento novo.
+Cada item do plano semanal tem o próprio dia e horário. Segunda às 19h e quinta às 9h são duas aulas. O professor é um só para o plano. Horários e professor entram juntos ou ficam os dois vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo sai da lista e da busca de um agendamento novo.
 
 ## Check-in
 
@@ -36,7 +36,7 @@ Um agendamento novo não aceita data anterior a hoje em Brasília. Hoje é permi
 
 O plano gera ocorrências com início no futuro, até 8 semanas a partir de hoje. Todo dia o horizonte é estendido. Ocorrência que cair em qualquer evento não é criada.
 
-Mudar dias, horário ou responsável do plano recria só as ocorrências futuras ainda `AGUARDANDO` e ainda ligadas ao plano. Mudar aluno, responsável, data ou horário de um dia solta aquela ocorrência do plano. Mudar o status mantém o vínculo.
+Mudar um horário ou o responsável do plano recria só as ocorrências futuras ainda `AGUARDANDO` e ainda ligadas ao plano. Mudar aluno, responsável, data ou horário de um dia solta aquela ocorrência do plano. Mudar o status mantém o vínculo.
 
 Depois que a aula começou, o status continua editável. Data e horário permanecem.
 

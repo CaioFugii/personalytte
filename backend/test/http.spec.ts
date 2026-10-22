@@ -189,17 +189,25 @@ describe('sessão http', () => {
       telefone: '11933330003',
       plano: 'PARTICULAR',
       categoria: 'D',
-      diasSemana: [],
-      horarioInicio: null,
+      horarios: [],
       responsavelId: null,
+      dataNascimento: '1992-03-15',
     });
     expect(aluno.status).toBe(201);
     expect(aluno.body).toMatchObject({
-      diasSemana: [],
-      horarioInicio: null,
+      horarios: [],
       responsavelId: null,
+      dataNascimento: '1992-03-15',
       ativo: true,
     });
+    const nascimentoInvalido = await admin.post('/api/alunos').send({
+      nome: 'Data ruim',
+      telefone: '11933330004',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      dataNascimento: '15/03/1992',
+    });
+    expect(nascimentoInvalido.status).toBe(400);
 
     const aula = await admin.post('/api/aulas').send({
       alunoId: aluno.body.id,

@@ -1,7 +1,7 @@
 export const FUNCOES = ['PROFESSOR', 'SOCIO', 'OUTROS'] as const;
 export type FuncaoIntegrante = (typeof FUNCOES)[number];
 
-export const PLANOS = ['PARTICULAR', 'GYMPASS', 'MENSAL'] as const;
+export const PLANOS = ['PARTICULAR', 'GYMPASS', 'TOTALPASS', 'MENSAL'] as const;
 export type PlanoAluno = (typeof PLANOS)[number];
 
 export const CATEGORIAS = ['D', 'C', 'B', 'A'] as const;

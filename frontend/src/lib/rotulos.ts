@@ -3,6 +3,7 @@ import type { Categoria, DiaSemana, Funcao, Plano, StatusAula, TipoEvento } from
 export const PLANOS: { value: Plano; label: string }[] = [
   { value: 'PARTICULAR', label: 'Particular' },
   { value: 'GYMPASS', label: 'Gympass' },
+  { value: 'TOTALPASS', label: 'TotalPass' },
   { value: 'MENSAL', label: 'Mensal' },
 ]
 

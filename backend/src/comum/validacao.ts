@@ -3,7 +3,7 @@ import { Aluno } from '../entidades/aluno.entity';
 import { CATEGORIAS, FUNCOES, PLANOS, STATUS_AULA, TIPOS_EVENTO, type CategoriaAluno, type FuncaoIntegrante, type PlanoAluno, type StatusAula, type TipoEvento } from '../entidades/enums';
 import { Integrante } from '../entidades/integrante.entity';
 import { ErroApi, MENSAGEM_PLANO, dadosInvalidos, naoEncontrado } from './erros';
-import { adicionarDias, dataCalendario, dataCalendarioValida, ehDiaSemana, horarioValido, ordenarDias, terminaNoMesmoDia, type DiaSemana } from './tempo';
+import { adicionarDias, dataCalendario, dataCalendarioValida, ehDiaSemana, horarioValido, ordenarHorarios, terminaNoMesmoDia, type HorarioPlano } from './tempo';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -132,55 +132,67 @@ export function booleanoDe(valor: unknown, rotulo: string): boolean {
   return valor;
 }
 
-export function diasDe(valor: unknown): DiaSemana[] {
-  if (!Array.isArray(valor)) throw dadosInvalidos('Dias da semana inválidos.');
-  const dias: DiaSemana[] = [];
+function minutosDoHorario(horario: string): number {
+  const [hora, minuto] = horario.split(':').map(Number);
+  return hora * 60 + minuto;
+}
+
+function horariosCruzam(a: string, b: string): boolean {
+  const inicioA = minutosDoHorario(a);
+  const inicioB = minutosDoHorario(b);
+  return inicioA < inicioB + 60 && inicioB < inicioA + 60;
+}
+
+export function horariosDe(valor: unknown): HorarioPlano[] {
+  if (!Array.isArray(valor)) throw dadosInvalidos('Horários inválidos.');
+  const horarios: HorarioPlano[] = [];
   for (const item of valor) {
-    if (typeof item !== 'string' || !ehDiaSemana(item)) throw dadosInvalidos('Dia da semana inválido.');
-    if (!dias.includes(item)) dias.push(item);
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw dadosInvalidos('Horário inválido.');
+    const bruto = item as Record<string, unknown>;
+    if (typeof bruto.dia !== 'string' || !ehDiaSemana(bruto.dia)) throw dadosInvalidos('Dia da semana inválido.');
+    if (typeof bruto.horarioInicio !== 'string' || !horarioValido(bruto.horarioInicio)) {
+      throw dadosInvalidos('Horário precisa caber em uma aula de 60 minutos no mesmo dia.');
+    }
+    horarios.push({ dia: bruto.dia, horarioInicio: bruto.horarioInicio });
   }
-  return ordenarDias(dias);
+  const ordenados = ordenarHorarios(horarios);
+  for (let indice = 1; indice < ordenados.length; indice += 1) {
+    const anterior = ordenados[indice - 1];
+    const atual = ordenados[indice];
+    if (anterior.dia !== atual.dia) continue;
+    if (anterior.horarioInicio === atual.horarioInicio) throw dadosInvalidos('Esse dia e horário já estão no plano.');
+    if (horariosCruzam(anterior.horarioInicio, atual.horarioInicio)) throw dadosInvalidos('Dois horários do mesmo dia se cruzam.');
+  }
+  return ordenados;
 }
 
 export type PlanoInterpretado = {
-  diasSemana: DiaSemana[];
-  horarioInicio: string | null;
+  horarios: HorarioPlano[];
   responsavelId: string | null;
   completo: boolean;
 };
 
 export function interpretarPlano(
-  diasInformados: boolean,
-  diasValor: unknown,
-  horarioInformado: boolean,
-  horarioValor: unknown,
+  horariosInformados: boolean,
+  horariosValor: unknown,
   responsavelInformado: boolean,
   responsavelValor: unknown,
-  atual?: { diasSemana: DiaSemana[]; horarioInicio: string | null; responsavelId: string | null },
+  atual?: { horarios: HorarioPlano[]; responsavelId: string | null },
 ): PlanoInterpretado {
-  const diasSemana = diasInformados ? diasDe(diasValor) : (atual?.diasSemana ?? []);
-  let horarioInicio = horarioInformado ? textoOpcional(horarioValor, 'Horário') : (atual?.horarioInicio ?? null);
-  if (horarioInicio) {
-    if (!horarioValido(horarioInicio)) throw dadosInvalidos('Horário precisa caber em uma aula de 60 minutos no mesmo dia.');
-  }
+  const horarios = horariosInformados ? horariosDe(horariosValor) : (atual?.horarios ?? []);
   let responsavelId: string | null;
   if (responsavelInformado) {
     responsavelId = responsavelValor == null || responsavelValor === '' ? null : uuidDe(responsavelValor, 'Responsável');
   } else {
     responsavelId = atual?.responsavelId ?? null;
   }
-  const temDias = diasSemana.length > 0;
-  const temHorario = horarioInicio != null;
+  const temHorario = horarios.length > 0;
   const temResponsavel = responsavelId != null;
-  const preenchidos = Number(temDias) + Number(temHorario) + Number(temResponsavel);
-  if (preenchidos !== 0 && preenchidos !== 3) {
-    throw new ErroApi(400, 'PLANO_INCOMPLETO', MENSAGEM_PLANO);
-  }
+  if (temHorario !== temResponsavel) throw new ErroApi(400, 'PLANO_INCOMPLETO', MENSAGEM_PLANO);
   return {
-    diasSemana: temDias ? diasSemana : [],
-    horarioInicio: temHorario ? horarioInicio : null,
+    horarios: temHorario ? horarios : [],
     responsavelId: temResponsavel ? responsavelId : null,
-    completo: preenchidos === 3,
+    completo: temHorario && temResponsavel,
   };
 }
 
@@ -208,14 +220,11 @@ export function escaparLike(valor: string): string {
 }
 
 export function planoMudou(
-  antes: { diasSemana: string[]; horarioInicio: string | null; responsavelId: string | null },
-  depois: { diasSemana: string[]; horarioInicio: string | null; responsavelId: string | null },
+  antes: { horarios: HorarioPlano[]; responsavelId: string | null },
+  depois: { horarios: HorarioPlano[]; responsavelId: string | null },
 ): boolean {
-  return (
-    antes.horarioInicio !== depois.horarioInicio
-    || antes.responsavelId !== depois.responsavelId
-    || antes.diasSemana.join(',') !== depois.diasSemana.join(',')
-  );
+  const chave = (horarios: HorarioPlano[]) => horarios.map((horario) => `${horario.dia} ${horario.horarioInicio}`).join('|');
+  return antes.responsavelId !== depois.responsavelId || chave(antes.horarios) !== chave(depois.horarios);
 }
 
 export function idRelacao(relacao: { id: string } | null | undefined): string | null {

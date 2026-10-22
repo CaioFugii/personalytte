@@ -15,6 +15,16 @@ export function ordenarDias(dias: DiaSemana[]): DiaSemana[] {
   return [...dias].sort((a, b) => ORDEM_DIAS.indexOf(a) - ORDEM_DIAS.indexOf(b));
 }
 
+export type HorarioPlano = { dia: DiaSemana; horarioInicio: string };
+
+export function ordenarHorarios(horarios: HorarioPlano[]): HorarioPlano[] {
+  return [...horarios].sort((a, b) => {
+    const dia = ORDEM_DIAS.indexOf(a.dia) - ORDEM_DIAS.indexOf(b.dia);
+    if (dia !== 0) return dia;
+    return a.horarioInicio.localeCompare(b.horarioInicio);
+  });
+}
+
 type Partes = { ano: number; mes: number; dia: number; hora: number; minuto: number; segundo: number };
 
 export function partesSP(instante: Date): Partes {
@@ -125,15 +135,18 @@ export function horarioValido(valor: string): boolean {
   return hora * 60 + minuto + 60 < 24 * 60;
 }
 
-export function calcularOcorrencias(dias: readonly string[], horario: string, agora: Date): Date[] {
+export function calcularOcorrencias(horarios: readonly HorarioPlano[], agora: Date): Date[] {
   const limite = limiteHorizonte(agora);
   const ocorrencias: Date[] = [];
   for (let dia = inicioDoDia(agora); dia.getTime() < limite.getTime(); dia = adicionarDias(dia, 1)) {
-    if (!dias.includes(diaDaSemana(dia))) continue;
-    const inicio = combinarDataHorario(dia, horario);
-    if (inicio.getTime() <= agora.getTime()) continue;
-    if (inicio.getTime() >= limite.getTime()) continue;
-    ocorrencias.push(inicio);
+    const semana = diaDaSemana(dia);
+    for (const horario of horarios) {
+      if (horario.dia !== semana) continue;
+      const inicio = combinarDataHorario(dia, horario.horarioInicio);
+      if (inicio.getTime() <= agora.getTime()) continue;
+      if (inicio.getTime() >= limite.getTime()) continue;
+      ocorrencias.push(inicio);
+    }
   }
   return ocorrencias;
 }

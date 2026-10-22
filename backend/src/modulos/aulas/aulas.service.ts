@@ -175,8 +175,7 @@ export class AulasService {
     aluno.plano = null;
     aluno.categoria = null;
     aluno.temporario = true;
-    aluno.diasSemana = [];
-    aluno.horarioInicio = null;
+    aluno.horarios = [];
     aluno.responsavel = null;
     aluno.cadastradoEm = new Date();
     em.persist(aluno);
