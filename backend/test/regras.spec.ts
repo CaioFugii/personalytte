@@ -1,6 +1,7 @@
 import { MikroORM, type EntityManager } from '@mikro-orm/postgresql';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { definirSessao } from '../src/comum/cookie';
+import { MENSAGEM_GRUPO_CHEIO, MENSAGEM_OCUPADO } from '../src/comum/erros';
 import { formatarInstante } from '../src/comum/tempo';
 import { AgendaService } from '../src/dominio/agenda.service';
 import { Aluno } from '../src/entidades/aluno.entity';
@@ -180,32 +181,111 @@ describe('regras de domínio', () => {
     const outro = await professor(s, 'outro@personalytte.local');
     const ana = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
     const bruno = await s.alunos.criar({ nome: 'Bruno', telefone: '11911110002', plano: 'GYMPASS', categoria: 'C' }, AGORA);
-    await s.aulas.criar({ alunoId: ana.id, responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false });
+    await s.aulas.criar({ alunoId: ana.id, responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false }, AGORA);
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-22T19:30:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', status: 409 });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', status: 409 });
     await expect(s.aulas.criar({
       alunoId: ana.id, responsavelId: outro.id, inicio: '2026-10-22T19:15:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
     const seguinte = await s.aulas.criar({
       alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-22T20:00:00-03:00', experimental: false,
-    });
+    }, AGORA);
     expect(seguinte.inicio).toBe('2026-10-22T20:00:00-03:00');
     const ocupada = (await aulasDe(orm, ana.id))[0];
     await s.aulas.atualizar(ocupada.id, { status: 'FALTA' }, AGORA);
     await expect(s.aulas.criar({
       alunoId: ana.id, responsavelId: outro.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
-    await s.aulas.cancelar(ocupada.id);
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    await s.aulas.cancelar(ocupada.id, { justificativa: 'Aluno viajou', geraReposicao: false }, AGORA);
     const liberada = await s.aulas.criar({
       alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-22T19:00:00-03:00', experimental: true,
-    });
+    }, AGORA);
     expect(liberada.status).toBe('AGUARDANDO');
     expect(liberada.experimental).toBe(true);
     expect(liberada.ligadaAoPlano).toBe(false);
     await expect(s.aulas.criar({
       alunoId: ana.id, responsavelId: marina.id, inicio: '2026-10-22T23:30:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
+  it('agrupa até 4 alunos no mesmo início com o mesmo professor', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    const alunos = [];
+    for (let i = 1; i <= 6; i += 1) {
+      alunos.push(await s.alunos.criar({ nome: `Aluno ${i}`, telefone: `1191111000${i}`, plano: 'PARTICULAR', categoria: 'D' }, AGORA));
+    }
+    const inicio = '2026-10-22T19:00:00-03:00';
+    const grupo = await s.aulas.criarGrupo({
+      alunoIds: alunos.slice(0, 3).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
+    }, AGORA);
+    expect(grupo).toHaveLength(3);
+    await s.aulas.criar({ alunoId: alunos[3].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
+    await expect(s.aulas.criar({ alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: false }, AGORA))
+      .rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_GRUPO_CHEIO });
+    await expect(s.aulas.criar({
+      alunoId: alunos[4].id, responsavelId: marina.id, inicio: '2026-10-22T19:30:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
+    await expect(s.aulas.criarGrupo({
+      alunoIds: [alunos[4].id, alunos[4].id], responsavelId: marina.id, inicio: '2026-10-23T19:00:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.criarGrupo({
+      alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T19:00:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.criarGrupo({
+      alunoIds: [alunos[4].id, alunos[0].id], responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    expect(await aulasDe(orm, alunos[4].id)).toHaveLength(0);
+
+    await s.aulas.cancelar(grupo[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
+    await s.aulas.criar({ alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
+    const banco = orm.em.fork().getConnection();
+    await expect(banco.execute(
+      `insert into aulas (id, aluno_id, responsavel_id, inicio, fim, status, experimental, ligada_ao_plano)
+       values (gen_random_uuid(), '${alunos[5].id}', '${marina.id}', '2026-10-22T19:30:00-03:00', '2026-10-22T20:30:00-03:00', 'AGUARDANDO', false, false)`,
+    )).rejects.toBeDefined();
+  });
+
+  it('cancela com justificativa e diz se gera reposição', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    const ana = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
+    const aula = await s.aulas.criar({
+      alunoId: ana.id, responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false,
+    }, AGORA);
+    await expect(s.aulas.cancelar(aula.id, { geraReposicao: true }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.cancelar(aula.id, { justificativa: 'Chuva' }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.cancelar(aula.id, {
+      justificativa: 'Chuva', geraReposicao: false,
+      reposicao: { responsavelId: marina.id, inicio: '2026-10-24T09:00:00-03:00' },
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const cancelada = await s.aulas.cancelar(aula.id, {
+      justificativa: '  Chuva forte  ', geraReposicao: true,
+      reposicao: { responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00' },
+    }, AGORA);
+    expect(cancelada.status).toBe('CANCELADA');
+    expect(cancelada.cancelamento).toEqual({ justificativa: 'Chuva forte', geraReposicao: true });
+    const reposicoes = (await aulasDe(orm, ana.id)).filter((item) => item.reposicaoDe?.id === aula.id);
+    expect(reposicoes.map((item) => iso(item.inicio))).toEqual(['2026-10-22T19:00:00-03:00']);
+    await expect(s.aulas.cancelar(aula.id, { justificativa: 'De novo', geraReposicao: false }, AGORA))
+      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await s.aulas.atualizar(aula.id, { reposicao: { responsavelId: marina.id, inicio: '2026-10-24T09:00:00-03:00' } }, AGORA);
+    expect((await aulasDe(orm, ana.id)).filter((item) => item.reposicaoDe?.id === aula.id)).toHaveLength(2);
+
+    const outra = await s.aulas.criar({
+      alunoId: ana.id, responsavelId: marina.id, inicio: '2026-10-25T09:00:00-03:00', experimental: false,
+    }, AGORA);
+    await s.aulas.cancelar(outra.id, { justificativa: 'Professor ausente', geraReposicao: false }, AGORA);
+    await expect(s.aulas.atualizar(outra.id, {
+      reposicao: { responsavelId: marina.id, inicio: '2026-10-26T09:00:00-03:00' },
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const reativada = await s.aulas.atualizar(outra.id, { status: 'AGUARDANDO' }, AGORA);
+    expect(reativada.cancelamento).toBeNull();
+    expect(await orm.em.fork().findOneOrFail(Aula, outra.id)).toMatchObject({
+      justificativaCancelamento: null,
+      cancelamentoGeraReposicao: null,
+    });
   });
 
   it('recria só as futuras aguardando ligadas ao plano e solta a ocorrência editada', async () => {
@@ -296,7 +376,7 @@ describe('regras de domínio', () => {
       responsavelId: marina.id,
       inicio: '2026-10-23T11:00:00-03:00',
       experimental: false,
-    });
+    }, AGORA);
     await s.aulas.atualizar(avulsa.id, { status: 'FALTA' }, AGORA);
     expect(await aulasDe(orm, ana.id)).toHaveLength((await orm.em.fork().count(Aula, { aluno: ana.id })));
     const comReposicao = await s.aulas.atualizar(avulsa.id, {
@@ -339,7 +419,7 @@ describe('regras de domínio', () => {
       responsavelId: outro.id,
       inicio: '2026-10-22T15:30:00-03:00',
       experimental: false,
-    });
+    }, AGORA);
     await expect(s.eventos.criar({
       tipo: 'AGENDA_FECHADA',
       nome: 'Fecha a tarde',
@@ -371,10 +451,10 @@ describe('regras de domínio', () => {
     }, AGORA);
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA', status: 409 });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA', status: 409 });
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
 
     await s.eventos.criar({
       tipo: 'TORNEIO',
@@ -386,7 +466,7 @@ describe('regras de domínio', () => {
     }, AGORA);
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-24T09:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
 
     await s.eventos.criar({
       tipo: 'AGENDA_FECHADA',
@@ -398,7 +478,7 @@ describe('regras de domínio', () => {
     }, AGORA);
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: marina.id, inicio: '2026-10-25T09:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
 
     await s.eventos.criar({
       tipo: 'AUSENCIA',
@@ -410,7 +490,7 @@ describe('regras de domínio', () => {
     }, AGORA);
     await expect(s.aulas.criar({
       alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-26T09:00:00-03:00', experimental: false,
-    })).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'BLOQUEIO_AGENDA' });
 
     const bloqueado = await s.alunos.criar({
       nome: 'Carla',
@@ -426,7 +506,7 @@ describe('regras de domínio', () => {
     await s.eventos.apagar(aniversario.id);
     const liberada = await s.aulas.criar({
       alunoId: bruno.id, responsavelId: outro.id, inicio: '2026-10-23T09:00:00-03:00', experimental: false,
-    });
+    }, AGORA);
     expect(liberada.status).toBe('AGUARDANDO');
     await expect(s.eventos.criar({
       tipo: 'ANIVERSARIO',
@@ -460,7 +540,7 @@ describe('regras de domínio', () => {
       alunoTemporario: { nome: 'Visitante', telefone: '(11) 99999-8888' },
       responsavelId: marina.id,
       inicio: '2026-10-23T10:00:00-03:00',
-    });
+    }, AGORA);
     expect(criada.experimental).toBe(true);
     expect(criada.aluno).toMatchObject({ nome: 'Visitante', categoria: null, telefone: '11999998888', temporario: true });
     const gravado = await orm.em.fork().findOneOrFail(Aluno, { nome: 'Visitante' });
@@ -475,19 +555,19 @@ describe('regras de domínio', () => {
       alunoId: gravado.id,
       responsavelId: marina.id,
       inicio: '2026-10-23T11:00:00-03:00',
-    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
     await expect(s.aulas.criar({
       experimental: false,
       responsavelId: marina.id,
       inicio: '2026-10-23T12:00:00-03:00',
-    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
     const efetivo = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
     await expect(s.aulas.criar({
       alunoId: efetivo.id,
       responsavelId: marina.id,
       inicio: '2020-01-02T10:00:00-03:00',
       experimental: false,
-    })).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
     await expect(s.eventos.criar({
       tipo: 'FERIADO',
       nome: 'Passado',
@@ -507,7 +587,7 @@ describe('regras de domínio', () => {
       responsavelId: marina.id,
       inicio: '2026-10-22T10:00:00-03:00',
       experimental: false,
-    });
+    }, AGORA);
     const atualizada = await s.aulas.atualizar(aula.id, { status: 'CONFIRMADA' }, depoisDoInicio);
     expect(atualizada.status).toBe('CONFIRMADA');
     expect(atualizada.inicio).toBe('2026-10-22T10:00:00-03:00');
@@ -539,14 +619,16 @@ describe('regras de domínio', () => {
     const cancelada = lista[3];
     await s.aulas.atualizar(confirmada.id, { status: 'CONFIRMADA' }, AGORA);
     await s.aulas.atualizar(falta.id, { status: 'FALTA' }, AGORA);
-    await s.aulas.atualizar(cancelada.id, { status: 'CANCELADA' }, AGORA);
+    await expect(s.aulas.atualizar(cancelada.id, { status: 'CANCELADA' }, AGORA))
+      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await s.aulas.cancelar(cancelada.id, { justificativa: 'Chuva', geraReposicao: false }, AGORA);
     const meioDoDia = new Date('2026-10-22T15:00:00-03:00');
     await s.aulas.criar({
       alunoId: ana.id,
       responsavelId: marina.id,
       inicio: '2026-10-22T10:00:00-03:00',
       experimental: false,
-    });
+    }, AGORA);
     await s.alunos.inativar(ana.id, meioDoDia);
     const historico = await aulasDe(orm, ana.id);
     expect(historico.some((aula) => aula.status === 'AGUARDANDO' && aula.inicio.getTime() > meioDoDia.getTime())).toBe(false);
@@ -573,9 +655,9 @@ describe('regras de domínio', () => {
       responsavelId: paulo.id,
       inicio: '2026-10-23T15:00:00-03:00',
       experimental: false,
-    });
+    }, AGORA);
     await expect(s.integrantes.inativar(paulo.id, AGORA)).rejects.toMatchObject({ codigo: 'INTEGRANTE_COM_AGENDA' });
-    await s.aulas.cancelar(futura.id);
+    await s.aulas.cancelar(futura.id, { justificativa: 'Professor saiu', geraReposicao: false }, AGORA);
     const tokenMarina = s.sessao.emitir(await orm.em.fork().findOneOrFail(Integrante, paulo.id), AGORA);
     const inativa = await s.integrantes.inativar(paulo.id, AGORA);
     expect(inativa.ativo).toBe(false);

@@ -32,4 +32,10 @@ export class Aula {
 
   @Property({ type: 'boolean' })
   ligadaAoPlano = false;
+
+  @Property({ type: 'text', nullable: true })
+  justificativaCancelamento: string | null = null;
+
+  @Property({ type: 'boolean', nullable: true })
+  cancelamentoGeraReposicao: boolean | null = null;
 }

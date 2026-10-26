@@ -76,6 +76,10 @@ export function serializarAula(aula: Aula): AulaResposta {
     experimental: aula.experimental,
     reposicaoDeAulaId: idRelacao(aula.reposicaoDe),
     ligadaAoPlano: aula.ligadaAoPlano,
+    cancelamento:
+      aula.status === 'CANCELADA' && aula.justificativaCancelamento != null
+        ? { justificativa: aula.justificativaCancelamento, geraReposicao: aula.cancelamentoGeraReposicao === true }
+        : null,
   };
 }
 

@@ -1,6 +1,13 @@
 import { EntityManager, FlushMode, type FilterQuery } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
-import { ErroApi, MENSAGEM_BLOQUEIO, MENSAGEM_DATA, MENSAGEM_EVENTO_COM_AULA, MENSAGEM_OCUPADO } from '../comum/erros';
+import {
+  ErroApi,
+  MENSAGEM_BLOQUEIO,
+  MENSAGEM_DATA,
+  MENSAGEM_EVENTO_COM_AULA,
+  MENSAGEM_GRUPO_CHEIO,
+  MENSAGEM_OCUPADO,
+} from '../comum/erros';
 import { DURACAO_AULA_MS, calcularOcorrencias, dataRetroativa, fimDaAula, terminaNoMesmoDia } from '../comum/tempo';
 import { Aluno } from '../entidades/aluno.entity';
 import { Aula } from '../entidades/aula.entity';
@@ -12,12 +19,14 @@ export function planoCompleto(aluno: Pick<Aluno, 'horarios' | 'responsavel'>): b
   return aluno.horarios.length > 0 && aluno.responsavel != null;
 }
 
+export const LIMITE_GRUPO = 4;
+
 @Injectable()
 export class AgendaService {
   async conflito(
     em: EntityManager,
     params: { alunoId: string; responsavelId: string; inicio: Date; ignorarAulaId?: string },
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const fim = fimDaAula(params.inicio);
     const where: FilterQuery<Aula> = {
       status: { $ne: 'CANCELADA' },
@@ -27,7 +36,13 @@ export class AgendaService {
     };
     if (params.ignorarAulaId) where.id = { $ne: params.ignorarAulaId };
     const achou = await em.find(Aula, where, { flushMode: FlushMode.COMMIT });
-    return achou.length > 0;
+    let noGrupo = 0;
+    for (const aula of achou) {
+      if (aula.aluno.id === params.alunoId) return MENSAGEM_OCUPADO;
+      if (aula.inicio.getTime() !== params.inicio.getTime()) return MENSAGEM_OCUPADO;
+      noGrupo += 1;
+    }
+    return noGrupo >= LIMITE_GRUPO ? MENSAGEM_GRUPO_CHEIO : null;
   }
 
   async bloqueada(em: EntityManager, _responsavelId: string, inicio: Date): Promise<boolean> {
@@ -61,9 +76,8 @@ export class AgendaService {
     if (await this.bloqueada(em, params.responsavelId, params.inicio)) {
       throw new ErroApi(409, 'BLOQUEIO_AGENDA', MENSAGEM_BLOQUEIO);
     }
-    if (await this.conflito(em, params)) {
-      throw new ErroApi(409, 'HORARIO_OCUPADO', MENSAGEM_OCUPADO);
-    }
+    const conflito = await this.conflito(em, params);
+    if (conflito) throw new ErroApi(409, 'HORARIO_OCUPADO', conflito);
   }
 
   async removerAguardandoFuturas(
@@ -94,8 +108,11 @@ export class AgendaService {
       if (await this.bloqueada(em, aluno.responsavel.id, inicio)) continue;
       const fim = fimDaAula(inicio).getTime();
       const cruzaPendente = pendentes.some((item) => item.inicio < fim && item.fim > inicio.getTime());
-      if (cruzaPendente || await this.conflito(em, { alunoId: aluno.id, responsavelId: aluno.responsavel.id, inicio })) {
-        if (politica === 'recusar') throw new ErroApi(409, 'HORARIO_OCUPADO', MENSAGEM_OCUPADO);
+      const conflito = cruzaPendente
+        ? MENSAGEM_OCUPADO
+        : await this.conflito(em, { alunoId: aluno.id, responsavelId: aluno.responsavel.id, inicio });
+      if (conflito) {
+        if (politica === 'recusar') throw new ErroApi(409, 'HORARIO_OCUPADO', conflito);
         continue;
       }
       const aula = new Aula();

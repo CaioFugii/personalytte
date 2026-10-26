@@ -76,6 +76,7 @@ export type Aula = {
   experimental: boolean
   reposicaoDeAulaId: string | null
   ligadaAoPlano: boolean
+  cancelamento: { justificativa: string; geraReposicao: boolean } | null
 }
 
 export type Evento = {

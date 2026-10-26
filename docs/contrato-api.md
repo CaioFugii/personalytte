@@ -120,19 +120,38 @@ Leitura e escrita de aula: professor e administrador.
 
 Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
 
-`PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`.
+`POST /api/aulas/grupo` cria a mesma aula avulsa para 1 a 4 alunos cadastrados, com o mesmo responsável e o mesmo início. Responde `201` com a lista de aulas criadas. Se um aluno for recusado, nenhuma aula é gravada. Aluno repetido ou mais de 4 alunos responde `DADOS_INVALIDOS`.
 
-Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem:
+```json
+{
+  "alunoIds": ["uuid", "uuid"],
+  "responsavelId": "uuid",
+  "inicio": "2026-10-20T19:00:00-03:00",
+  "experimental": false
+}
+```
+
+`PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`. `status: "CANCELADA"` numa aula que não está cancelada responde `DADOS_INVALIDOS`: o cancelamento passa por `POST /api/aulas/:id/cancelar`. Tirar a aula de Cancelada apaga a justificativa.
+
+Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A data da reposição segue a regra de hoje em diante.
 
 ```json
 { "status": "FALTA", "reposicao": { "responsavelId": "uuid", "inicio": "2026-10-22T19:00:00-03:00" } }
 ```
 
-`POST /api/aulas/:id/cancelar` grava Cancelada.
+`POST /api/aulas/:id/cancelar` grava Cancelada. `justificativa` e `geraReposicao` são obrigatórios. `reposicao` é opcional e só vale com `geraReposicao: true`. Aula já cancelada responde `DADOS_INVALIDOS`.
+
+```json
+{
+  "justificativa": "Chuva forte",
+  "geraReposicao": true,
+  "reposicao": { "responsavelId": "uuid", "inicio": "2026-10-24T09:00:00-03:00" }
+}
+```
 
 Criar, editar, obter e cancelar devolvem a aula, inclusive o `id`.
 
-Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`.
+Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. A quinta responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`.
 
 Aula na resposta:
 
@@ -146,11 +165,12 @@ Aula na resposta:
   "status": "AGUARDANDO",
   "experimental": false,
   "reposicaoDeAulaId": null,
-  "ligadaAoPlano": true
+  "ligadaAoPlano": true,
+  "cancelamento": null
 }
 ```
 
-`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`.
+`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras.
 
 ## Eventos
 

@@ -19,6 +19,16 @@ import { notificar, useNotificar } from '../componentes/toast'
 import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
 import { TIPOS_EVENTO } from '../lib/rotulos'
 
+const LIMITE_GRUPO = 4
+
+function alunoPeloNome(alunos: Aluno[], texto: string, selecionados: Aluno[]): Aluno | null {
+  const nome = texto.trim().toLowerCase()
+  if (!nome) return null
+  const iguais = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === nome)
+  if (iguais.length !== 1 || selecionados.some((item) => item.id === iguais[0].id)) return null
+  return iguais[0]
+}
+
 function professoresDe(lista: Responsavel[], atual?: { id: string; nome: string } | null): Responsavel[] {
   const professores = lista.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
   if (atual && !professores.some((pessoa) => pessoa.id === atual.id)) {
@@ -220,7 +230,7 @@ function FormAula() {
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
   const hoje = hojeSP()
   const [texto, setTexto] = useState('')
-  const [alunoId, setAlunoId] = useState('')
+  const [selecionados, setSelecionados] = useState<Aluno[]>([])
   const [telefone, setTelefone] = useState('')
   const [aberto, setAberto] = useState(false)
   const [responsavelId, setResponsavelId] = useState('')
@@ -234,6 +244,7 @@ function FormAula() {
     const digitos = texto.replace(/\D/g, '')
     return alunos
       .filter((aluno) => {
+        if (selecionados.some((item) => item.id === aluno.id)) return false
         if (!consulta) return true
         return (
           aluno.nome.toLowerCase().includes(consulta) ||
@@ -243,27 +254,34 @@ function FormAula() {
       })
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
       .slice(0, 8)
-  }, [alunos, texto])
+  }, [alunos, selecionados, texto])
 
-  const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === texto.trim().toLowerCase())
-  const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
-  const cadastroTemporario = experimental && !alunoEscolhido
+  const grupoCheio = selecionados.length >= LIMITE_GRUPO
+  const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
+  const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
   const erroCarga = alunosQ.erro || respQ.erro
   useNotificar(!carregando && !erroCarga && !experimental && alunos.length === 0 ? 'aviso' : null, 'Não há aluno ativo para agendar.')
 
   function escolher(aluno: Aluno) {
-    setAlunoId(aluno.id)
-    setTexto(aluno.nome)
+    if (grupoCheio) return
+    setSelecionados([...selecionados, aluno])
+    setTexto('')
     setAberto(false)
+  }
+
+  function remover(id: string) {
+    setSelecionados(selecionados.filter((aluno) => aluno.id !== id))
   }
 
   async function aoEnviar(event: FormEvent) {
     event.preventDefault()
     const nome = texto.trim()
-    const peloNome = alunos.filter((aluno) => aluno.nome.trim().toLowerCase() === nome.toLowerCase())
-    const alunoEscolhido = alunoId || (peloNome.length === 1 ? peloNome[0].id : '')
-    if (!responsavelId || !civilValida(data) || !hora || (!alunoEscolhido && !(experimental && nome))) {
+    const digitado = alunoPeloNome(alunos, nome, selecionados)
+    const ids = selecionados.map((aluno) => aluno.id)
+    if (digitado && ids.length < LIMITE_GRUPO) ids.push(digitado.id)
+    const temporario = ids.length === 0 && experimental && nome !== ''
+    if (!responsavelId || !civilValida(data) || !hora || (ids.length === 0 && !temporario)) {
       notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
       return
     }
@@ -272,19 +290,23 @@ function FormAula() {
       return
     }
     setEnviando(true)
-    const corpo: Record<string, unknown> = {
-      responsavelId,
-      inicio: instanteBrasilia(data, hora),
-      experimental,
-    }
-    if (alunoEscolhido) corpo.alunoId = alunoEscolhido
-    else corpo.alunoTemporario = { nome, telefone: telefone.trim() ? telefone.trim() : null }
+    const base = { responsavelId, inicio: instanteBrasilia(data, hora), experimental }
     try {
-      await api('/api/aulas', {
-        method: 'POST',
-        body: JSON.stringify(corpo),
+      if (ids.length > 1) {
+        await api('/api/aulas/grupo', { method: 'POST', body: JSON.stringify({ ...base, alunoIds: ids }) })
+      } else {
+        await api('/api/aulas', {
+          method: 'POST',
+          body: JSON.stringify(
+            temporario
+              ? { ...base, alunoTemporario: { nome, telefone: telefone.trim() ? telefone.trim() : null } }
+              : { ...base, alunoId: ids[0] },
+          ),
+        })
+      }
+      navigate(`/agenda?semana=${inicioDaSemana(data)}`, {
+        state: { sucesso: ids.length > 1 ? `Aula em grupo agendada para ${ids.length} alunos.` : 'Aula agendada.' },
       })
-      navigate(`/agenda?semana=${inicioDaSemana(data)}`, { state: { sucesso: 'Aula agendada.' } })
     } catch (err) {
       notificar('erro', mensagemDeErro(err))
       setEnviando(false)
@@ -321,14 +343,33 @@ function FormAula() {
         Aula experimental
       </label>
       <Campo
-        label="Aluno"
+        label={`Alunos (até ${LIMITE_GRUPO})`}
         htmlFor="aluno-aula"
         dica={
-          experimental
-            ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
-            : 'Busque por nome, e-mail ou telefone e selecione.'
+          grupoCheio
+            ? `O grupo já tem ${LIMITE_GRUPO} alunos.`
+            : experimental && selecionados.length === 0
+              ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
+              : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
         }
       >
+        {selecionados.length > 0 ? (
+          <ul className="mb-2 flex flex-wrap gap-2" aria-label="Alunos escolhidos">
+            {selecionados.map((aluno) => (
+              <li key={aluno.id} className="flex items-center gap-1 rounded-full bg-sand py-1 pr-1 pl-3 text-sm">
+                {aluno.nome}
+                <button
+                  type="button"
+                  aria-label={`Remover ${aluno.nome}`}
+                  onClick={() => remover(aluno.id)}
+                  className="grid h-6 w-6 place-items-center rounded-full hover:bg-line"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="relative">
           <input
             id="aluno-aula"
@@ -337,9 +378,9 @@ function FormAula() {
             aria-autocomplete="list"
             aria-controls="sugestoes-aluno"
             value={texto}
+            disabled={grupoCheio}
             onChange={(event) => {
               setTexto(event.target.value)
-              setAlunoId('')
               setAberto(true)
             }}
             onFocus={() => setAberto(true)}
@@ -354,7 +395,7 @@ function FormAula() {
               className="mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-paper shadow-sm"
             >
               {sugestoes.map((aluno) => (
-                <li key={aluno.id} role="option" aria-selected={aluno.id === alunoId}>
+                <li key={aluno.id} role="option" aria-selected={false}>
                   <button
                     type="button"
                     onMouseDown={(event) => {

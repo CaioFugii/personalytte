@@ -24,9 +24,11 @@ Gympass e TotalPass avisam a visita por webhook. O painel guarda os dois na mesm
 
 Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.
 
-O sistema recusa outro horário que cruze o mesmo responsável ou o mesmo aluno. Aula `CANCELADA` libera o horário.
+Aula é dada em grupo de até 4 alunos. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. O sistema recusa a quinta, outro início do mesmo responsável que cruze o grupo e qualquer cruzamento do mesmo aluno. Aula `CANCELADA` libera a vaga.
 
-Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `AGUARDANDO`. Os dois papéis podem mover o status entre esses quatro.
+Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `AGUARDANDO`. Os dois papéis podem mover o status entre esses quatro, mas só se entra em `CANCELADA` pela ação de cancelar.
+
+Cancelar exige a justificativa e a resposta se gera reposição. Com reposição, ela pode ser agendada no cancelamento ou depois, a partir da aula cancelada. Sair de `CANCELADA` apaga a justificativa.
 
 Ao marcar `FALTA`, dá para criar outra aula ligada a essa, já identificada como reposição. A falta também pode ficar sozinha. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
 

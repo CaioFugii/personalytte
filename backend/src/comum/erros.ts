@@ -24,6 +24,7 @@ export class ErroApi extends Error {
 }
 
 export const MENSAGEM_OCUPADO = 'Esse horário cruza outra aula do mesmo aluno ou responsável.';
+export const MENSAGEM_GRUPO_CHEIO = 'Esse horário já tem 4 alunos com este professor.';
 export const MENSAGEM_BLOQUEIO = 'Já existe um evento nesse horário.';
 export const MENSAGEM_EVENTO_COM_AULA = 'Já existe uma aula nesse horário.';
 export const MENSAGEM_DATA = 'Não é possível agendar uma data anterior a hoje.';

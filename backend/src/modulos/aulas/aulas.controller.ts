@@ -21,6 +21,12 @@ export class AulasController {
     return this.aulas.criar(corpo);
   }
 
+  @Post('grupo')
+  @HttpCode(201)
+  criarGrupo(@Body() corpo: unknown) {
+    return this.aulas.criarGrupo(corpo);
+  }
+
   @Patch(':id')
   atualizar(@Param('id') id: string, @Body() corpo: unknown) {
     return this.aulas.atualizar(id, corpo);
@@ -28,7 +34,7 @@ export class AulasController {
 
   @Post(':id/cancelar')
   @HttpCode(200)
-  cancelar(@Param('id') id: string) {
-    return this.aulas.cancelar(id);
+  cancelar(@Param('id') id: string, @Body() corpo: unknown) {
+    return this.aulas.cancelar(id, corpo);
   }
 }

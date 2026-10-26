@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
 import { useGet } from '../api/useGet'
-import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar, useNotificar } from '../componentes/toast'
 import {
   Botao,
@@ -63,6 +63,8 @@ function chaveAula(aula: Aula): string {
     aula.responsavel.id,
     aula.reposicaoDeAulaId ?? '',
     aula.ligadaAoPlano,
+    aula.cancelamento?.justificativa ?? '',
+    aula.cancelamento?.geraReposicao ?? '',
   ].join('|')
 }
 
@@ -80,7 +82,7 @@ export function AulaDetalhe() {
   const [form, setForm] = useState<FormAula | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
-  const { pedir, dialogo } = useConfirmacao()
+  const [pedindoCancelamento, setPedindoCancelamento] = useState(false)
 
   const chave = aula ? chaveAula(aula) : null
   if (chave !== chaveVista) {
@@ -115,6 +117,16 @@ export function AulaDetalhe() {
     }
     return base.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   }, [responsaveis, aula])
+  const professores = useMemo(
+    () =>
+      responsaveis
+        .filter((item) => item.funcao === 'PROFESSOR')
+        .map((item) => ({ id: item.id, nome: item.nome }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [responsaveis],
+  )
+  const professorDe = (id: string) => (professores.some((item) => item.id === id) ? id : '')
+  const reposicaoProfessorId = form ? professorDe(form.reposicaoResponsavelId) : ''
 
   const carregando =
     (aulaQ.carregando && !aula) ||
@@ -122,6 +134,8 @@ export function AulaDetalhe() {
     (respQ.carregando && !Array.isArray(respQ.dados))
   const erroCarga = aulaQ.erro || (!aula && (alunosQ.erro || respQ.erro))
   const comecou = aula ? aulaJaComecou(aula.inicio, agora) : false
+  const repoeCancelada = aula?.status === 'CANCELADA' && aula.cancelamento?.geraReposicao === true
+  const opcoesStatus = aula?.status === 'CANCELADA' ? STATUS : STATUS.filter((item) => item.value !== 'CANCELADA')
   useNotificar(aula && (alunosQ.erro || respQ.erro) ? 'erro' : null, alunosQ.erro || respQ.erro)
   useNotificar(comecou ? 'aviso' : null, 'Esta aula já começou. Data e horário não podem ser alterados.')
 
@@ -136,20 +150,12 @@ export function AulaDetalhe() {
       notificar('erro', 'Informe a data e o horário.')
       return
     }
-    if (form.status === 'FALTA' && form.criarReposicao) {
-      if (!form.reposicaoResponsavelId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora) {
-        notificar('erro', 'Informe o responsável e o início da reposição, ou salve a falta sem reposição.')
+    const criaReposicao = form.criarReposicao && (form.status === 'FALTA' || (repoeCancelada && form.status === 'CANCELADA'))
+    if (criaReposicao) {
+      if (!reposicaoProfessorId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora) {
+        notificar('erro', 'Informe o professor e o início da reposição, ou salve sem reposição.')
         return
       }
-    }
-    if (form.status === 'CANCELADA' && aula.status !== 'CANCELADA') {
-      const confirma = await pedir({
-        titulo: 'Cancelar aula',
-        mensagem: 'Gravar esta aula como Cancelada?',
-        confirmar: 'Gravar',
-        perigo: true,
-      })
-      if (!confirma) return
     }
 
     const corpo: Record<string, unknown> = {}
@@ -167,11 +173,10 @@ export function AulaDetalhe() {
         corpo.inicio = instanteBrasilia(form.data, form.hora)
       }
     }
-    const criaReposicao = form.status === 'FALTA' && form.criarReposicao
     if (criaReposicao) {
-      corpo.status = 'FALTA'
+      if (form.status === 'FALTA') corpo.status = 'FALTA'
       corpo.reposicao = {
-        responsavelId: form.reposicaoResponsavelId,
+        responsavelId: reposicaoProfessorId,
         inicio: instanteBrasilia(form.reposicaoData, form.reposicaoHora),
       }
     }
@@ -185,7 +190,13 @@ export function AulaDetalhe() {
       await api(`/api/aulas/${aula.id}`, { method: 'PATCH', body: JSON.stringify(corpo) })
       const dataAgenda = !comecou && civilPreenchida(form.data) ? form.data : partesSP(aula.inicio).data
       navigate(`/agenda?semana=${inicioDaSemana(dataAgenda)}`, {
-        state: { sucesso: criaReposicao ? 'Falta registrada e reposição criada.' : 'Alterações salvas.' },
+        state: {
+          sucesso: !criaReposicao
+            ? 'Alterações salvas.'
+            : form.status === 'FALTA'
+              ? 'Falta registrada e reposição criada.'
+              : 'Reposição agendada.',
+        },
       })
     } catch (err) {
       notificar('erro', mensagemDeErro(err))
@@ -194,22 +205,16 @@ export function AulaDetalhe() {
     }
   }
 
-  async function cancelar() {
+  async function cancelar(dados: DadosCancelamento) {
     if (!aula || aula.status === 'CANCELADA') return
-    const confirma = await pedir({
-      titulo: 'Cancelar aula',
-      mensagem: 'Cancelar esta aula? O horário fica livre.',
-      confirmar: 'Cancelar aula',
-      perigo: true,
-    })
-    if (!confirma) return
     setCancelando(true)
     try {
-      await api(`/api/aulas/${aula.id}/cancelar`, { method: 'POST' })
-      navigate(`/agenda?semana=${inicioDaSemana(partesSP(aula.inicio).data)}`, { state: { sucesso: 'Aula cancelada.' } })
+      await api(`/api/aulas/${aula.id}/cancelar`, { method: 'POST', body: JSON.stringify(dados) })
+      navigate(`/agenda?semana=${inicioDaSemana(partesSP(aula.inicio).data)}`, {
+        state: { sucesso: dados.reposicao ? 'Aula cancelada e reposição criada.' : 'Aula cancelada.' },
+      })
     } catch (err) {
       notificar('erro', mensagemDeErro(err))
-    } finally {
       setCancelando(false)
     }
   }
@@ -222,7 +227,17 @@ export function AulaDetalhe() {
 
   return (
     <div>
-      {dialogo}
+      {pedindoCancelamento && aula ? (
+        <ModalCancelamento
+          professores={professores}
+          professorPadrao={professorDe(aula.responsavel.id)}
+          enviando={cancelando}
+          onConfirmar={(dados) => void cancelar(dados)}
+          onFechar={() => {
+            if (!cancelando) setPedindoCancelamento(false)
+          }}
+        />
+      ) : null}
       <Cabecalho
         sobretitulo="Planejamento"
         titulo={aula ? aula.aluno.nome : 'Aula'}
@@ -269,6 +284,15 @@ export function AulaDetalhe() {
             ) : null}
           </div>
           <p className="text-sm text-muted">Responsável: {aula.responsavel.nome}</p>
+          {aula.cancelamento ? (
+            <div className="rounded-2xl border border-line bg-paper p-4 text-sm">
+              <p className="font-semibold">Cancelamento</p>
+              <p className="mt-1 whitespace-pre-line">{aula.cancelamento.justificativa}</p>
+              <p className="mt-2 text-muted">
+                {aula.cancelamento.geraReposicao ? 'Gera reposição de aula.' : 'Não gera reposição de aula.'}
+              </p>
+            </div>
+          ) : null}
 
           <form onSubmit={(event) => void salvar(event)} className="grid gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
             <div className="grid gap-4 md:grid-cols-2">
@@ -350,7 +374,7 @@ export function AulaDetalhe() {
                   }}
                   className={classeCampo}
                 >
-                  {STATUS.map((item) => (
+                  {opcoesStatus.map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
                     </option>
@@ -368,10 +392,14 @@ export function AulaDetalhe() {
               </label>
             </div>
 
-            {form.status === 'FALTA' ? (
+            {form.status === 'FALTA' || (repoeCancelada && form.status === 'CANCELADA') ? (
               <fieldset className="rounded-lg border border-line p-4">
                 <legend className="px-1 font-semibold">Reposição</legend>
-                <p className="mb-3 text-sm text-muted">A falta pode ser salva sem reposição. A reposição é opcional.</p>
+                <p className="mb-3 text-sm text-muted">
+                  {form.status === 'FALTA'
+                    ? 'A falta pode ser salva sem reposição. A reposição é opcional.'
+                    : 'Este cancelamento gera reposição. Agende quando tiver a data.'}
+                </p>
                 <label className="mb-3 flex items-center gap-2 text-sm font-semibold">
                   <input
                     type="checkbox"
@@ -383,16 +411,16 @@ export function AulaDetalhe() {
                 </label>
                 {form.criarReposicao ? (
                   <div className="grid gap-4 md:grid-cols-3">
-                    <Campo label="Responsável da reposição" htmlFor="resp-reposicao">
+                    <Campo label="Professor da reposição" htmlFor="resp-reposicao">
                       <select
                         id="resp-reposicao"
                         required
-                        value={form.reposicaoResponsavelId}
+                        value={reposicaoProfessorId}
                         onChange={(event) => setForm({ ...form, reposicaoResponsavelId: event.target.value })}
                         className={classeCampo}
                       >
                         <option value="">Selecione</option>
-                        {opcoesResp.map((item) => (
+                        {professores.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.nome}
                           </option>
@@ -429,7 +457,7 @@ export function AulaDetalhe() {
                 {salvando ? 'Salvando…' : 'Salvar'}
               </Botao>
               {aula.status !== 'CANCELADA' ? (
-                <Botao variante="perigo" disabled={salvando || cancelando} onClick={() => void cancelar()}>
+                <Botao variante="perigo" disabled={salvando || cancelando} onClick={() => setPedindoCancelamento(true)}>
                   {cancelando ? 'Cancelando…' : 'Cancelar aula'}
                 </Botao>
               ) : null}
@@ -443,4 +471,177 @@ export function AulaDetalhe() {
 
 function civilPreenchida(valor: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor)
+}
+
+type DadosCancelamento = {
+  justificativa: string
+  geraReposicao: boolean
+  reposicao?: { responsavelId: string; inicio: string }
+}
+
+function ModalCancelamento({
+  professores,
+  professorPadrao,
+  enviando,
+  onConfirmar,
+  onFechar,
+}: {
+  professores: { id: string; nome: string }[]
+  professorPadrao: string
+  enviando: boolean
+  onConfirmar: (dados: DadosCancelamento) => void
+  onFechar: () => void
+}) {
+  const tituloId = useId()
+  const justificativaRef = useRef<HTMLTextAreaElement>(null)
+  const fecharAtual = useRef(onFechar)
+  fecharAtual.current = onFechar
+  const [justificativa, setJustificativa] = useState('')
+  const [geraReposicao, setGeraReposicao] = useState<boolean | null>(null)
+  const [professorId, setProfessorId] = useState(professorPadrao)
+  const [data, setData] = useState('')
+  const [hora, setHora] = useState('')
+
+  useEffect(() => {
+    justificativaRef.current?.focus()
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function aoTecla(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        fecharAtual.current()
+      }
+    }
+    document.addEventListener('keydown', aoTecla)
+    return () => {
+      document.body.style.overflow = anterior
+      document.removeEventListener('keydown', aoTecla)
+    }
+  }, [])
+
+  function confirmar(event: FormEvent) {
+    event.preventDefault()
+    if (!justificativa.trim()) {
+      notificar('erro', 'Informe a justificativa do cancelamento.')
+      return
+    }
+    if (geraReposicao === null) {
+      notificar('erro', 'Informe se o cancelamento gera reposição.')
+      return
+    }
+    const agendaAgora = geraReposicao && (data !== '' || hora !== '')
+    if (agendaAgora && (!professorId || !civilPreenchida(data) || !hora)) {
+      notificar('erro', 'Informe o professor, a data e o horário da reposição, ou deixe a data e o horário vazios.')
+      return
+    }
+    onConfirmar({
+      justificativa: justificativa.trim(),
+      geraReposicao,
+      ...(agendaAgora ? { reposicao: { responsavelId: professorId, inicio: instanteBrasilia(data, hora) } } : {}),
+    })
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onMouseDown={onFechar}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        onSubmit={confirmar}
+        className="grid w-full max-w-lg gap-4 rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)]"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
+          Cancelar aula
+        </h2>
+        <p className="text-sm leading-6">O horário fica livre. A justificativa fica gravada na aula.</p>
+        <Campo label="Justificativa" htmlFor="justificativa-cancelamento">
+          <textarea
+            id="justificativa-cancelamento"
+            ref={justificativaRef}
+            required
+            rows={3}
+            value={justificativa}
+            onChange={(event) => setJustificativa(event.target.value)}
+            className={classeCampo}
+          />
+        </Campo>
+        <fieldset>
+          <legend className="mb-2 text-sm font-semibold">Gera reposição de aula?</legend>
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gera-reposicao"
+                checked={geraReposicao === true}
+                onChange={() => setGeraReposicao(true)}
+                className="accent-tide"
+              />
+              Sim
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="gera-reposicao"
+                checked={geraReposicao === false}
+                onChange={() => setGeraReposicao(false)}
+                className="accent-tide"
+              />
+              Não
+            </label>
+          </div>
+        </fieldset>
+        {geraReposicao ? (
+          <fieldset className="rounded-lg border border-line p-4">
+            <legend className="px-1 text-sm font-semibold">Agendar a reposição agora (opcional)</legend>
+            <p className="mb-3 text-sm text-muted">Sem data, a reposição fica para agendar depois na própria aula.</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Campo label="Professor" htmlFor="resp-reposicao-cancelamento">
+                <select
+                  id="resp-reposicao-cancelamento"
+                  value={professorId}
+                  onChange={(event) => setProfessorId(event.target.value)}
+                  className={classeCampo}
+                >
+                  <option value="">Selecione</option>
+                  {professores.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo label="Data" htmlFor="data-reposicao-cancelamento">
+                <input
+                  id="data-reposicao-cancelamento"
+                  type="date"
+                  value={data}
+                  onChange={(event) => setData(event.target.value)}
+                  className={classeCampo}
+                />
+              </Campo>
+              <Campo label="Horário" htmlFor="hora-reposicao-cancelamento">
+                <input
+                  id="hora-reposicao-cancelamento"
+                  type="time"
+                  value={hora}
+                  onChange={(event) => setHora(event.target.value)}
+                  className={classeCampo}
+                />
+              </Campo>
+            </div>
+          </fieldset>
+        ) : null}
+        <div className="flex justify-end gap-2">
+          <Botao variante="secundario" disabled={enviando} onClick={onFechar}>
+            Voltar
+          </Botao>
+          <Botao type="submit" variante="perigo" disabled={enviando}>
+            {enviando ? 'Cancelando…' : 'Cancelar aula'}
+          </Botao>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  )
 }

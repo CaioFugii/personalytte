@@ -48,6 +48,7 @@ export type AulaResposta = {
   experimental: boolean;
   reposicaoDeAulaId: string | null;
   ligadaAoPlano: boolean;
+  cancelamento: { justificativa: string; geraReposicao: boolean } | null;
 };
 
 export type EventoResposta = {

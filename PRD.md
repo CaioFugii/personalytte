@@ -80,7 +80,7 @@ A data de cadastro é gravada pelo sistema.
 
 Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.
 
-O sistema recusa outro horário que cruze o mesmo responsável ou o mesmo aluno. Aula cancelada libera o horário. Evento de aniversário ou torneio não ocupa o horário da aula.
+As aulas são dadas em grupos de até 4 alunos. O mesmo responsável pode ter até 4 aulas no mesmo início, uma por aluno. No novo agendamento, dá para escolher até 4 alunos de uma vez. O sistema recusa a quinta aula, outro horário do mesmo responsável que cruze esse grupo e qualquer horário que cruze outra aula do mesmo aluno. Aula cancelada libera a vaga. Evento de aniversário ou torneio não ocupa o horário da aula.
 
 Status:
 
@@ -89,7 +89,7 @@ Status:
 - Falta
 - Cancelada
 
-Toda aula nova nasce Aguardando. Administrador e professor podem mover o status entre esses quatro. Cancelar aula grava Cancelada.
+Toda aula nova nasce Aguardando. Administrador e professor podem mover o status entre esses quatro. Cancelar aula grava Cancelada e exige a justificativa e a resposta se o cancelamento gera reposição. Quando gera, a reposição pode ser agendada no próprio cancelamento ou depois, no detalhe da aula cancelada. Tirar a aula de Cancelada apaga a justificativa.
 
 Ao marcar Falta, o sistema oferece criar outra aula, ligada a essa, já identificada como reposição. A falta também pode ser salva sozinha. A reposição é uma aula avulsa, segue o mesmo ciclo de status e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
 
@@ -156,7 +156,7 @@ A referência visual é o Canva. O comportamento abaixo é o contrato.
 - **Check-ins.** Lista do dia, visível para professor e administrador, com horário, nome, contato e provedor. Gympass e TotalPass na mesma tabela.
 - **Agenda da semana.** Grade de segunda a domingo, com aulas e eventos. Dá para ir à semana anterior, à seguinte e a hoje.
 - **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição.
-- **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta.
+- **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta e na aula cancelada que gera reposição. Cancelar abre a justificativa e a pergunta se gera reposição.
 - **Novo agendamento.** Primeiro a escolha entre aula e evento. Professor segue só para aula. Em seguida, o formulário correspondente.
 - **Alunos.** Lista com nome, telefone, plano, categoria, cadastro e ações. Busca por nome, e-mail ou telefone. Formulário de criação e edição. Professor consulta a lista e o detalhe, sem gravar.
 - **Equipe.** Visível só para o administrador. Lista com nome, telefone, função, data de nascimento, cadastro e ações. Busca por nome, e-mail ou telefone. O formulário inclui e-mail e senha inicial.
@@ -189,7 +189,7 @@ Variáveis previstas na Heroku:
 2. Com o banco vazio, a primeira subida cria o sócio administrador a partir das variáveis de ambiente.
 3. Sócio dá aula e continua com permissão de administrador. Professor não grava aluno, equipe, evento nem aviso.
 4. Aluno sem horários e sem professor fica cadastrado e não ganha aula. Com os dois preenchidos, cada dia e horário do plano gera ocorrências futuras até 8 semanas, sempre de 60 minutos.
-5. Dois horários que se cruzam para o mesmo responsável, ou para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
+5. O mesmo responsável aceita até 4 alunos no mesmo início, e a quinta aula é recusada. Horários que se cruzam com outro início para o mesmo responsável, ou qualquer cruzamento para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
 6. Mudar o plano recria só as futuras Aguardando ainda ligadas a ele. Editar aluno, responsável, data ou horário de um dia deixa essa ocorrência de fora das próximas recriações.
 7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.
 8. Qualquer evento recusa aula nova no intervalo, e qualquer aula não cancelada recusa evento novo no mesmo horário. Nada que já estava na agenda é cancelado por isso.

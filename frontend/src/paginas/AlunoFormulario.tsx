@@ -174,8 +174,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
         return
       }
       await api(`/api/alunos/${id}`, { method: 'PATCH', body: JSON.stringify(corpo) })
-      notificar('ok', 'Alterações salvas.')
-      alunoQ.recarregar()
+      navigate('/alunos', { state: { sucesso: 'Alterações salvas.' } })
     } catch (err) {
       notificar('erro', mensagemDeErro(err))
     } finally {
