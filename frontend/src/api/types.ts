@@ -102,7 +102,7 @@ export type Dashboard = {
   confirmadas: number
   alunosCadastrados: number
   alunosDoDia: number
-  proximoHorario: Aula | null
+  proximoHorario: Aula[]
   eventosDaSemana: Evento[]
   avisos: Aviso[]
 }

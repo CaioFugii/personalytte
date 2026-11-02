@@ -139,7 +139,7 @@ Os números usam o dia corrente em Brasília. Aula cancelada fica de fora das co
 - **Confirmadas:** aulas de hoje com status Confirmada.
 - **Alunos cadastrados:** alunos ativos.
 - **Alunos do dia:** alunos distintos com aula não cancelada hoje.
-- **Próximo horário:** a aula não cancelada que ainda não terminou, a de início mais cedo. Se uma está em andamento, ela é a escolhida. Mostra aluno, categoria atual e responsável.
+- **Próximo horário:** as aulas não canceladas do início mais cedo que ainda não terminou. Se um horário está em andamento, ele é o escolhido. Mostra os alunos do grupo, a categoria atual de cada um e o responsável.
 - **Eventos da semana:** eventos que cruzam a semana corrente, de segunda a domingo.
 - **Avisos:** a lista descrita em 5.4.
 

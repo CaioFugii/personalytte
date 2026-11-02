@@ -218,13 +218,13 @@ Cada aviso traz `id`, `titulo`, `mensagem` e `criadoEm`.
   "confirmadas": 0,
   "alunosCadastrados": 0,
   "alunosDoDia": 0,
-  "proximoHorario": null,
+  "proximoHorario": [],
   "eventosDaSemana": [],
   "avisos": []
 }
 ```
 
-`proximoHorario` é uma aula no formato acima, ou `null`.
+`proximoHorario` é a lista de aulas não canceladas do próximo início que ainda não terminou, no formato de aula acima. Grupo no mesmo horário entra inteiro. Sem aula por vir, a lista é `[]`.
 
 ## Check-ins
 

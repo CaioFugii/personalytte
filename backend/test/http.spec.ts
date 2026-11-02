@@ -90,6 +90,7 @@ describe('sessão http', () => {
       confirmadas: expect.any(Number),
       alunosCadastrados: expect.any(Number),
       alunosDoDia: expect.any(Number),
+      proximoHorario: expect.any(Array),
       eventosDaSemana: expect.any(Array),
       avisos: expect.any(Array),
     });

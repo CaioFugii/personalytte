@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aviso, Dashboard } from '../api/types'
+import type { Aula, Aviso, Dashboard } from '../api/types'
 import { useGet } from '../api/useGet'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import { notificar, useNotificar } from '../componentes/toast'
@@ -12,6 +12,7 @@ import {
   Campo,
   classeCampo,
   classeCartao,
+  classeFundoStatus,
   classeIconeAcao,
   cx,
   IconeLapis,
@@ -32,7 +33,7 @@ function ehPainel(valor: Dashboard | null): valor is Dashboard {
     typeof valor.confirmadas === 'number' &&
     typeof valor.alunosCadastrados === 'number' &&
     typeof valor.alunosDoDia === 'number' &&
-    (valor.proximoHorario === null || typeof valor.proximoHorario === 'object') &&
+    Array.isArray(valor.proximoHorario) &&
     Array.isArray(valor.eventosDaSemana) &&
     Array.isArray(valor.avisos)
   )
@@ -173,21 +174,8 @@ export function Painel() {
           <div className="grid gap-4 lg:grid-cols-2">
             <section className={cx(classeCartao, 'p-5')}>
               <h2 className="text-xl font-bold">Próximo horário</h2>
-              {dados.proximoHorario?.aluno && dados.proximoHorario.responsavel ? (
-                <Link
-                  to={`/agenda/aulas/${dados.proximoHorario.id}`}
-                  className="mt-3 block rounded-md border border-line px-3 py-3 hover:border-tide"
-                >
-                  <p className="text-sm text-muted">{formatarIntervalo(dados.proximoHorario.inicio, dados.proximoHorario.fim)}</p>
-                  <p className="mt-1 flex items-center gap-2 text-lg font-semibold">
-                    {dados.proximoHorario.aluno.nome}
-                    <SeloCategoria categoria={dados.proximoHorario.aluno.categoria} />
-                  </p>
-                  <p className="text-sm text-muted">Responsável: {dados.proximoHorario.responsavel.nome}</p>
-                  <div className="mt-2">
-                    <SeloStatus status={dados.proximoHorario.status} />
-                  </div>
-                </Link>
+              {dados.proximoHorario.length > 0 ? (
+                <ProximoHorario aulas={dados.proximoHorario} />
               ) : (
                 <p className="mt-3 text-muted">Nenhuma aula por vir agora.</p>
               )}
@@ -296,6 +284,61 @@ export function Painel() {
           </section>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function agruparPorResponsavel(aulas: Aula[]) {
+  const grupos: { id: string; nome: string; aulas: Aula[] }[] = []
+  for (const aula of aulas) {
+    const id = aula.responsavel?.id ?? ''
+    const ultimo = grupos.at(-1)
+    if (ultimo?.id === id) {
+      ultimo.aulas.push(aula)
+      continue
+    }
+    grupos.push({ id, nome: aula.responsavel?.nome ?? '', aulas: [aula] })
+  }
+  return grupos
+}
+
+function ProximoHorario({ aulas }: { aulas: Aula[] }) {
+  const primeira = aulas[0]
+  if (!primeira) return null
+  const grupos = agruparPorResponsavel(aulas)
+  const ocupacao = `${aulas.length} aluno${aulas.length === 1 ? '' : 's'}`
+  return (
+    <div className="mt-3 rounded-md border border-line px-3 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm text-muted">{formatarIntervalo(primeira.inicio, primeira.fim)}</p>
+        <p className="text-sm text-muted">{ocupacao}</p>
+      </div>
+      <ul className="mt-3 grid gap-3">
+        {grupos.map((grupo) => (
+          <li key={grupo.id || grupo.nome}>
+            {grupo.nome ? <p className="mb-1.5 text-sm text-muted">Responsável: {grupo.nome}</p> : null}
+            <ul className="grid gap-1.5">
+              {grupo.aulas.map((aula) => (
+                <li key={aula.id}>
+                  <Link
+                    to={`/agenda/aulas/${aula.id}`}
+                    className={cx(
+                      'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 hover:ring-1 hover:ring-tide',
+                      classeFundoStatus(aula.status),
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-2 font-semibold">
+                      <span className="truncate">{aula.aluno.nome}</span>
+                      <SeloCategoria categoria={aula.aluno.categoria} />
+                    </span>
+                    <SeloStatus status={aula.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

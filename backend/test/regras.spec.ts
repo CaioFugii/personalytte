@@ -9,6 +9,7 @@ import { Aula } from '../src/entidades/aula.entity';
 import { Integrante } from '../src/entidades/integrante.entity';
 import { AlunosService } from '../src/modulos/alunos/alunos.service';
 import { AulasService } from '../src/modulos/aulas/aulas.service';
+import { DashboardService } from '../src/modulos/dashboard/dashboard.service';
 import { EventosService } from '../src/modulos/eventos/eventos.service';
 import { IntegrantesService } from '../src/modulos/integrantes/integrantes.service';
 import { SessaoService } from '../src/modulos/sessao/sessao.service';
@@ -190,6 +191,29 @@ describe('regras de domínio', () => {
       plano: 'PARTICULAR',
       categoria: 'E',
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
+  it('mostra no painel os alunos do próximo horário em grupo', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    const ana = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
+    const bruno = await s.alunos.criar({ nome: 'Bruno', telefone: '11911110002', plano: 'GYMPASS', categoria: 'C' }, AGORA);
+    const carla = await s.alunos.criar({ nome: 'Carla', telefone: '11911110003', plano: 'MENSAL', categoria: 'B' }, AGORA);
+    await s.aulas.criarGrupo({
+      alunoIds: [ana.id, bruno.id],
+      responsavelId: marina.id,
+      inicio: '2026-10-21T18:00:00-03:00',
+      experimental: false,
+    }, AGORA);
+    await s.aulas.criar({
+      alunoId: carla.id,
+      responsavelId: marina.id,
+      inicio: '2026-10-21T19:00:00-03:00',
+      experimental: false,
+    }, AGORA);
+    const painel = await new DashboardService(s.em).obter(AGORA);
+    expect(painel.proximoHorario.map((aula) => aula.aluno.nome)).toEqual(['Ana', 'Bruno']);
+    expect(painel.proximoHorario.every((aula) => aula.inicio === '2026-10-21T18:00:00-03:00')).toBe(true);
   });
 
   it('recusa cruzamento do mesmo responsável ou aluno e ignora aula cancelada', async () => {

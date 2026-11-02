@@ -17,7 +17,7 @@ export class DashboardService {
     confirmadas: number;
     alunosCadastrados: number;
     alunosDoDia: number;
-    proximoHorario: AulaResposta | null;
+    proximoHorario: AulaResposta[];
     eventosDaSemana: EventoResposta[];
     avisos: AvisoResposta[];
   }> {
@@ -30,7 +30,18 @@ export class DashboardService {
     const proxima = await this.em.findOne(Aula, {
       status: { $ne: 'CANCELADA' },
       fim: { $gt: agora },
-    }, { populate: ['aluno', 'responsavel', 'reposicaoDe'], orderBy: { inicio: 'asc' } });
+    }, { orderBy: { inicio: 'asc' } });
+    const doHorario = proxima
+      ? await this.em.find(Aula, {
+          status: { $ne: 'CANCELADA' },
+          inicio: proxima.inicio,
+        }, { populate: ['aluno', 'responsavel', 'reposicaoDe'] })
+      : [];
+    doHorario.sort((a, b) => {
+      const responsavel = a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR');
+      if (responsavel !== 0) return responsavel;
+      return a.aluno.nome.localeCompare(b.aluno.nome, 'pt-BR');
+    });
     const segunda = inicioDaSemana(agora);
     const proximaSegunda = adicionarDias(segunda, 7);
     const eventos = await this.em.find(Evento, {
@@ -43,7 +54,7 @@ export class DashboardService {
       confirmadas: aulasHoje.filter((aula) => aula.status === 'CONFIRMADA').length,
       alunosCadastrados: await this.em.count(Aluno, { ativo: true, temporario: false }),
       alunosDoDia: new Set(aulasHoje.map((aula) => aula.aluno.id)).size,
-      proximoHorario: proxima ? serializarAula(proxima) : null,
+      proximoHorario: doHorario.map(serializarAula),
       eventosDaSemana: eventos.map(serializarEvento),
       avisos: avisos.map(serializarAviso),
     };
