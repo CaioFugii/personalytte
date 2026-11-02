@@ -14,7 +14,7 @@ Não há cadastro público. O administrador define a senha, com no mínimo 8 car
 
 **Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`) e categoria (`INICIANTE`, `D`, `C`, `B` ou `A`). E-mail, Instagram e data de nascimento são opcionais. A data é um dia civil (`YYYY-MM-DD`). O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
 
-Cada item do plano semanal tem o próprio dia e horário. Segunda às 19h e quinta às 9h são duas aulas. O professor é um só para o plano. Horários e professor entram juntos ou ficam os dois vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo sai da lista e da busca de um agendamento novo.
+Cada item do plano semanal tem o próprio dia e horário. Segunda às 19h e quinta às 9h são duas aulas. O professor é um só para o plano. Horários e professor entram juntos ou ficam os dois vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo permanece na lista de Alunos e sai da busca de um agendamento novo. O detalhe abre; edição e nova aula, não.
 
 ## Check-in
 
@@ -53,3 +53,5 @@ Qualquer evento bloqueia aula nova em todo o intervalo, para qualquer responsáv
 ## Aviso
 
 Título e mensagem. Os dois papéis leem a lista no dashboard, do mais recente ao mais antigo. O aviso permanece até o administrador editar ou apagar. Nada é enviado ao aluno.
+
+A primeira leitura do painel ou dos avisos na semana cria o aviso dos aniversariantes, se ainda não existir. Entram alunos ativos com data de nascimento na semana corrente, de segunda a domingo. Em ano sem 29 de fevereiro, o aniversário de 29 cai no dia 28. Sem aniversariante, não cria. Não há rotina agendada.

@@ -71,10 +71,11 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   const navigate = useNavigate()
   const { usuario } = useSessao()
   const admin = usuario?.papel === 'administrador'
-  const somenteLeitura = modo === 'editar' && !admin
   const alunoQ = useGet<Aluno>(modo === 'editar' && id ? `/api/alunos/${id}` : null)
-  const respQ = useGet<Responsavel[]>(modo === 'novo' && !admin ? null : '/api/integrantes/responsaveis')
   const aluno = alunoQ.dados
+  const inativo = aluno?.ativo === false
+  const somenteLeitura = modo === 'editar' && (!admin || inativo)
+  const respQ = useGet<Responsavel[]>(modo === 'novo' && !admin ? null : '/api/integrantes/responsaveis')
   useTitulo(modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno')
 
   const [chaveVista, setChaveVista] = useState<string | null>(null)
@@ -207,7 +208,13 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       <Cabecalho
         sobretitulo="Relacionamento"
         titulo={modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno'}
-        descricao={somenteLeitura ? 'Consulta. Só o administrador altera o cadastro.' : undefined}
+        descricao={
+          inativo
+            ? 'Aluno inativo. O cadastro permanece só para consulta.'
+            : somenteLeitura
+              ? 'Consulta. Só o administrador altera o cadastro.'
+              : undefined
+        }
         acoes={
           <LinkBotao to="/alunos" variante="secundario">
             Voltar à lista

@@ -35,7 +35,7 @@ O formato de cada corpo está em [docs/contrato-api.md](docs/contrato-api.md). E
 
 ## Agenda
 
-`backend/src/dominio/agenda.service.ts` gera o horizonte de 8 semanas, recusa sobreposição, aplica bloqueio de evento e recria as ocorrências ligadas ao plano. `pnpm horizonte` executa `backend/dist/horizonte.js` para o agendamento diário da Heroku.
+`backend/src/dominio/agenda.service.ts` gera o horizonte de 8 semanas, recusa sobreposição, aplica bloqueio de evento e recria as ocorrências ligadas ao plano. `pnpm horizonte` executa `backend/dist/horizonte.js` para o agendamento diário da Heroku. O aviso dos aniversariantes da semana nasce na leitura do dashboard ou da lista de avisos, sem rotina extra, porque o dyno pode estar em sleep.
 
 O instante fica no banco com fuso. A comparação de “hoje”, “futura” e “já começou” usa America/Sao_Paulo.
 

@@ -68,9 +68,11 @@ Resposta de integrante: `id`, `nome`, `email`, `telefone`, `funcao`, `papel`, `a
 
 Leitura: professor e administrador. Escrita: administrador.
 
-`GET /api/alunos?busca=` só ativos. Busca em nome, e-mail, telefone e Instagram.
+`GET /api/alunos?busca=` só ativos, sem temporários. Busca em nome, e-mail, telefone e Instagram.
 
-`GET /api/alunos/:id`
+`GET /api/alunos?busca=&incluirInativos=1` inclui inativos na mesma lista, sem temporários. Ativos vêm primeiro. O novo agendamento e o detalhe da aula usam a lista sem esse parâmetro.
+
+`GET /api/alunos/:id` devolve o cadastro permanente, ativo ou inativo.
 
 `POST /api/alunos` e `PATCH /api/alunos/:id` com:
 
@@ -202,7 +204,7 @@ Cada evento na lista traz `id`, `tipo`, `nome`, `inicio`, `fim`, `contato`, `blo
 
 ## Avisos
 
-`GET /api/avisos` professor e administrador, do mais recente ao mais antigo.
+`GET /api/avisos` professor e administrador, do mais recente ao mais antigo. Se a semana ainda não tem o aviso dos aniversariantes e houver aluno ativo aniversariando, essa leitura cria o aviso.
 
 `POST /api/avisos`, `PATCH /api/avisos/:id`, `DELETE /api/avisos/:id`: só administrador. Corpo: `{ "titulo", "mensagem" }`.
 
@@ -210,7 +212,7 @@ Cada aviso traz `id`, `titulo`, `mensagem` e `criadoEm`.
 
 ## Dashboard
 
-`GET /api/dashboard` autenticado.
+`GET /api/dashboard` autenticado. Também cria o aviso dos aniversariantes da semana, se ainda não existir, como em `GET /api/avisos`.
 
 ```json
 {

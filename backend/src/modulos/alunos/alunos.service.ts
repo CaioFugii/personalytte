@@ -30,9 +30,9 @@ export class AlunosService {
     private readonly agenda: AgendaService,
   ) {}
 
-  async listar(busca?: string): Promise<AlunoResposta[]> {
-    const alunos = await this.em.find(Aluno, this.filtroBusca(busca), {
-      orderBy: { nome: 'asc' },
+  async listar(busca?: string, incluirInativos = false): Promise<AlunoResposta[]> {
+    const alunos = await this.em.find(Aluno, this.filtroBusca(busca, incluirInativos), {
+      orderBy: incluirInativos ? { ativo: 'desc', nome: 'asc' } : { nome: 'asc' },
       populate: ['responsavel'],
     });
     return alunos.map(serializarAluno);
@@ -41,7 +41,7 @@ export class AlunosService {
   async obter(id: string): Promise<AlunoResposta> {
     uuidDe(id, 'Identificador');
     const aluno = await this.em.findOne(Aluno, { id }, { populate: ['responsavel'] });
-    if (!aluno || !aluno.ativo) throw naoEncontrado('Aluno não encontrado.');
+    if (!aluno) throw naoEncontrado('Aluno não encontrado.');
     return serializarAluno(aluno);
   }
 
@@ -126,9 +126,12 @@ export class AlunosService {
     });
   }
 
-  private filtroBusca(busca?: string): FilterQuery<Aluno> {
+  private filtroBusca(busca?: string, incluirInativos = false): FilterQuery<Aluno> {
     const termo = busca?.trim();
-    if (!termo) return { ativo: true, temporario: false };
+    const base: FilterQuery<Aluno> = incluirInativos
+      ? { temporario: false }
+      : { ativo: true, temporario: false };
+    if (!termo) return base;
     const like = `%${escaparLike(termo)}%`;
     const likeInstagram = `%${escaparLike(termo.replace(/^@+/, ''))}%`;
     const digitos = termo.replace(/\D/g, '');
@@ -138,6 +141,6 @@ export class AlunosService {
       { instagram: { $ilike: likeInstagram } },
     ];
     if (digitos) ou.push({ telefone: { $ilike: `%${digitos}%` } });
-    return { ativo: true, temporario: false, $or: ou };
+    return { ...base, $or: ou };
   }
 }

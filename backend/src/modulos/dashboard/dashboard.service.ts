@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { AulaResposta, AvisoResposta, EventoResposta } from '../../comum/contrato';
 import { serializarAula, serializarAviso, serializarEvento } from '../../comum/serializar';
 import { adicionarDias, inicioDaSemana, inicioDoDia } from '../../comum/tempo';
+import { garantirAvisoAniversariantes } from '../../dominio/aniversariantes';
 import { Aluno } from '../../entidades/aluno.entity';
 import { Aula } from '../../entidades/aula.entity';
 import { Aviso } from '../../entidades/aviso.entity';
@@ -48,6 +49,7 @@ export class DashboardService {
       inicio: { $lt: proximaSegunda },
       fim: { $gt: segunda },
     }, { populate: ['responsavel'], orderBy: { inicio: 'asc' } });
+    await garantirAvisoAniversariantes(this.em, agora);
     const avisos = await this.em.find(Aviso, {}, { orderBy: { criadoEm: 'desc', id: 'desc' } });
     return {
       aulasHoje: aulasHoje.length,

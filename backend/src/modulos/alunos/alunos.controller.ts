@@ -7,8 +7,11 @@ export class AlunosController {
   constructor(private readonly alunos: AlunosService) {}
 
   @Get()
-  listar(@Query('busca') busca?: string) {
-    return this.alunos.listar(typeof busca === 'string' ? busca : undefined);
+  listar(@Query('busca') busca?: string, @Query('incluirInativos') incluirInativos?: string) {
+    return this.alunos.listar(
+      typeof busca === 'string' ? busca : undefined,
+      incluirInativos === '1' || incluirInativos === 'true',
+    );
   }
 
   @Get(':id')

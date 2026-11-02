@@ -66,13 +66,13 @@ Obrigatórios: nome, telefone, plano e categoria.
 - Plano: Particular, Gympass, TotalPass ou Mensal.
 - Categoria: Iniciante, D, C, B ou A.
 
-E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A data de nascimento é opcional, em dia civil, para os aniversariantes do mês. A busca encontra nome, e-mail, telefone ou Instagram.
+E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A data de nascimento é opcional, em dia civil, para os aniversariantes da semana. A busca encontra nome, e-mail, telefone ou Instagram.
 
 O plano semanal é uma lista de dias e horários. Cada item tem o próprio horário: segunda às 19h e quinta às 9h geram aulas diferentes. O mesmo dia pode ter mais de um horário, desde que as aulas de 60 minutos não se cruzem. O professor é um só e vale para todos os horários. Horários e professor entram juntos, ou ficam os dois vazios. Vazio significa aluno cadastrado sem aula gerada. No cadastro do aluno e no novo agendamento, esse campo se chama Professor e lista só integrantes com função Professor.
 
 A categoria fica só no aluno. A agenda mostra a categoria atual dele.
 
-Apagar inativa. O histórico permanece. As aulas futuras ainda em Aguardando saem da agenda. Aulas futuras já Confirmada, Falta ou Cancelada permanecem. Aluno inativo não aparece em “alunos cadastrados” nem na busca de um agendamento novo.
+Apagar inativa. O histórico permanece. As aulas futuras ainda em Aguardando saem da agenda. Aulas futuras já Confirmada, Falta ou Cancelada permanecem. Aluno inativo permanece na lista de Alunos, identificado como inativo, e o detalhe abre só para consulta. Não entra em “alunos cadastrados” nem na busca de um agendamento novo.
 
 A data de cadastro é gravada pelo sistema.
 
@@ -119,6 +119,8 @@ Qualquer evento ocupa a agenda inteira no intervalo. Uma aula nova que cruze ess
 
 Título e mensagem são obrigatórios. Os dois papéis veem a lista no dashboard, do mais recente para o mais antigo. O aviso permanece até o administrador editar ou apagar. Não tem data de validade e não é enviado ao aluno.
 
+Na primeira leitura do painel ou da lista de avisos em cada semana, o sistema cria um aviso com os alunos ativos que fazem aniversário de segunda a domingo, se ainda não existir o daquela semana. Sem aniversariante, não cria. Não usa agendamento: a criação acontece nessa leitura, para funcionar com o dyno da Heroku em sleep. O administrador pode editar ou apagar como os demais.
+
 ### 5.5 Equipe e sessão
 
 Obrigatórios: nome, e-mail e função. Telefone e data de nascimento são opcionais. O e-mail de login é único.
@@ -158,7 +160,7 @@ A referência visual é o Canva. O comportamento abaixo é o contrato.
 - **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição. Dá para mudar o status na lista. Cancelar pede a justificativa e se gera reposição. A oferta de reposição da falta fica no detalhe da aula. A tela exporta a agenda do dia em imagem, em uma ou duas páginas, para enviar no WhatsApp.
 - **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta e na aula cancelada que gera reposição. Cancelar abre a justificativa e a pergunta se gera reposição.
 - **Novo agendamento.** Primeiro a escolha entre aula e evento. Professor segue só para aula. Em seguida, o formulário correspondente.
-- **Alunos.** Lista com nome, telefone, plano, categoria, cadastro e ações. Busca por nome, e-mail ou telefone. Formulário de criação e edição. Professor consulta a lista e o detalhe, sem gravar.
+- **Alunos.** Lista com nome, telefone, plano, categoria, cadastro e ações. Inclui inativos, identificados na lista. Busca por nome, e-mail ou telefone. Formulário de criação e edição. Professor consulta a lista e o detalhe, sem gravar. Aluno inativo abre só para consulta.
 - **Equipe.** Visível só para o administrador. Lista com nome, telefone, função, data de nascimento, cadastro e ações. Busca por nome, e-mail ou telefone. O formulário inclui e-mail e senha inicial.
 
 ## 7. Arquitetura
@@ -194,7 +196,7 @@ Variáveis previstas na Heroku:
 7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.
 8. Qualquer evento recusa aula nova no intervalo, e qualquer aula não cancelada recusa evento novo no mesmo horário. Nada que já estava na agenda é cancelado por isso.
 9. Depois do início da aula, o status muda e a data e o horário não mudam.
-10. Inativar aluno remove as futuras Aguardando e preserva o histórico. Inativar integrante corta o login e é recusado enquanto essa pessoa tiver plano ativo ou aula futura não cancelada. O último administrador permanece.
+10. Inativar aluno remove as futuras Aguardando e preserva o histórico. O aluno inativo permanece na lista de Alunos. Inativar integrante corta o login e é recusado enquanto essa pessoa tiver plano ativo ou aula futura não cancelada. O último administrador permanece.
 11. Aviso fica no dashboard até o administrador editar ou apagar, do mais recente ao mais antigo.
 12. O cookie de sessão dura 7 dias, não fica disponível ao JavaScript da página, e deixa de valer quando a senha muda ou o integrante é inativado.
 13. O front e a API abrem no mesmo endereço da Heroku. O ambiente local sobe com dados de exemplo. Produção, fora o administrador inicial, não traz esses dados.

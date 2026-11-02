@@ -4,13 +4,15 @@ import type { AvisoResposta } from '../../comum/contrato';
 import { naoEncontrado } from '../../comum/erros';
 import { serializarAviso } from '../../comum/serializar';
 import { exigirObjeto, textoObrigatorio, uuidDe, veio } from '../../comum/validacao';
+import { garantirAvisoAniversariantes } from '../../dominio/aniversariantes';
 import { Aviso } from '../../entidades/aviso.entity';
 
 @Injectable()
 export class AvisosService {
   constructor(private readonly em: EntityManager) {}
 
-  async listar(): Promise<AvisoResposta[]> {
+  async listar(agora = new Date()): Promise<AvisoResposta[]> {
+    await garantirAvisoAniversariantes(this.em, agora);
     const avisos = await this.em.find(Aviso, {}, { orderBy: { criadoEm: 'desc', id: 'desc' } });
     return avisos.map(serializarAviso);
   }

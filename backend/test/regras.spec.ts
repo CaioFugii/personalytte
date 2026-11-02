@@ -4,11 +4,13 @@ import { definirSessao } from '../src/comum/cookie';
 import { MENSAGEM_GRUPO_CHEIO, MENSAGEM_OCUPADO } from '../src/comum/erros';
 import { formatarInstante } from '../src/comum/tempo';
 import { AgendaService } from '../src/dominio/agenda.service';
+import { tituloAvisoAniversariantes } from '../src/dominio/aniversariantes';
 import { Aluno } from '../src/entidades/aluno.entity';
 import { Aula } from '../src/entidades/aula.entity';
 import { Integrante } from '../src/entidades/integrante.entity';
 import { AlunosService } from '../src/modulos/alunos/alunos.service';
 import { AulasService } from '../src/modulos/aulas/aulas.service';
+import { AvisosService } from '../src/modulos/avisos/avisos.service';
 import { DashboardService } from '../src/modulos/dashboard/dashboard.service';
 import { EventosService } from '../src/modulos/eventos/eventos.service';
 import { IntegrantesService } from '../src/modulos/integrantes/integrantes.service';
@@ -591,6 +593,7 @@ describe('regras de domínio', () => {
     expect(comTelefone.aluno.telefone).toBe('11888887777');
     expect(gravado.plano).toBeNull();
     expect((await s.alunos.listar()).some((aluno) => aluno.nome === 'Visitante')).toBe(false);
+    expect((await s.alunos.listar(undefined, true)).some((aluno) => aluno.nome === 'Visitante')).toBe(false);
     await expect(s.aulas.criar({
       experimental: false,
       alunoId: gravado.id,
@@ -679,6 +682,11 @@ describe('regras de domínio', () => {
     expect(historico.some((aula) => iso(aula.inicio) === '2026-10-22T10:00:00-03:00' && aula.status === 'AGUARDANDO')).toBe(true);
     expect(await orm.em.fork().findOne(Aluno, { id: ana.id })).toMatchObject({ ativo: false });
     await expect(s.alunos.listar()).resolves.not.toEqual(expect.arrayContaining([expect.objectContaining({ id: ana.id })]));
+    expect(await s.alunos.listar(undefined, true)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: ana.id, ativo: false, nome: 'Ana Lima' })]),
+    );
+    expect(await s.alunos.obter(ana.id)).toMatchObject({ id: ana.id, ativo: false });
+    await expect(s.alunos.atualizar(ana.id, { nome: 'Ana Inativa' }, AGORA)).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' });
 
     const paulo = await professor(s, 'paulo@personalytte.local');
     const comPlano = await s.alunos.criar({
@@ -734,5 +742,93 @@ describe('regras de domínio', () => {
     expect(cabecalhos[1]).toContain('Secure');
     const expirado = new SessaoService(orm.em.fork()).emitir(depoisDaSenha, AGORA);
     expect(await new SessaoService(orm.em.fork()).autenticar(expirado, new Date(AGORA.getTime() + 8 * 24 * 60 * 60 * 1000))).toBeNull();
+  });
+
+  it('cria o aviso dos aniversariantes da semana na leitura do painel, sem duplicar', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    await s.alunos.criar({
+      nome: 'Ana Lima',
+      telefone: '11911110001',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      dataNascimento: '1992-10-21',
+    }, AGORA);
+    await s.alunos.criar({
+      nome: 'Bruno Souza',
+      telefone: '11911110002',
+      plano: 'GYMPASS',
+      categoria: 'C',
+      dataNascimento: '2000-10-24',
+    }, AGORA);
+    await s.alunos.criar({
+      nome: 'Carla Mendes',
+      telefone: '11911110003',
+      plano: 'MENSAL',
+      categoria: 'B',
+      dataNascimento: '1990-11-01',
+    }, AGORA);
+    const inativo = await s.alunos.criar({
+      nome: 'Diego Alves',
+      telefone: '11911110004',
+      plano: 'PARTICULAR',
+      categoria: 'A',
+      dataNascimento: '1990-10-22',
+    }, AGORA);
+    await s.alunos.inativar(inativo.id, AGORA);
+    const experimental = await s.aulas.criar({
+      experimental: true,
+      alunoTemporario: { nome: 'Visitante', telefone: '11999998888' },
+      responsavelId: marina.id,
+      inicio: '2026-10-23T10:00:00-03:00',
+    }, AGORA);
+    const visitante = await s.em.findOneOrFail(Aluno, { id: experimental.aluno.id });
+    visitante.dataNascimento = '1992-10-21';
+    await s.em.flush();
+
+    const painel = await new DashboardService(s.em).obter(AGORA);
+    const titulo = tituloAvisoAniversariantes(AGORA);
+    const aniversario = painel.avisos.filter((aviso) => aviso.titulo === titulo);
+    expect(aniversario).toHaveLength(1);
+    expect(titulo).toBe('Aniversariantes da semana · 19 a 25 de outubro de 2026');
+    expect(aniversario[0].mensagem).toContain('Ana Lima — quarta-feira, 21 de outubro');
+    expect(aniversario[0].mensagem).toContain('Bruno Souza — sábado, 24 de outubro');
+    expect(aniversario[0].mensagem).not.toContain('Carla Mendes');
+    expect(aniversario[0].mensagem).not.toContain('Diego Alves');
+    expect(aniversario[0].mensagem).not.toContain('Visitante');
+
+    const outraLeitura = await new DashboardService(s.em).obter(AGORA);
+    expect(outraLeitura.avisos.filter((aviso) => aviso.titulo === titulo)).toHaveLength(1);
+    const pelaLista = await new AvisosService(s.em).listar(AGORA);
+    expect(pelaLista.filter((aviso) => aviso.titulo === titulo)).toHaveLength(1);
+  });
+
+  it('não cria aviso de aniversariantes quando ninguém faz aniversário na semana', async () => {
+    const s = servicos(orm);
+    await s.alunos.criar({
+      nome: 'Carla Mendes',
+      telefone: '11911110003',
+      plano: 'MENSAL',
+      categoria: 'B',
+      dataNascimento: '1990-11-01',
+    }, AGORA);
+    const painel = await new DashboardService(s.em).obter(AGORA);
+    expect(painel.avisos.some((aviso) => aviso.titulo.startsWith('Aniversariantes da semana'))).toBe(false);
+  });
+
+  it('trata 29 de fevereiro como 28 em ano comum', async () => {
+    const s = servicos(orm);
+    const fevereiro = new Date('2026-02-25T12:00:00-03:00');
+    await s.alunos.criar({
+      nome: 'Elena Bissexto',
+      telefone: '11911110005',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      dataNascimento: '2000-02-29',
+    }, fevereiro);
+    const avisos = await new AvisosService(s.em).listar(fevereiro);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0].titulo).toBe(tituloAvisoAniversariantes(fevereiro));
+    expect(avisos[0].mensagem).toContain('Elena Bissexto — sábado, 28 de fevereiro');
   });
 });

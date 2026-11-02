@@ -16,7 +16,9 @@ export function Alunos() {
   const { usuario } = useSessao()
   const admin = usuario?.papel === 'administrador'
   const { busca, texto, setTexto } = useBusca()
-  const caminho = busca ? `/api/alunos?busca=${encodeURIComponent(busca)}` : '/api/alunos'
+  const caminho = busca
+    ? `/api/alunos?incluirInativos=1&busca=${encodeURIComponent(busca)}`
+    : '/api/alunos?incluirInativos=1'
   const consulta = useGet<Aluno[]>(caminho)
   const lista = Array.isArray(consulta.dados) ? consulta.dados : null
   const [pendente, setPendente] = useState<string | null>(null)
@@ -48,7 +50,7 @@ export function Alunos() {
       <Cabecalho
         sobretitulo="Relacionamento"
         titulo="Alunos"
-        descricao={admin ? 'Cadastro ativo da escola.' : 'Consulta. Só o administrador altera o cadastro.'}
+        descricao={admin ? 'Cadastro da escola, com alunos ativos e inativos.' : 'Consulta, com alunos ativos e inativos. Só o administrador altera o cadastro.'}
         acoes={admin ? <LinkBotao to="/alunos/novo">+ Novo aluno</LinkBotao> : undefined}
       />
       <form role="search" className="mb-4" onSubmit={(event) => event.preventDefault()}>
@@ -101,8 +103,17 @@ export function Alunos() {
                 </tr>
               ) : (
                 lista.map((aluno) => (
-                  <tr key={aluno.id} className="border-t border-line">
-                    <td className="px-3 py-3 font-semibold">{aluno.nome}</td>
+                  <tr key={aluno.id} className={cx('border-t border-line', !aluno.ativo && 'text-muted')}>
+                    <td className="px-3 py-3 font-semibold text-ink">
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        {aluno.nome}
+                        {aluno.ativo ? null : (
+                          <span className="inline-flex rounded-full bg-[#e7e4de] px-2 py-0.5 text-xs font-semibold text-ink">
+                            Inativo
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-3 py-3 whitespace-nowrap">{formatarTelefone(aluno.telefone)}</td>
                     <td className="px-3 py-3 whitespace-nowrap">
                       {aluno.instagram ? (
@@ -122,13 +133,13 @@ export function Alunos() {
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <Link
                           to={`/alunos/${aluno.id}`}
-                          aria-label={admin ? `Editar ${aluno.nome}` : `Ver ${aluno.nome}`}
-                          title={admin ? 'Editar' : 'Ver'}
-                          className={admin ? cx(classeBotao('secundario'), classeIconeAcao) : 'font-semibold text-tide-dark'}
+                          aria-label={admin && aluno.ativo ? `Editar ${aluno.nome}` : `Ver ${aluno.nome}`}
+                          title={admin && aluno.ativo ? 'Editar' : 'Ver'}
+                          className={admin && aluno.ativo ? cx(classeBotao('secundario'), classeIconeAcao) : 'font-semibold text-tide-dark'}
                         >
-                          {admin ? <IconeLapis /> : 'Ver'}
+                          {admin && aluno.ativo ? <IconeLapis /> : 'Ver'}
                         </Link>
-                        {admin ? (
+                        {admin && aluno.ativo ? (
                           <button
                             type="button"
                             className="font-semibold text-clay disabled:opacity-50"
