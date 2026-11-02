@@ -1,21 +1,33 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { api, mensagemDeErro } from '../api/client'
+import type { Aula, Responsavel, StatusAula } from '../api/types'
 import { useAgenda } from '../api/useAgenda'
+import { useGet } from '../api/useGet'
+import { ModalCancelamento, type DadosCancelamento } from '../componentes/cancelamento'
+import { ModalImagemAgenda } from '../componentes/exportarAgenda'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import { notificar } from '../componentes/toast'
 import {
+  gerarImagemAgendaDia,
+  nomeArquivoAgendaDia,
+  podeCompartilharArquivo,
+} from '../lib/exportarAgendaDia'
+import {
   Botao,
   Cabecalho,
+  classeSeloStatus,
   classeTabela,
   classeThead,
+  cx,
   Marcadores,
   PainelEstado,
   SeloCategoria,
-  SeloStatus,
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { addDias, civilValida, formatarDiaLongo, formatarHora, hojeSP } from '../lib/calendario'
+import { STATUS } from '../lib/rotulos'
 import { Abas } from './AgendaSemana'
 import { LinkNovoAgendamento } from './NovoAgendamento'
 
@@ -25,8 +37,22 @@ export function AgendaDia() {
   const bruta = params.get('date')
   const data = bruta && civilValida(bruta) ? bruta : hojeSP()
   const agenda = useAgenda(data, data)
+  const respQ = useGet<Responsavel[]>('/api/integrantes/responsaveis')
   const { usuario } = useSessao()
   const admin = usuario?.papel === 'administrador'
+  const [pendente, setPendente] = useState<string | null>(null)
+  const [aulaCancelando, setAulaCancelando] = useState<Aula | null>(null)
+  const [exportando, setExportando] = useState(false)
+  const [imagem, setImagem] = useState<{ url: string; blob: Blob; nome: string } | null>(null)
+
+  const professores = useMemo(
+    () =>
+      (Array.isArray(respQ.dados) ? respQ.dados : [])
+        .filter((item) => item.funcao === 'PROFESSOR')
+        .map((item) => ({ id: item.id, nome: item.nome }))
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    [respQ.dados],
+  )
 
   useEffect(() => {
     if (bruta !== null && !civilValida(bruta)) {
@@ -34,14 +60,111 @@ export function AgendaDia() {
     }
   }, [bruta, setParams])
 
+  useEffect(() => {
+    return () => {
+      if (imagem) URL.revokeObjectURL(imagem.url)
+    }
+  }, [imagem])
+
   function ir(proxima: string) {
     setParams({ date: proxima })
+  }
+
+  function fecharImagem() {
+    setImagem(null)
+  }
+
+  async function exportarImagem() {
+    if (exportando) return
+    setExportando(true)
+    try {
+      const blob = await gerarImagemAgendaDia({ data, aulas: agenda.aulas, eventos: agenda.eventos })
+      setImagem({ url: URL.createObjectURL(blob), blob, nome: nomeArquivoAgendaDia(data) })
+    } catch {
+      notificar('erro', 'Não foi possível gerar a imagem.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  function baixarImagem() {
+    if (!imagem) return
+    const atalho = document.createElement('a')
+    atalho.href = imagem.url
+    atalho.download = imagem.nome
+    atalho.click()
+  }
+
+  async function compartilharImagem() {
+    if (!imagem) return
+    const arquivo = new File([imagem.blob], imagem.nome, { type: 'image/png' })
+    try {
+      await navigator.share({
+        files: [arquivo],
+        title: `Agenda · ${formatarDiaLongo(data)}`,
+      })
+    } catch (erro) {
+      if (erro instanceof Error && erro.name === 'AbortError') return
+      notificar('erro', 'Não foi possível abrir o compartilhamento. Baixe a imagem e envie no WhatsApp.')
+    }
+  }
+
+  async function mudarStatus(aula: Aula, status: StatusAula) {
+    if (status === aula.status || pendente) return
+    if (status === 'CANCELADA') {
+      setAulaCancelando(aula)
+      return
+    }
+    setPendente(aula.id)
+    try {
+      await api(`/api/aulas/${aula.id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+      agenda.recarregar()
+    } catch (erro) {
+      notificar('erro', mensagemDeErro(erro))
+    } finally {
+      setPendente(null)
+    }
+  }
+
+  async function cancelar(dados: DadosCancelamento) {
+    if (!aulaCancelando || aulaCancelando.status === 'CANCELADA') return
+    setPendente(aulaCancelando.id)
+    try {
+      await api(`/api/aulas/${aulaCancelando.id}/cancelar`, { method: 'POST', body: JSON.stringify(dados) })
+      setAulaCancelando(null)
+      agenda.recarregar()
+    } catch (erro) {
+      notificar('erro', mensagemDeErro(erro))
+    } finally {
+      setPendente(null)
+    }
   }
 
   const carregandoLista = agenda.carregando && agenda.aulas.length === 0 && agenda.eventos.length === 0
 
   return (
     <div>
+      {aulaCancelando ? (
+        <ModalCancelamento
+          professores={professores}
+          professorPadrao={professores.some((item) => item.id === aulaCancelando.responsavel.id) ? aulaCancelando.responsavel.id : ''}
+          enviando={pendente === aulaCancelando.id}
+          onConfirmar={(dados) => void cancelar(dados)}
+          onFechar={() => {
+            if (!pendente) setAulaCancelando(null)
+          }}
+        />
+      ) : null}
+      {imagem ? (
+        <ModalImagemAgenda
+          url={imagem.url}
+          nomeArquivo={imagem.nome}
+          podeCompartilhar={podeCompartilharArquivo(new File([imagem.blob], imagem.nome, { type: 'image/png' }))}
+          onBaixar={baixarImagem}
+          onCompartilhar={() => void compartilharImagem()}
+          onFechar={fecharImagem}
+        />
+      ) : null}
       <Cabecalho
         sobretitulo="Planejamento"
         titulo="Agenda do dia"
@@ -69,6 +192,13 @@ export function AgendaDia() {
               }}
               className="h-10 rounded-full border border-line bg-paper px-3 text-sm"
             />
+            <Botao
+              variante="secundario"
+              disabled={carregandoLista || Boolean(agenda.erro) || exportando}
+              onClick={() => void exportarImagem()}
+            >
+              {exportando ? 'Gerando…' : 'Exportar imagem'}
+            </Botao>
             <LinkNovoAgendamento />
           </>
         }
@@ -160,7 +290,25 @@ export function AgendaDia() {
                           <SeloCategoria categoria={aula.aluno.categoria} />
                         </td>
                         <td className="px-3 py-3">
-                          <SeloStatus status={aula.status} />
+                          <label className="sr-only" htmlFor={`status-${aula.id}`}>
+                            Status de {aula.aluno.nome}
+                          </label>
+                          <select
+                            id={`status-${aula.id}`}
+                            value={aula.status}
+                            disabled={pendente === aula.id}
+                            onChange={(event) => void mudarStatus(aula, event.target.value as StatusAula)}
+                            className={cx(
+                              'cursor-pointer rounded-full border-0 py-1 pr-7 pl-2 text-xs font-semibold disabled:cursor-wait disabled:opacity-70',
+                              classeSeloStatus(aula.status),
+                            )}
+                          >
+                            {STATUS.map((item) => (
+                              <option key={item.value} value={item.value}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-3 py-3">
                           <Marcadores aula={aula} />

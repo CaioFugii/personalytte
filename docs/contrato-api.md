@@ -91,7 +91,7 @@ Leitura: professor e administrador. Escrita: administrador.
 }
 ```
 
-`plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `D`, `C`, `B`, `A`. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
+`plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `INICIANTE`, `D`, `C`, `B`, `A`. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
 
 `horarios` lista cada aula da semana com o próprio horário. O mesmo dia pode repetir com horários que não se cruzam. Dia e horário iguais são recusados. `horarios` e `responsavelId` vão os dois vazios ou os dois preenchidos. Vazio é `horarios: []` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial. `dataNascimento` é opcional, no formato `YYYY-MM-DD`. Vazio grava `null`.
 

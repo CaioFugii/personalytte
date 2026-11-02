@@ -18,6 +18,7 @@ import { Migration20261022120000_aluno_plano_totalpass } from './migrations/Migr
 import { Migration20261022140000_aluno_horarios } from './migrations/Migration20261022140000_aluno_horarios';
 import { Migration20261022160000_aluno_nascimento } from './migrations/Migration20261022160000_aluno_nascimento';
 import { Migration20261026120000_aulas_grupo_cancelamento } from './migrations/Migration20261026120000_aulas_grupo_cancelamento';
+import { Migration20261102120000_aluno_categoria_iniciante } from './migrations/Migration20261102120000_aluno_categoria_iniciante';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -45,6 +46,7 @@ export function criarOrmConfig() {
         { name: 'Migration20261022140000_aluno_horarios', class: Migration20261022140000_aluno_horarios },
         { name: 'Migration20261022160000_aluno_nascimento', class: Migration20261022160000_aluno_nascimento },
         { name: 'Migration20261026120000_aulas_grupo_cancelamento', class: Migration20261026120000_aulas_grupo_cancelamento },
+        { name: 'Migration20261102120000_aluno_categoria_iniciante', class: Migration20261102120000_aluno_categoria_iniciante },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

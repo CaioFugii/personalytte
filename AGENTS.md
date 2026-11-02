@@ -17,7 +17,7 @@ O PRD vence em regra de produto. O contrato vence no formato HTTP. Se os dois di
 
 ## Como trabalhar
 
-- O compromisso se chama **aula**. Não introduza o tipo Treino nem as categorias Iniciante, Intermediário e Avançado.
+- O compromisso se chama **aula**. Não introduza o tipo Treino nem as categorias Intermediário e Avançado.
 - Textos de interface e mensagens de erro ficam em português.
 - Datas de negócio usam America/Sao_Paulo.
 - A sessão é o cookie `sessao`. Não guarde token no `localStorage`.

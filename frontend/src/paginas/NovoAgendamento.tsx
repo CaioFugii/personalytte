@@ -17,7 +17,7 @@ import {
 import { useSessao } from '../contexto/Sessao'
 import { notificar, useNotificar } from '../componentes/toast'
 import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
-import { TIPOS_EVENTO } from '../lib/rotulos'
+import { rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
 
 const LIMITE_GRUPO = 4
 
@@ -404,7 +404,7 @@ function FormAula() {
                     }}
                     className="block w-full px-3 py-2 text-left text-sm hover:bg-sand"
                   >
-                    {aluno.nome} · {aluno.categoria}
+                    {aluno.nome} · {rotuloCategoria(aluno.categoria)}
                   </button>
                 </li>
               ))}

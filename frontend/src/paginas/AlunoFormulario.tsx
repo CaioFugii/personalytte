@@ -305,8 +305,8 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
               >
                 <option value="">Selecione</option>
                 {CATEGORIAS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
+                  <option key={item.value} value={item.value}>
+                    {item.label}
                   </option>
                 ))}
               </select>
@@ -336,7 +336,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                       ))}
                     </select>
                   </Campo>
-                  <Campo label="Horário" htmlFor={`horario-${indice}`} dica={indice === 0 ? 'Horário de Brasília' : undefined}>
+                  <Campo label="Horário" htmlFor={`horario-${indice}`}>
                     <input
                       id={`horario-${indice}`}
                       type="time"

@@ -7,7 +7,13 @@ export const PLANOS: { value: Plano; label: string }[] = [
   { value: 'MENSAL', label: 'Mensal' },
 ]
 
-export const CATEGORIAS: Categoria[] = ['D', 'C', 'B', 'A']
+export const CATEGORIAS: { value: Categoria; label: string }[] = [
+  { value: 'INICIANTE', label: 'Iniciante' },
+  { value: 'D', label: 'D' },
+  { value: 'C', label: 'C' },
+  { value: 'B', label: 'B' },
+  { value: 'A', label: 'A' },
+]
 
 export const FUNCOES: { value: Funcao; label: string }[] = [
   { value: 'PROFESSOR', label: 'Professor(a)' },
@@ -48,6 +54,11 @@ export function rotuloPlano(plano: Plano): string {
 
 export function rotuloFuncao(funcao: Funcao): string {
   return FUNCOES.find((item) => item.value === funcao)?.label ?? funcao
+}
+
+export function rotuloCategoria(categoria: Categoria | null | undefined): string {
+  if (!categoria) return ''
+  return CATEGORIAS.find((item) => item.value === categoria)?.label ?? categoria
 }
 
 export function rotuloStatus(status: StatusAula): string {

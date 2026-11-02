@@ -175,6 +175,23 @@ describe('regras de domínio', () => {
     expect(repetido).toBe(0);
   });
 
+  it('aceita a categoria Iniciante abaixo de D', async () => {
+    const s = servicos(orm);
+    const aluno = await s.alunos.criar({
+      nome: 'João Iniciante',
+      telefone: '11911110099',
+      plano: 'PARTICULAR',
+      categoria: 'INICIANTE',
+    }, AGORA);
+    expect(aluno.categoria).toBe('INICIANTE');
+    await expect(s.alunos.criar({
+      nome: 'Categoria inválida',
+      telefone: '11911110098',
+      plano: 'PARTICULAR',
+      categoria: 'E',
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
   it('recusa cruzamento do mesmo responsável ou aluno e ignora aula cancelada', async () => {
     const s = servicos(orm);
     const marina = await professor(s);

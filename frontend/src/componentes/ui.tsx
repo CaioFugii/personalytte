@@ -1,7 +1,7 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { Aula, Categoria, StatusAula } from '../api/types'
-import { rotuloStatus } from '../lib/rotulos'
+import { rotuloCategoria, rotuloStatus } from '../lib/rotulos'
 
 export function cx(...partes: Array<string | false | null | undefined>): string {
   return partes.filter(Boolean).join(' ')
@@ -177,9 +177,13 @@ export function classeFundoStatus(status: StatusAula): string {
   }[status]
 }
 
+export function classeSeloStatus(status: StatusAula): string {
+  return CORES_STATUS[status]
+}
+
 export function SeloStatus({ status }: { status: StatusAula }) {
   return (
-    <span className={cx('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', CORES_STATUS[status])}>
+    <span className={cx('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', classeSeloStatus(status))}>
       {rotuloStatus(status)}
     </span>
   )
@@ -189,7 +193,7 @@ export function SeloCategoria({ categoria }: { categoria: Categoria | null }) {
   if (!categoria) return null
   return (
     <span className="inline-flex h-6 min-w-6 items-center justify-center rounded bg-tide/10 px-1.5 text-sm font-bold text-tide-dark">
-      {categoria}
+      {rotuloCategoria(categoria)}
     </span>
   )
 }

@@ -4,7 +4,7 @@ export type FuncaoIntegrante = (typeof FUNCOES)[number];
 export const PLANOS = ['PARTICULAR', 'GYMPASS', 'TOTALPASS', 'MENSAL'] as const;
 export type PlanoAluno = (typeof PLANOS)[number];
 
-export const CATEGORIAS = ['D', 'C', 'B', 'A'] as const;
+export const CATEGORIAS = ['INICIANTE', 'D', 'C', 'B', 'A'] as const;
 export type CategoriaAluno = (typeof CATEGORIAS)[number];
 
 export const STATUS_AULA = ['AGUARDANDO', 'CONFIRMADA', 'FALTA', 'CANCELADA'] as const;

@@ -1,7 +1,7 @@
 export type Funcao = 'PROFESSOR' | 'SOCIO' | 'OUTROS'
 export type Papel = 'professor' | 'administrador'
 export type Plano = 'PARTICULAR' | 'GYMPASS' | 'TOTALPASS' | 'MENSAL'
-export type Categoria = 'D' | 'C' | 'B' | 'A'
+export type Categoria = 'INICIANTE' | 'D' | 'C' | 'B' | 'A'
 export type DiaSemana = 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom'
 export type HorarioPlano = { dia: DiaSemana; horarioInicio: string }
 export type StatusAula = 'AGUARDANDO' | 'CONFIRMADA' | 'FALTA' | 'CANCELADA'
