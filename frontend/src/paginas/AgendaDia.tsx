@@ -10,8 +10,7 @@ import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import { notificar } from '../componentes/toast'
 import {
   gerarImagemAgendaDia,
-  nomeArquivoAgendaDia,
-  podeCompartilharArquivo,
+  podeCompartilharArquivos,
 } from '../lib/exportarAgendaDia'
 import {
   Botao,
@@ -43,7 +42,7 @@ export function AgendaDia() {
   const [pendente, setPendente] = useState<string | null>(null)
   const [aulaCancelando, setAulaCancelando] = useState<Aula | null>(null)
   const [exportando, setExportando] = useState(false)
-  const [imagem, setImagem] = useState<{ url: string; blob: Blob; nome: string } | null>(null)
+  const [imagens, setImagens] = useState<{ url: string; blob: Blob; nome: string }[] | null>(null)
 
   const professores = useMemo(
     () =>
@@ -62,24 +61,24 @@ export function AgendaDia() {
 
   useEffect(() => {
     return () => {
-      if (imagem) URL.revokeObjectURL(imagem.url)
+      imagens?.forEach((pagina) => URL.revokeObjectURL(pagina.url))
     }
-  }, [imagem])
+  }, [imagens])
 
   function ir(proxima: string) {
     setParams({ date: proxima })
   }
 
   function fecharImagem() {
-    setImagem(null)
+    setImagens(null)
   }
 
   async function exportarImagem() {
     if (exportando) return
     setExportando(true)
     try {
-      const blob = await gerarImagemAgendaDia({ data, aulas: agenda.aulas, eventos: agenda.eventos })
-      setImagem({ url: URL.createObjectURL(blob), blob, nome: nomeArquivoAgendaDia(data) })
+      const paginas = await gerarImagemAgendaDia({ data, aulas: agenda.aulas, eventos: agenda.eventos })
+      setImagens(paginas.map((pagina) => ({ ...pagina, url: URL.createObjectURL(pagina.blob) })))
     } catch {
       notificar('erro', 'Não foi possível gerar a imagem.')
     } finally {
@@ -88,19 +87,21 @@ export function AgendaDia() {
   }
 
   function baixarImagem() {
-    if (!imagem) return
-    const atalho = document.createElement('a')
-    atalho.href = imagem.url
-    atalho.download = imagem.nome
-    atalho.click()
+    if (!imagens) return
+    for (const pagina of imagens) {
+      const atalho = document.createElement('a')
+      atalho.href = pagina.url
+      atalho.download = pagina.nome
+      atalho.click()
+    }
   }
 
   async function compartilharImagem() {
-    if (!imagem) return
-    const arquivo = new File([imagem.blob], imagem.nome, { type: 'image/png' })
+    if (!imagens) return
+    const arquivos = imagens.map((pagina) => new File([pagina.blob], pagina.nome, { type: 'image/png' }))
     try {
       await navigator.share({
-        files: [arquivo],
+        files: arquivos,
         title: `Agenda · ${formatarDiaLongo(data)}`,
       })
     } catch (erro) {
@@ -155,11 +156,10 @@ export function AgendaDia() {
           }}
         />
       ) : null}
-      {imagem ? (
+      {imagens ? (
         <ModalImagemAgenda
-          url={imagem.url}
-          nomeArquivo={imagem.nome}
-          podeCompartilhar={podeCompartilharArquivo(new File([imagem.blob], imagem.nome, { type: 'image/png' }))}
+          paginas={imagens}
+          podeCompartilhar={podeCompartilharArquivos(imagens.map((pagina) => new File([pagina.blob], pagina.nome, { type: 'image/png' })))}
           onBaixar={baixarImagem}
           onCompartilhar={() => void compartilharImagem()}
           onFechar={fecharImagem}

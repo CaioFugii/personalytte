@@ -3,15 +3,13 @@ import { createPortal } from 'react-dom'
 import { Botao } from './ui'
 
 export function ModalImagemAgenda({
-  url,
-  nomeArquivo,
+  paginas,
   podeCompartilhar,
   onBaixar,
   onCompartilhar,
   onFechar,
 }: {
-  url: string
-  nomeArquivo: string
+  paginas: { url: string; nome: string }[]
   podeCompartilhar: boolean
   onBaixar: () => void
   onCompartilhar: () => void
@@ -20,6 +18,7 @@ export function ModalImagemAgenda({
   const tituloId = useId()
   const fecharAtual = useRef(onFechar)
   fecharAtual.current = onFechar
+  const varias = paginas.length > 1
 
   useEffect(() => {
     const anterior = document.body.style.overflow
@@ -49,17 +48,29 @@ export function ModalImagemAgenda({
         <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
           Imagem da agenda
         </h2>
-        <p className="text-sm text-muted">Pronto para mandar no WhatsApp. Confira a imagem e baixe ou compartilhe.</p>
-        <div className="max-h-[55vh] overflow-auto rounded-2xl bg-sand">
-          <img src={url} alt="Agenda do dia" className="mx-auto block w-full max-w-sm" />
+        <p className="text-sm text-muted">
+          {varias
+            ? 'Duas páginas, prontas para mandar no WhatsApp. Confira, baixe ou compartilhe as duas.'
+            : 'Pronto para mandar no WhatsApp. Confira a imagem e baixe ou compartilhe.'}
+        </p>
+        <div className="grid max-h-[55vh] gap-3 overflow-auto rounded-2xl bg-sand p-3">
+          {paginas.map((pagina, indice) => (
+            <figure key={pagina.nome} className="grid gap-2">
+              {varias ? (
+                <figcaption className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Página {indice + 1} de {paginas.length}
+                </figcaption>
+              ) : null}
+              <img src={pagina.url} alt={`Agenda do dia, página ${indice + 1} de ${paginas.length}`} className="mx-auto block w-full max-w-sm rounded-xl" />
+            </figure>
+          ))}
         </div>
-        <p className="sr-only">{nomeArquivo}</p>
         <div className="flex flex-wrap justify-end gap-2">
           <Botao variante="secundario" onClick={onFechar}>
             Fechar
           </Botao>
           <Botao variante="secundario" onClick={onBaixar}>
-            Baixar imagem
+            {varias ? 'Baixar imagens' : 'Baixar imagem'}
           </Botao>
           {podeCompartilhar ? <Botao onClick={onCompartilhar}>Compartilhar</Botao> : null}
         </div>

@@ -16,6 +16,9 @@ const GRUPO_BASE = 14
 const EVENTO_H = 100
 const VAZIO_H = 72
 const RODAPE = 44
+const ALTURA_UMA_PAGINA = 2100
+
+export type PaginaAgenda = { blob: Blob; nome: string }
 
 const COR = {
   sand: '#f4f1ea',
@@ -45,6 +48,7 @@ const LEGENDA: { status: StatusAula; label: string }[] = [
 type AlunoLinha = { nome: string; categoria: string; extra: string; status: StatusAula }
 type GrupoLinha = { horario: string; professor: string | null; alunos: AlunoLinha[] }
 type EventoLinha = { tipo: string; nome: string; quando: string; bloqueia: boolean }
+type PaginaConteudo = { eventos: EventoLinha[]; grupos: GrupoLinha[] }
 
 function fonte(peso: number, tamanho: number): string {
   return `${peso} ${tamanho}px ${FONTE}`
@@ -52,6 +56,39 @@ function fonte(peso: number, tamanho: number): string {
 
 function alturaGrupo(grupo: GrupoLinha): number {
   return GRUPO_TITULO + (grupo.professor ? GRUPO_PROFESSOR : 0) + grupo.alunos.length * LINHA_ALUNO + GRUPO_BASE
+}
+
+function alturaCorpo(pagina: PaginaConteudo): number {
+  const eventosH = pagina.eventos.length * (EVENTO_H + ESPACO)
+  if (pagina.grupos.length === 0) return eventosH + (pagina.eventos.length === 0 ? VAZIO_H + ESPACO : 0)
+  return eventosH + pagina.grupos.reduce((total, grupo) => total + alturaGrupo(grupo) + ESPACO, 0)
+}
+
+function partirEmPaginas(eventos: EventoLinha[], grupos: GrupoLinha[]): PaginaConteudo[] {
+  const unica: PaginaConteudo = { eventos, grupos }
+  if (grupos.length <= 1 || CABECALHO + ESPACO + alturaCorpo(unica) + RODAPE <= ALTURA_UMA_PAGINA) {
+    return [unica]
+  }
+  const eventosH = eventos.length * (EVENTO_H + ESPACO)
+  const totais = grupos.map(alturaGrupo)
+  let melhor = Math.ceil(grupos.length / 2)
+  let melhorDiff = Infinity
+  let acc = 0
+  for (let i = 0; i < grupos.length - 1; i += 1) {
+    acc += totais[i] + ESPACO
+    const resto = totais.slice(i + 1).reduce((total, item) => total + item + ESPACO, 0)
+    const h1 = CABECALHO + ESPACO + eventosH + acc + RODAPE
+    const h2 = CABECALHO + ESPACO + resto + RODAPE
+    const diff = Math.abs(h1 - h2)
+    if (diff < melhorDiff) {
+      melhorDiff = diff
+      melhor = i + 1
+    }
+  }
+  return [
+    { eventos, grupos: grupos.slice(0, melhor) },
+    { eventos: [], grupos: grupos.slice(melhor) },
+  ]
 }
 
 function agruparAulas(aulas: Aula[]): GrupoLinha[] {
@@ -142,36 +179,29 @@ async function carregarFonte(): Promise<void> {
   await document.fonts.ready.catch(() => undefined)
 }
 
-export async function gerarImagemAgendaDia(params: {
-  data: string
-  aulas: Aula[]
-  eventos: Evento[]
-}): Promise<Blob> {
-  await carregarFonte()
-  const grupos = agruparAulas(params.aulas)
-  const eventos = eventosDoDia(params.eventos, params.data)
+function blobDoCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolver, rejeitar) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolver(blob)
+      else rejeitar(new Error('Não foi possível gerar a imagem.'))
+    }, 'image/png')
+  })
+}
+
+function desenharPagina(
+  ctx: CanvasRenderingContext2D,
+  params: {
+    data: string
+    resumo: string
+    pagina: PaginaConteudo
+    indice: number
+    total: number
+    vazio: boolean
+  },
+) {
   const conteudo = LARGURA - MARGEM * 2
-  const totalAulas = grupos.reduce((n, grupo) => n + grupo.alunos.length, 0)
-  const resumo = [
-    grupos.length === 0 ? 'Nenhuma aula' : `${totalAulas} aula${totalAulas === 1 ? '' : 's'}`,
-    eventos.length > 0 ? `${eventos.length} evento${eventos.length === 1 ? '' : 's'}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
-  let y = CABECALHO + ESPACO
-  y += eventos.length * (EVENTO_H + ESPACO)
-  y += grupos.length === 0 ? VAZIO_H + ESPACO : grupos.reduce((total, grupo) => total + alturaGrupo(grupo) + ESPACO, 0)
-  const altura = y + RODAPE
-
-  const canvas = document.createElement('canvas')
-  canvas.width = LARGURA
-  canvas.height = Math.ceil(altura)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Não foi possível criar a imagem.')
-
   ctx.fillStyle = COR.sand
-  ctx.fillRect(0, 0, LARGURA, canvas.height)
+  ctx.fillRect(0, 0, LARGURA, ctx.canvas.height)
 
   ctx.fillStyle = COR.sidebar
   ctx.fillRect(0, 0, LARGURA, CABECALHO)
@@ -208,16 +238,23 @@ export async function gerarImagemAgendaDia(params: {
   ctx.fillText(cortar(ctx, formatarDiaLongo(params.data), conteudo - 220), MARGEM, 112)
   ctx.fillStyle = 'rgba(255,255,255,0.78)'
   ctx.font = fonte(600, 16)
-  const resumoW = ctx.measureText(resumo).width
-  ctx.fillText(resumo, LARGURA - MARGEM - resumoW, 112)
+  const resumoW = ctx.measureText(params.resumo).width
+  ctx.fillText(params.resumo, LARGURA - MARGEM - resumoW, 112)
   ctx.fillStyle = COR.lime
   ctx.font = fonte(700, 12)
   ctx.fillText('AGENDA DO DIA', MARGEM, 136)
+  if (params.total > 1) {
+    const rotulo = `Página ${params.indice} de ${params.total}`
+    ctx.fillStyle = 'rgba(255,255,255,0.78)'
+    ctx.font = fonte(600, 12)
+    const rotuloW = ctx.measureText(rotulo).width
+    ctx.fillText(rotulo, LARGURA - MARGEM - rotuloW, 136)
+  }
 
-  y = CABECALHO + ESPACO
+  let y = CABECALHO + ESPACO
   const cartaoX = MARGEM
 
-  for (const evento of eventos) {
+  for (const evento of params.pagina.eventos) {
     ctx.fillStyle = COR.paper
     arredondar(ctx, cartaoX, y, conteudo, EVENTO_H, RAIO)
     ctx.fill()
@@ -241,7 +278,7 @@ export async function gerarImagemAgendaDia(params: {
     y += EVENTO_H + ESPACO
   }
 
-  if (grupos.length === 0) {
+  if (params.vazio) {
     ctx.fillStyle = COR.paper
     arredondar(ctx, cartaoX, y, conteudo, VAZIO_H, RAIO)
     ctx.fill()
@@ -251,7 +288,7 @@ export async function gerarImagemAgendaDia(params: {
     y += VAZIO_H + ESPACO
   }
 
-  for (const grupo of grupos) {
+  for (const grupo of params.pagina.grupos) {
     const h = alturaGrupo(grupo)
     ctx.fillStyle = COR.paper
     arredondar(ctx, cartaoX, y, conteudo, h, RAIO)
@@ -300,20 +337,59 @@ export async function gerarImagemAgendaDia(params: {
 
   ctx.fillStyle = COR.muted
   ctx.font = fonte(600, 14)
-  ctx.fillText('Personalytte · Beach tennis', MARGEM, y + 22)
-
-  return await new Promise((resolver, rejeitar) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolver(blob)
-      else rejeitar(new Error('Não foi possível gerar a imagem.'))
-    }, 'image/png')
-  })
+  const rodape = params.total > 1
+    ? `Personalytte · Beach tennis · Página ${params.indice} de ${params.total}`
+    : 'Personalytte · Beach tennis'
+  ctx.fillText(rodape, MARGEM, y + 22)
 }
 
-export function nomeArquivoAgendaDia(data: string): string {
-  return `agenda-personalytte-${data}.png`
+export async function gerarImagemAgendaDia(params: {
+  data: string
+  aulas: Aula[]
+  eventos: Evento[]
+}): Promise<PaginaAgenda[]> {
+  await carregarFonte()
+  const grupos = agruparAulas(params.aulas)
+  const eventos = eventosDoDia(params.eventos, params.data)
+  const totalAulas = grupos.reduce((n, grupo) => n + grupo.alunos.length, 0)
+  const resumo = [
+    grupos.length === 0 ? 'Nenhuma aula' : `${totalAulas} aula${totalAulas === 1 ? '' : 's'}`,
+    eventos.length > 0 ? `${eventos.length} evento${eventos.length === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const paginas = partirEmPaginas(eventos, grupos)
+  const vazio = grupos.length === 0
+
+  const geradas: PaginaAgenda[] = []
+  for (const [indice, pagina] of paginas.entries()) {
+    const altura = CABECALHO + ESPACO + alturaCorpo(pagina) + RODAPE
+    const canvas = document.createElement('canvas')
+    canvas.width = LARGURA
+    canvas.height = Math.ceil(altura)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Não foi possível criar a imagem.')
+    desenharPagina(ctx, {
+      data: params.data,
+      resumo,
+      pagina,
+      indice: indice + 1,
+      total: paginas.length,
+      vazio: vazio && indice === 0,
+    })
+    geradas.push({
+      blob: await blobDoCanvas(canvas),
+      nome: nomeArquivoAgendaDia(params.data, indice + 1, paginas.length),
+    })
+  }
+  return geradas
 }
 
-export function podeCompartilharArquivo(arquivo: File): boolean {
-  return typeof navigator.canShare === 'function' && navigator.canShare({ files: [arquivo] })
+export function nomeArquivoAgendaDia(data: string, pagina = 1, total = 1): string {
+  if (total <= 1) return `agenda-personalytte-${data}.png`
+  return `agenda-personalytte-${data}-${pagina}.png`
+}
+
+export function podeCompartilharArquivos(arquivos: File[]): boolean {
+  return arquivos.length > 0 && typeof navigator.canShare === 'function' && navigator.canShare({ files: arquivos })
 }
