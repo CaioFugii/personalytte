@@ -61,6 +61,33 @@ export function rotuloCategoria(categoria: Categoria | null | undefined): string
   return CATEGORIAS.find((item) => item.value === categoria)?.label ?? categoria
 }
 
+export function rotuloCategoriaCurta(categoria: Categoria): string {
+  return categoria === 'INICIANTE' ? 'Inic.' : rotuloCategoria(categoria)
+}
+
+/** Categorias do grupo, da mais frequente para a menos. Empate segue Iniciante → A. */
+export function resumoCategorias(categorias: Array<Categoria | null | undefined>): string | null {
+  const contagem = new Map<Categoria, number>()
+  for (const categoria of categorias) {
+    if (!categoria) continue
+    contagem.set(categoria, (contagem.get(categoria) ?? 0) + 1)
+  }
+  if (contagem.size === 0) return null
+  const ordem = CATEGORIAS.map((item) => item.value)
+  const lista = [...contagem.keys()].sort((a, b) => {
+    const porQuantidade = (contagem.get(b) ?? 0) - (contagem.get(a) ?? 0)
+    if (porQuantidade !== 0) return porQuantidade
+    return ordem.indexOf(a) - ordem.indexOf(b)
+  })
+  return `Categorias: ${juntarLista(lista.map(rotuloCategoriaCurta))}`
+}
+
+function juntarLista(itens: string[]): string {
+  if (itens.length <= 1) return itens[0] ?? ''
+  if (itens.length === 2) return `${itens[0]} e ${itens[1]}`
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`
+}
+
 export function rotuloStatus(status: StatusAula): string {
   return STATUS.find((item) => item.value === status)?.label ?? status
 }

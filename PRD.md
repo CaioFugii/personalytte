@@ -156,7 +156,7 @@ A referência visual é o Canva. O comportamento abaixo é o contrato.
 - **Login.** E-mail e senha. Sem botão de criar conta e sem recuperação de senha.
 - **Dashboard.** Saudação da equipe, os números de 5.6, próximo horário, eventos da semana e avisos. Atalho para novo agendamento. O administrador também cria aviso daqui.
 - **Check-ins.** Lista do dia, visível para professor e administrador, com horário, nome, contato e provedor. Gympass e TotalPass na mesma tabela.
-- **Agenda da semana.** Grade de segunda a domingo, com aulas e eventos. Dá para ir à semana anterior, à seguinte e a hoje.
+- **Agenda da semana.** Grade de segunda a domingo, com aulas e eventos. O grupo do horário mostra as categorias presentes. Dá para ir à semana anterior, à seguinte e a hoje.
 - **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição. Dá para mudar o status na lista. Cancelar pede a justificativa e se gera reposição. A oferta de reposição da falta fica no detalhe da aula. A tela exporta a agenda do dia em imagem, em uma ou duas páginas, para enviar no WhatsApp.
 - **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta e na aula cancelada que gera reposição. Cancelar abre a justificativa e a pergunta se gera reposição.
 - **Novo agendamento.** Primeiro a escolha entre aula e evento. Professor segue só para aula. Em seguida, o formulário correspondente.

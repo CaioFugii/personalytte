@@ -24,7 +24,7 @@ import {
   inicioDaSemana,
   partesSP,
 } from '../lib/calendario'
-import { rotuloStatus, rotuloTipoEvento } from '../lib/rotulos'
+import { resumoCategorias, rotuloStatus, rotuloTipoEvento } from '../lib/rotulos'
 import type { Aula, Evento, StatusAula } from '../api/types'
 
 export function AgendaSemana() {
@@ -193,6 +193,7 @@ function DiaColuna({
 
 function GrupoAulas({ grupo }: { grupo: GrupoHorario }) {
   const status = statusDoGrupo(grupo.aulas)
+  const categorias = resumoCategorias(grupo.aulas.map((aula) => aula.aluno.categoria))
   return (
     <li>
       <section
@@ -202,19 +203,24 @@ function GrupoAulas({ grupo }: { grupo: GrupoHorario }) {
           status === 'CANCELADA' && 'opacity-70',
         )}
       >
-        <header className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 px-0.5">
-          <h3 className="text-sm leading-none font-bold text-tide-dark">
-            <span className="sr-only">Grupo das </span>
-            <span className="tabular-nums">{grupo.rotulo}</span>
-            {grupo.aulas.length > 1 ? (
-              <span className="ml-1 text-[10px] font-semibold text-muted">
-                <span className="sr-only">, </span>
-                {grupo.aulas.length}
-                <span className="sr-only"> aulas</span>
-              </span>
-            ) : null}
-          </h3>
-          {status === 'CANCELADA' ? <SeloStatus status={status} /> : null}
+        <header className="px-0.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
+            <h3 className="text-sm leading-none font-bold text-tide-dark">
+              <span className="sr-only">Grupo das </span>
+              <span className="tabular-nums">{grupo.rotulo}</span>
+              {grupo.aulas.length > 1 ? (
+                <span className="ml-1 text-[10px] font-semibold text-muted">
+                  <span className="sr-only">, </span>
+                  {grupo.aulas.length}
+                  <span className="sr-only"> aulas</span>
+                </span>
+              ) : null}
+            </h3>
+            {status === 'CANCELADA' ? <SeloStatus status={status} /> : null}
+          </div>
+          {categorias ? (
+            <p className="mt-0.5 text-[10px] leading-tight font-semibold text-muted">{categorias}</p>
+          ) : null}
         </header>
         <ul className="mt-0.5 flex flex-col">
           {grupo.aulas.map((aula) => (
