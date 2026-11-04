@@ -5,10 +5,10 @@ import {
   MENSAGEM_BLOQUEIO,
   MENSAGEM_DATA,
   MENSAGEM_EVENTO_COM_AULA,
-  MENSAGEM_GRUPO_CHEIO,
   MENSAGEM_OCUPADO,
+  mensagemGrupoCheio,
 } from '../comum/erros';
-import { DURACAO_AULA_MS, calcularOcorrencias, dataRetroativa, fimDaAula, terminaNoMesmoDia } from '../comum/tempo';
+import { DURACAO_AULA_MS, calcularOcorrencias, dataRetroativa, fimDaAula, partesSP, terminaNoMesmoDia } from '../comum/tempo';
 import { Aluno } from '../entidades/aluno.entity';
 import { Aula } from '../entidades/aula.entity';
 import { Evento } from '../entidades/evento.entity';
@@ -20,6 +20,13 @@ export function planoCompleto(aluno: Pick<Aluno, 'horarios' | 'responsavel'>): b
 }
 
 export const LIMITE_GRUPO = 4;
+export const LIMITE_PRIMEIRA_AULA = 6;
+
+export function limiteDoGrupo(inicio: Date): number {
+  const partes = partesSP(inicio);
+  if (partes.hora === 7 && partes.minuto === 0) return LIMITE_PRIMEIRA_AULA;
+  return LIMITE_GRUPO;
+}
 
 @Injectable()
 export class AgendaService {
@@ -42,7 +49,8 @@ export class AgendaService {
       if (aula.inicio.getTime() !== params.inicio.getTime()) return MENSAGEM_OCUPADO;
       noGrupo += 1;
     }
-    return noGrupo >= LIMITE_GRUPO ? MENSAGEM_GRUPO_CHEIO : null;
+    const limite = limiteDoGrupo(params.inicio);
+    return noGrupo >= limite ? mensagemGrupoCheio(limite) : null;
   }
 
   async bloqueada(em: EntityManager, _responsavelId: string, inicio: Date): Promise<boolean> {

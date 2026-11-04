@@ -15,7 +15,8 @@ import {
 import {
   Botao,
   Cabecalho,
-  classeSeloStatus,
+  classeFundoAula,
+  classeSeloAula,
   classeTabela,
   classeThead,
   cx,
@@ -278,7 +279,13 @@ export function AgendaDia() {
                   </thead>
                   <tbody>
                     {agenda.aulas.map((aula) => (
-                      <tr key={aula.id} className="border-t border-line">
+                      <tr
+                        key={aula.id}
+                        className={cx(
+                          'border-t border-line',
+                          aula.experimental && aula.status === 'CONFIRMADA' && classeFundoAula(aula),
+                        )}
+                      >
                         <td className="px-3 py-3 whitespace-nowrap tabular-nums">
                           <Link to={`/agenda/aulas/${aula.id}`} className="font-semibold text-tide-dark">
                             {formatarHora(aula.inicio)}–{formatarHora(aula.fim)}
@@ -300,7 +307,7 @@ export function AgendaDia() {
                             onChange={(event) => void mudarStatus(aula, event.target.value as StatusAula)}
                             className={cx(
                               'cursor-pointer rounded-full border-0 py-1 pr-7 pl-2 text-xs font-semibold disabled:cursor-wait disabled:opacity-70',
-                              classeSeloStatus(aula.status),
+                              classeSeloAula(aula),
                             )}
                           >
                             {STATUS.map((item) => (

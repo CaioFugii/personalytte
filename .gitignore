@@ -9,3 +9,6 @@ coverage/
 .idea/
 frontend/dist/
 backend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

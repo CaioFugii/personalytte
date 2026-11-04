@@ -39,13 +39,16 @@ const COR_STATUS: Record<StatusAula, string> = {
   CANCELADA: '#e7e4de',
 }
 
-const LEGENDA: { status: StatusAula; label: string }[] = [
-  { status: 'AGUARDANDO', label: 'Aguardando' },
-  { status: 'CONFIRMADA', label: 'Confirmada' },
-  { status: 'FALTA', label: 'Falta' },
+const COR_EXPERIMENTAL_CONFIRMADA = '#ddd4fb'
+
+const LEGENDA: { label: string; cor: string }[] = [
+  { label: 'Aguardando', cor: COR_STATUS.AGUARDANDO },
+  { label: 'Confirmada', cor: COR_STATUS.CONFIRMADA },
+  { label: 'Experimental confirmada', cor: COR_EXPERIMENTAL_CONFIRMADA },
+  { label: 'Falta', cor: COR_STATUS.FALTA },
 ]
 
-type AlunoLinha = { nome: string; categoria: string; extra: string; status: StatusAula }
+type AlunoLinha = { nome: string; categoria: string; extra: string; status: StatusAula; experimental: boolean }
 type GrupoLinha = { horario: string; professor: string | null; alunos: AlunoLinha[] }
 type EventoLinha = { tipo: string; nome: string; quando: string; bloqueia: boolean }
 type PaginaConteudo = { eventos: EventoLinha[]; grupos: GrupoLinha[] }
@@ -104,6 +107,7 @@ function agruparAulas(aulas: Aula[]): GrupoLinha[] {
       categoria: rotuloCategoria(aula.aluno.categoria),
       extra,
       status: aula.status,
+      experimental: aula.experimental,
     }
     const ultimo = grupos.at(-1)
     if (ultimo?.horario === horario) {
@@ -224,7 +228,7 @@ function desenharPagina(
     ctx.fillStyle = 'rgba(255,255,255,0.92)'
     ctx.fillText(item.label, legendaX, 50)
     legendaX -= 28
-    ctx.fillStyle = COR_STATUS[item.status]
+    ctx.fillStyle = item.cor
     ctx.strokeStyle = 'rgba(255,255,255,0.18)'
     ctx.lineWidth = 1
     arredondar(ctx, legendaX, 32, 18, 18, 5)
@@ -310,7 +314,7 @@ function desenharPagina(
       linha += GRUPO_PROFESSOR
     }
     for (const aluno of grupo.alunos) {
-      ctx.fillStyle = COR_STATUS[aluno.status]
+      ctx.fillStyle = aluno.experimental && aluno.status === 'CONFIRMADA' ? COR_EXPERIMENTAL_CONFIRMADA : COR_STATUS[aluno.status]
       arredondar(ctx, cartaoX + 16, linha, conteudo - 32, CHIP_ALUNO, 12)
       ctx.fill()
       ctx.font = fonte(700, 14)

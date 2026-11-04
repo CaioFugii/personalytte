@@ -1,7 +1,7 @@
 import { MikroORM, type EntityManager } from '@mikro-orm/postgresql';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { definirSessao } from '../src/comum/cookie';
-import { MENSAGEM_GRUPO_CHEIO, MENSAGEM_OCUPADO } from '../src/comum/erros';
+import { MENSAGEM_GRUPO_CHEIO, MENSAGEM_OCUPADO, mensagemGrupoCheio } from '../src/comum/erros';
 import { formatarInstante } from '../src/comum/tempo';
 import { AgendaService } from '../src/dominio/agenda.service';
 import { tituloAvisoAniversariantes } from '../src/dominio/aniversariantes';
@@ -288,6 +288,38 @@ describe('regras de domínio', () => {
       `insert into aulas (id, aluno_id, responsavel_id, inicio, fim, status, experimental, ligada_ao_plano)
        values (gen_random_uuid(), '${alunos[5].id}', '${marina.id}', '2026-10-22T19:30:00-03:00', '2026-10-22T20:30:00-03:00', 'AGUARDANDO', false, false)`,
     )).rejects.toBeDefined();
+  });
+
+  it('aceita até 6 alunos na aula das 7h', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s);
+    const alunos = [];
+    for (let i = 1; i <= 7; i += 1) {
+      alunos.push(await s.alunos.criar({ nome: `Sete ${i}`, telefone: `1192222000${i}`, plano: 'PARTICULAR', categoria: 'D' }, AGORA));
+    }
+    const inicio = '2026-10-22T07:00:00-03:00';
+    const grupo = await s.aulas.criarGrupo({
+      alunoIds: alunos.slice(0, 6).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
+    }, AGORA);
+    expect(grupo).toHaveLength(6);
+    await expect(s.aulas.criar({
+      alunoId: alunos[6].id, responsavelId: marina.id, inicio, experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: mensagemGrupoCheio(6) });
+    await expect(s.aulas.criarGrupo({
+      alunoIds: alunos.map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T07:00:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.criarGrupo({
+      alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T08:00:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.aulas.criar({
+      alunoId: alunos[6].id, responsavelId: marina.id, inicio: '2026-10-22T07:30:00-03:00', experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
+
+    await s.aulas.cancelar(grupo[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
+    const entrou = await s.aulas.criar({
+      alunoId: alunos[6].id, responsavelId: marina.id, inicio, experimental: false,
+    }, AGORA);
+    expect(entrou.status).toBe('AGUARDANDO');
   });
 
   it('cancela com justificativa e diz se gera reposição', async () => {

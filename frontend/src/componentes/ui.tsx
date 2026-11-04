@@ -181,9 +181,19 @@ export function classeSeloStatus(status: StatusAula): string {
   return CORES_STATUS[status]
 }
 
-export function SeloStatus({ status }: { status: StatusAula }) {
+export function classeFundoAula(aula: { status: StatusAula; experimental: boolean }): string {
+  if (aula.experimental && aula.status === 'CONFIRMADA') return 'bg-[#ddd4fb]'
+  return classeFundoStatus(aula.status)
+}
+
+export function classeSeloAula(aula: { status: StatusAula; experimental: boolean }): string {
+  if (aula.experimental && aula.status === 'CONFIRMADA') return 'bg-[#ddd4fb] text-[#3d2d78]'
+  return classeSeloStatus(aula.status)
+}
+
+export function SeloStatus({ status, experimental = false }: { status: StatusAula; experimental?: boolean }) {
   return (
-    <span className={cx('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', classeSeloStatus(status))}>
+    <span className={cx('inline-flex rounded-full px-2 py-0.5 text-xs font-semibold', classeSeloAula({ status, experimental }))}>
       {rotuloStatus(status)}
     </span>
   )

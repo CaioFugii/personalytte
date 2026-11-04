@@ -14,6 +14,7 @@ import {
   Marcadores,
   PainelEstado,
   SeloCategoria,
+  SeloStatus,
   useTitulo,
 } from '../componentes/ui'
 import { aulaJaComecou, formatarIntervalo, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
@@ -271,7 +272,11 @@ export function AulaDetalhe() {
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <SeloCategoria categoria={aula.aluno.categoria} />
-            <span className="text-muted">{rotuloStatus(aula.status)}</span>
+            {aula.experimental && aula.status === 'CONFIRMADA' ? (
+              <SeloStatus status={aula.status} experimental />
+            ) : (
+              <span className="text-muted">{rotuloStatus(aula.status)}</span>
+            )}
             <Marcadores aula={aula} />
             <span className="text-muted">{aula.ligadaAoPlano ? 'Plano semanal' : 'Avulsa'}</span>
             <Link to={`/alunos/${aula.aluno.id}`} className="font-semibold text-tide-dark">

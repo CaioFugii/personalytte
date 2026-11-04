@@ -6,6 +6,7 @@ import { LinkNovoAgendamento } from './NovoAgendamento'
 import {
   Botao,
   Cabecalho,
+  classeFundoAula,
   classeFundoStatus,
   cx,
   PainelEstado,
@@ -147,6 +148,12 @@ function statusDoGrupo(aulas: Aula[]): StatusAula | null {
   return primeiro
 }
 
+function fundoDoGrupo(aulas: Aula[]): string | null {
+  const primeiro = aulas[0] ? classeFundoAula(aulas[0]) : null
+  if (!primeiro || aulas.some((aula) => classeFundoAula(aula) !== primeiro)) return null
+  return primeiro
+}
+
 function DiaColuna({
   dia,
   hoje,
@@ -193,13 +200,14 @@ function DiaColuna({
 
 function GrupoAulas({ grupo }: { grupo: GrupoHorario }) {
   const status = statusDoGrupo(grupo.aulas)
+  const fundo = fundoDoGrupo(grupo.aulas)
   const categorias = resumoCategorias(grupo.aulas.map((aula) => aula.aluno.categoria))
   return (
     <li>
       <section
         className={cx(
           'rounded-xl px-1 py-1',
-          status ? classeFundoStatus(status) : 'border border-line bg-sand/70',
+          fundo ?? 'border border-line bg-sand/70',
           status === 'CANCELADA' && 'opacity-70',
         )}
       >
@@ -229,17 +237,17 @@ function GrupoAulas({ grupo }: { grupo: GrupoHorario }) {
                 to={`/agenda/aulas/${aula.id}`}
                 className={cx(
                   'block text-xs leading-snug hover:underline',
-                  status
+                  fundo
                     ? 'rounded-md px-0.5 py-0.5'
                     : cx(
                         'mt-0.5 rounded-lg px-1.5 py-1',
-                        classeFundoStatus(aula.status),
+                        classeFundoAula(aula),
                         aula.status === 'CANCELADA' && 'opacity-70',
                       ),
                 )}
               >
                 <span className={cx('block', aula.status === 'CANCELADA' && 'line-through')}>{aula.aluno.nome}</span>
-                {!status && aula.status === 'CANCELADA' ? (
+                {!fundo && aula.status === 'CANCELADA' ? (
                   <SeloStatus status={aula.status} />
                 ) : (
                   <span className="sr-only">{rotuloStatus(aula.status)}</span>
@@ -260,21 +268,19 @@ function GrupoAulas({ grupo }: { grupo: GrupoHorario }) {
   )
 }
 
-const LEGENDA: { status: StatusAula; label: string }[] = [
-  { status: 'AGUARDANDO', label: 'Aguardando' },
-  { status: 'CONFIRMADA', label: 'Confirmada' },
-  { status: 'FALTA', label: 'Falta' },
+const LEGENDA: { chave: string; label: string; classe: string }[] = [
+  { chave: 'AGUARDANDO', label: 'Aguardando', classe: classeFundoStatus('AGUARDANDO') },
+  { chave: 'CONFIRMADA', label: 'Confirmada', classe: classeFundoStatus('CONFIRMADA') },
+  { chave: 'EXPERIMENTAL_CONFIRMADA', label: 'Experimental confirmada', classe: classeFundoAula({ status: 'CONFIRMADA', experimental: true }) },
+  { chave: 'FALTA', label: 'Falta', classe: classeFundoStatus('FALTA') },
 ]
 
 function LegendaStatus() {
   return (
     <ul className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" aria-label="Legenda">
       {LEGENDA.map((item) => (
-        <li key={item.status} className="flex items-center gap-2">
-          <span
-            className={cx('inline-block h-4 w-4 rounded-md border border-black/10', classeFundoStatus(item.status))}
-            aria-hidden
-          />
+        <li key={item.chave} className="flex items-center gap-2">
+          <span className={cx('inline-block h-4 w-4 rounded-md border border-black/10', item.classe)} aria-hidden />
           {item.label}
         </li>
       ))}

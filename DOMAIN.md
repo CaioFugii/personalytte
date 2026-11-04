@@ -24,7 +24,7 @@ Gympass e TotalPass avisam a visita por webhook. O painel guarda os dois na mesm
 
 Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.
 
-Aula é dada em grupo de até 4 alunos. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. O sistema recusa a quinta, outro início do mesmo responsável que cruze o grupo e qualquer cruzamento do mesmo aluno. Aula `CANCELADA` libera a vaga.
+Aula é dada em grupo de até 4 alunos. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. O sistema recusa a quinta, outro início do mesmo responsável que cruze o grupo e qualquer cruzamento do mesmo aluno. A aula das 7h, a primeira do dia, aceita até 6 alunos com o mesmo responsável. A sétima é recusada. Aula `CANCELADA` libera a vaga.
 
 Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `AGUARDANDO`. Os dois papéis podem mover o status entre esses quatro, mas só se entra em `CANCELADA` pela ação de cancelar.
 

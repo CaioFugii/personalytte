@@ -12,7 +12,7 @@ import {
   Campo,
   classeCampo,
   classeCartao,
-  classeFundoStatus,
+  classeFundoAula,
   classeIconeAcao,
   cx,
   IconeLapis,
@@ -324,14 +324,14 @@ function ProximoHorario({ aulas }: { aulas: Aula[] }) {
                     to={`/agenda/aulas/${aula.id}`}
                     className={cx(
                       'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 hover:ring-1 hover:ring-tide',
-                      classeFundoStatus(aula.status),
+                      classeFundoAula(aula),
                     )}
                   >
                     <span className="flex min-w-0 items-center gap-2 font-semibold">
                       <span className="truncate">{aula.aluno.nome}</span>
                       <SeloCategoria categoria={aula.aluno.categoria} />
                     </span>
-                    <SeloStatus status={aula.status} />
+                    <SeloStatus status={aula.status} experimental={aula.experimental} />
                   </Link>
                 </li>
               ))}

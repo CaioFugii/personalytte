@@ -122,7 +122,7 @@ Leitura e escrita de aula: professor e administrador.
 
 Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
 
-`POST /api/aulas/grupo` cria a mesma aula avulsa para 1 a 4 alunos cadastrados, com o mesmo responsável e o mesmo início. Responde `201` com a lista de aulas criadas. Se um aluno for recusado, nenhuma aula é gravada. Aluno repetido ou mais de 4 alunos responde `DADOS_INVALIDOS`.
+`POST /api/aulas/grupo` cria a mesma aula avulsa para 1 a 4 alunos cadastrados, com o mesmo responsável e o mesmo início. O início às 7h, em Brasília, aceita de 1 a 6. Responde `201` com a lista de aulas criadas. Se um aluno for recusado, nenhuma aula é gravada. Aluno repetido ou mais alunos do que o horário permite responde `DADOS_INVALIDOS`.
 
 ```json
 {
@@ -153,7 +153,7 @@ Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, 
 
 Criar, editar, obter e cancelar devolvem a aula, inclusive o `id`.
 
-Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. A quinta responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`.
+Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. A quinta responde `HORARIO_OCUPADO`. Às 7h, em Brasília, o limite é 6 e a sétima responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`.
 
 Aula na resposta:
 

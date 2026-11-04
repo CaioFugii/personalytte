@@ -80,7 +80,7 @@ A data de cadastro é gravada pelo sistema.
 
 Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.
 
-As aulas são dadas em grupos de até 4 alunos. O mesmo responsável pode ter até 4 aulas no mesmo início, uma por aluno. No novo agendamento, dá para escolher até 4 alunos de uma vez. O sistema recusa a quinta aula, outro horário do mesmo responsável que cruze esse grupo e qualquer horário que cruze outra aula do mesmo aluno. Aula cancelada libera a vaga. Evento de aniversário ou torneio não ocupa o horário da aula.
+As aulas são dadas em grupos de até 4 alunos. O mesmo responsável pode ter até 4 aulas no mesmo início, uma por aluno. No novo agendamento, dá para escolher até 4 alunos de uma vez. O sistema recusa a quinta aula, outro horário do mesmo responsável que cruze esse grupo e qualquer horário que cruze outra aula do mesmo aluno. A aula das 7h, a primeira do dia, aceita até 6 alunos com o mesmo responsável, e a sétima é recusada. Aula cancelada libera a vaga. Evento de aniversário ou torneio não ocupa o horário da aula.
 
 Status:
 
@@ -191,7 +191,7 @@ Variáveis previstas na Heroku:
 2. Com o banco vazio, a primeira subida cria o sócio administrador a partir das variáveis de ambiente.
 3. Sócio dá aula e continua com permissão de administrador. Professor não grava aluno, equipe, evento nem aviso.
 4. Aluno sem horários e sem professor fica cadastrado e não ganha aula. Com os dois preenchidos, cada dia e horário do plano gera ocorrências futuras até 8 semanas, sempre de 60 minutos.
-5. O mesmo responsável aceita até 4 alunos no mesmo início, e a quinta aula é recusada. Horários que se cruzam com outro início para o mesmo responsável, ou qualquer cruzamento para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
+5. O mesmo responsável aceita até 4 alunos no mesmo início, e a quinta aula é recusada. Às 7h o limite é 6, e a sétima é recusada. Horários que se cruzam com outro início para o mesmo responsável, ou qualquer cruzamento para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
 6. Mudar o plano recria só as futuras Aguardando ainda ligadas a ele. Editar aluno, responsável, data ou horário de um dia deixa essa ocorrência de fora das próximas recriações.
 7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.
 8. Qualquer evento recusa aula nova no intervalo, e qualquer aula não cancelada recusa evento novo no mesmo horário. Nada que já estava na agenda é cancelado por isso.

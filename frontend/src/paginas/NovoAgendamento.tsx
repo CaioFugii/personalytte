@@ -20,6 +20,11 @@ import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from 
 import { rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
 
 const LIMITE_GRUPO = 4
+const LIMITE_PRIMEIRA_AULA = 6
+
+function limiteDoHorario(hora: string): number {
+  return hora === '07:00' || hora === '07:00:00' ? LIMITE_PRIMEIRA_AULA : LIMITE_GRUPO
+}
 
 function alunoPeloNome(alunos: Aluno[], texto: string, selecionados: Aluno[]): Aluno | null {
   const nome = texto.trim().toLowerCase()
@@ -256,7 +261,8 @@ function FormAula() {
       .slice(0, 8)
   }, [alunos, selecionados, texto])
 
-  const grupoCheio = selecionados.length >= LIMITE_GRUPO
+  const limite = limiteDoHorario(hora)
+  const grupoCheio = selecionados.length >= limite
   const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
   const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
@@ -279,10 +285,14 @@ function FormAula() {
     const nome = texto.trim()
     const digitado = alunoPeloNome(alunos, nome, selecionados)
     const ids = selecionados.map((aluno) => aluno.id)
-    if (digitado && ids.length < LIMITE_GRUPO) ids.push(digitado.id)
+    if (digitado && ids.length < limite) ids.push(digitado.id)
     const temporario = ids.length === 0 && experimental && nome !== ''
     if (!responsavelId || !civilValida(data) || !hora || (ids.length === 0 && !temporario)) {
       notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
+      return
+    }
+    if (ids.length > limite) {
+      notificar('erro', limite === LIMITE_PRIMEIRA_AULA ? 'A aula das 7h aceita até 6 alunos.' : 'Nesse horário o grupo aceita até 4 alunos.')
       return
     }
     if (data < hoje) {
@@ -343,14 +353,18 @@ function FormAula() {
         Aula experimental
       </label>
       <Campo
-        label={`Alunos (até ${LIMITE_GRUPO})`}
+        label={`Alunos (até ${limite})`}
         htmlFor="aluno-aula"
         dica={
-          grupoCheio
-            ? `O grupo já tem ${LIMITE_GRUPO} alunos.`
-            : experimental && selecionados.length === 0
-              ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
-              : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
+          selecionados.length > limite
+            ? `Nesse horário o grupo aceita até ${limite} alunos.`
+            : grupoCheio
+              ? `O grupo já tem ${limite} alunos.`
+              : experimental && selecionados.length === 0
+                ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
+                : hora === '07:00' || hora === '07:00:00'
+                  ? 'Busque por nome, e-mail ou telefone e selecione. A aula das 7h junta até 6 alunos.'
+                  : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
         }
       >
         {selecionados.length > 0 ? (

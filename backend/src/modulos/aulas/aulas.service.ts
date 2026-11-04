@@ -5,7 +5,7 @@ import { ErroApi, MENSAGEM_JA_INICIOU, naoEncontrado, traduzirErroBanco } from '
 import { serializarAula } from '../../comum/serializar';
 import { alunoAtivo, booleanoDe, exigirIntervalo, exigirObjeto, instanteDe, responsavelAtivo, statusDe, telefoneOpcional, textoObrigatorio, uuidDe, veio } from '../../comum/validacao';
 import { fimDaAula, jaComecou } from '../../comum/tempo';
-import { AgendaService, LIMITE_GRUPO } from '../../dominio/agenda.service';
+import { AgendaService, LIMITE_GRUPO, limiteDoGrupo } from '../../dominio/agenda.service';
 import { Aluno } from '../../entidades/aluno.entity';
 import { Aula } from '../../entidades/aula.entity';
 
@@ -53,8 +53,12 @@ export class AulasService {
 
   async criarGrupo(corpo: unknown, agora = new Date()): Promise<AulaResposta[]> {
     const dados = exigirObjeto(corpo);
-    if (!Array.isArray(dados.alunoIds) || dados.alunoIds.length === 0 || dados.alunoIds.length > LIMITE_GRUPO) {
+    if (!Array.isArray(dados.alunoIds) || dados.alunoIds.length === 0) {
       throw new ErroApi(400, 'DADOS_INVALIDOS', `Informe de 1 a ${LIMITE_GRUPO} alunos.`);
+    }
+    const limite = limiteDoGrupo(instanteDe(dados.inicio, 'O início'));
+    if (dados.alunoIds.length > limite) {
+      throw new ErroApi(400, 'DADOS_INVALIDOS', `Informe de 1 a ${limite} alunos.`);
     }
     const alunoIds = dados.alunoIds.map((valor) => uuidDe(valor, 'Aluno'));
     if (new Set(alunoIds).size !== alunoIds.length) {
