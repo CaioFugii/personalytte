@@ -65,6 +65,13 @@ export function rotuloCategoriaCurta(categoria: Categoria): string {
   return categoria === 'INICIANTE' ? 'Inic.' : rotuloCategoria(categoria)
 }
 
+/** Categorias presentes, sem repetir, na ordem Iniciante → A. */
+export function categoriasPresentes(categorias: Array<Categoria | null | undefined>): string | null {
+  const presentes = new Set(categorias.filter((item): item is Categoria => Boolean(item)))
+  if (presentes.size === 0) return null
+  return juntarLista(CATEGORIAS.filter((item) => presentes.has(item.value)).map((item) => item.label))
+}
+
 /** Categorias do grupo, da mais frequente para a menos. Empate segue Iniciante → A. */
 export function resumoCategorias(categorias: Array<Categoria | null | undefined>): string | null {
   const contagem = new Map<Categoria, number>()

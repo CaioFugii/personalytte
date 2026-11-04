@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type React
 import { createPortal } from 'react-dom'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Evento, Responsavel, TipoEvento } from '../api/types'
+import type { Aluno, Aula, Evento, Responsavel, TipoEvento } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
   Botao,
@@ -17,13 +17,65 @@ import {
 import { useSessao } from '../contexto/Sessao'
 import { notificar, useNotificar } from '../componentes/toast'
 import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
-import { rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
+import { categoriasPresentes, rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
 
 const LIMITE_GRUPO = 4
 const LIMITE_PRIMEIRA_AULA = 6
 
 function limiteDoHorario(hora: string): number {
   return hora === '07:00' || hora === '07:00:00' ? LIMITE_PRIMEIRA_AULA : LIMITE_GRUPO
+}
+
+const GRADE_HORARIOS = Array.from({ length: 16 }, (_, indice) => `${String(indice + 7).padStart(2, '0')}:00`)
+
+function minutosDoHorario(hora: string): number {
+  const [horas, minutos] = hora.slice(0, 5).split(':').map(Number)
+  return horas * 60 + minutos
+}
+
+function horariosCruzam(um: string, outro: string): boolean {
+  return Math.abs(minutosDoHorario(um) - minutosDoHorario(outro)) < 60
+}
+
+function cabeNoDia(hora: string): boolean {
+  return minutosDoHorario(hora) + 60 < 24 * 60
+}
+
+type HorarioLivre = { hora: string; vagas: number; limite: number; categorias: Array<Aula['aluno']['categoria']> }
+
+function horariosLivres(aulas: Aula[], responsavelId: string, alunoIds: string[], pedidos: number): HorarioLivre[] {
+  const ativas = aulas.filter((aula) => aula.status !== 'CANCELADA')
+  const horas = new Set(GRADE_HORARIOS)
+  for (const aula of ativas) {
+    if (aula.responsavel.id !== responsavelId) continue
+    const hora = partesSP(aula.inicio).hora
+    if (cabeNoDia(hora)) horas.add(hora)
+  }
+  return [...horas]
+    .filter(cabeNoDia)
+    .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b))
+    .flatMap((hora) => {
+      const limite = limiteDoHorario(hora)
+      const doProfessor = ativas.filter(
+        (aula) => aula.responsavel.id === responsavelId && horariosCruzam(partesSP(aula.inicio).hora, hora),
+      )
+      const mesmoInicio = doProfessor.filter((aula) => partesSP(aula.inicio).hora === hora)
+      if (doProfessor.length !== mesmoInicio.length) return []
+      const alunoOcupado = ativas.some(
+        (aula) => alunoIds.includes(aula.aluno.id) && horariosCruzam(partesSP(aula.inicio).hora, hora),
+      )
+      if (alunoOcupado) return []
+      const vagas = limite - mesmoInicio.length
+      if (vagas < pedidos) return []
+      return [{ hora, vagas, limite, categorias: mesmoInicio.map((aula) => aula.aluno.categoria) }]
+    })
+}
+
+function rotuloHorarioLivre(item: HorarioLivre): string {
+  const vagas = item.vagas === 1 ? '1 vaga' : `${item.vagas} vagas`
+  if (item.categorias.length === 0) return `${item.hora} · ${vagas} · nenhum aluno`
+  const nivel = categoriasPresentes(item.categorias) ?? 'sem categoria'
+  return `${item.hora} · ${vagas} · ${nivel}`
 }
 
 function alunoPeloNome(alunos: Aluno[], texto: string, selecionados: Aluno[]): Aluno | null {
@@ -243,6 +295,20 @@ function FormAula() {
   const [hora, setHora] = useState('')
   const [experimental, setExperimental] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const diaValido = civilValida(data)
+  const aulasDia = useGet<Aula[]>(diaValido ? `/api/aulas?de=${data}&ate=${data}` : null)
+  const aulasDoDia = Array.isArray(aulasDia.dados) ? aulasDia.dados : []
+  const consultaPronta = Boolean(responsavelId) && diaValido && !aulasDia.carregando && !aulasDia.erro && Array.isArray(aulasDia.dados)
+  const livres = useMemo(() => {
+    if (!consultaPronta) return []
+    return horariosLivres(aulasDoDia, responsavelId, selecionados.map((aluno) => aluno.id), Math.max(selecionados.length, 1))
+  }, [consultaPronta, aulasDoDia, responsavelId, selecionados])
+  const escolhido = livres.find((item) => item.hora === hora)
+
+  useEffect(() => {
+    if (!consultaPronta) return
+    if (hora && !livres.some((item) => item.hora === hora)) setHora('')
+  }, [consultaPronta, hora, livres])
 
   const sugestoes = useMemo(() => {
     const consulta = texto.trim().toLowerCase()
@@ -261,7 +327,7 @@ function FormAula() {
       .slice(0, 8)
   }, [alunos, selecionados, texto])
 
-  const limite = limiteDoHorario(hora)
+  const limite = escolhido ? escolhido.vagas : limiteDoHorario(hora)
   const grupoCheio = selecionados.length >= limite
   const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
   const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
@@ -289,6 +355,10 @@ function FormAula() {
     const temporario = ids.length === 0 && experimental && nome !== ''
     if (!responsavelId || !civilValida(data) || !hora || (ids.length === 0 && !temporario)) {
       notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
+      return
+    }
+    if (consultaPronta && !livres.some((item) => item.hora === hora)) {
+      notificar('erro', 'Esse horário não está disponível.')
       return
     }
     if (ids.length > limite) {
@@ -321,6 +391,14 @@ function FormAula() {
       notificar('erro', mensagemDeErro(err))
       setEnviando(false)
     }
+  }
+
+  function dicaDoHorario(): string {
+    if (!responsavelId || !diaValido) return 'Escolha o professor e a data para ver os horários livres.'
+    if (aulasDia.carregando) return 'Carregando horários…'
+    if (aulasDia.erro) return aulasDia.erro
+    if (livres.length === 0) return 'Não há horário livre para este professor nesse dia.'
+    return ''
   }
 
   if (carregando) return <PainelEstado status>Carregando…</PainelEstado>
@@ -362,9 +440,11 @@ function FormAula() {
               ? `O grupo já tem ${limite} alunos.`
               : experimental && selecionados.length === 0
                 ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
-                : hora === '07:00' || hora === '07:00:00'
-                  ? 'Busque por nome, e-mail ou telefone e selecione. A aula das 7h junta até 6 alunos.'
-                  : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
+                : escolhido && escolhido.vagas < escolhido.limite
+                  ? `Esse horário ainda aceita ${escolhido.vagas} ${escolhido.vagas === 1 ? 'aluno' : 'alunos'}.`
+                  : hora === '07:00' || hora === '07:00:00'
+                    ? 'Busque por nome, e-mail ou telefone e selecione. A aula das 7h junta até 6 alunos.'
+                    : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
         }
       >
         {selecionados.length > 0 ? (
@@ -464,19 +544,32 @@ function FormAula() {
             className={classeCampo}
           />
         </Campo>
-        <Campo label="Horário" htmlFor="hora-aula">
-          <input
+        <Campo label="Horário" htmlFor="hora-aula" dica={dicaDoHorario()}>
+          <select
             id="hora-aula"
-            type="time"
             required
             value={hora}
+            disabled={!responsavelId || !diaValido || aulasDia.carregando || Boolean(aulasDia.erro) || (consultaPronta && livres.length === 0)}
             onChange={(event) => setHora(event.target.value)}
             className={classeCampo}
-          />
+          >
+            <option value="">{livres.length === 0 && consultaPronta ? 'Nenhum horário livre' : 'Selecione'}</option>
+            {hora && !livres.some((item) => item.hora === hora) ? <option value={hora}>{hora}</option> : null}
+            {livres.map((item) => (
+              <option key={item.hora} value={item.hora}>
+                {rotuloHorarioLivre(item)}
+              </option>
+            ))}
+          </select>
+          {aulasDia.erro ? (
+            <button type="button" className="mt-2 text-sm font-semibold text-tide" onClick={() => aulasDia.recarregar()}>
+              Tentar de novo
+            </button>
+          ) : null}
         </Campo>
       </div>
       <div className="flex gap-2">
-        <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0)}>
+        <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0) || (diaValido && aulasDia.carregando)}>
           {enviando ? 'Salvando…' : 'Agendar aula'}
         </Botao>
         <LinkBotao to="/agenda/novo" variante="secundario">

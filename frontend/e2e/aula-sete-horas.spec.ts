@@ -48,7 +48,9 @@ async function escolherAluno(page: Page, nome: string) {
 async function preencherQuando(page: Page, hora: string) {
   await page.locator('#resp-aula').selectOption({ label: 'Marina Costa' })
   await page.locator('#data-aula').fill(DATA)
-  await page.locator('#hora-aula').fill(hora)
+  const opcao = page.locator(`#hora-aula option[value="${hora}"]`)
+  await expect(opcao).toBeAttached()
+  await page.locator('#hora-aula').selectOption(hora)
 }
 
 test('a aula das 7h aceita 6 alunos e recusa o sétimo', async ({ page }) => {
@@ -59,6 +61,9 @@ test('a aula das 7h aceita 6 alunos e recusa o sétimo', async ({ page }) => {
     await page.goto('/agenda/novo?tipo=aula')
     await expect(page.locator('#aluno-aula')).toBeVisible()
     await preencherQuando(page, '08:00')
+    await expect(page.locator('#hora-aula option[value="08:00"]')).toHaveText('08:00 · 4 vagas · nenhum aluno')
+    await expect(page.locator('#hora-aula option[value="07:00"]')).toHaveText('07:00 · 6 vagas · nenhum aluno')
+    await expect(page.locator('#hora-aula option[value="19:00"]')).toHaveText('19:00 · 3 vagas · D')
     await expect(page.getByText('Alunos (até 4)')).toBeVisible()
     await expect(page.getByText('A aula em grupo junta até 4 alunos no mesmo horário.')).toBeVisible()
 
@@ -66,7 +71,7 @@ test('a aula das 7h aceita 6 alunos e recusa o sétimo', async ({ page }) => {
     await expect(page.locator('#aluno-aula')).toBeDisabled()
     await expect(page.getByText('O grupo já tem 4 alunos.')).toBeVisible()
 
-    await page.locator('#hora-aula').fill('07:00')
+    await page.locator('#hora-aula').selectOption('07:00')
     await expect(page.getByText('Alunos (até 6)')).toBeVisible()
     await expect(page.getByText('A aula das 7h junta até 6 alunos.')).toBeVisible()
     await expect(page.locator('#aluno-aula')).toBeEnabled()
@@ -91,12 +96,10 @@ test('a aula das 7h aceita 6 alunos e recusa o sétimo', async ({ page }) => {
 
     await page.goto('/agenda/novo?tipo=aula')
     await expect(page.locator('#aluno-aula')).toBeVisible()
-    await preencherQuando(page, '07:00')
-    await expect(page.getByText('Alunos (até 6)')).toBeVisible()
-    await escolherAluno(page, SETIMO)
-    await page.getByRole('button', { name: 'Agendar aula' }).click()
-    await expect(page.getByText('Esse horário já tem 6 alunos com este professor.')).toBeVisible()
-    await expect(page).toHaveURL(/\/agenda\/novo/)
+    await page.locator('#resp-aula').selectOption({ label: 'Marina Costa' })
+    await page.locator('#data-aula').fill(DATA)
+    await expect(page.locator('#hora-aula option[value="08:00"]')).toBeAttached()
+    await expect(page.locator('#hora-aula option[value="07:00"]')).toHaveCount(0)
   } finally {
     await limparSeteHoras(page)
   }
