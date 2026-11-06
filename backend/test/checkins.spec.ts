@@ -107,7 +107,7 @@ describe('check-ins http', () => {
       nome: 'Ana Lima',
       telefone: '11911110001',
       email: 'ana-checkin@personalytte.local',
-      plano: 'PARTICULAR',
+      genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
     });
     expect(aluno.status).toBe(201);

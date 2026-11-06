@@ -76,6 +76,9 @@ export function Layout() {
           <NavLink to="/agenda" className={classeLink}>
             Agenda
           </NavLink>
+          <NavLink to="/acompanhamento" className={classeLink}>
+            Acompanhamento
+          </NavLink>
           <NavLink to="/checkins" className={classeLink}>
             Check-ins
           </NavLink>

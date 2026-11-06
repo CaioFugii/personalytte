@@ -2,10 +2,10 @@ import { EntityManager } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
 import type { AulaResposta } from '../../comum/contrato';
 import { ErroApi, MENSAGEM_JA_INICIOU, naoEncontrado, traduzirErroBanco } from '../../comum/erros';
-import { serializarAula } from '../../comum/serializar';
 import { alunoAtivo, booleanoDe, exigirIntervalo, exigirObjeto, instanteDe, responsavelAtivo, statusDe, telefoneOpcional, textoObrigatorio, uuidDe, veio } from '../../comum/validacao';
 import { fimDaAula, jaComecou } from '../../comum/tempo';
 import { AgendaService, LIMITE_GRUPO, limiteDoGrupo } from '../../dominio/agenda.service';
+import { origemConcedeReposicao, reposicoesEmAberto, responderAulas } from '../../dominio/reposicao';
 import { Aluno } from '../../entidades/aluno.entity';
 import { Aula } from '../../entidades/aula.entity';
 
@@ -22,11 +22,11 @@ export class AulasService {
       populate: ['aluno', 'responsavel', 'reposicaoDe'],
       orderBy: { inicio: 'asc' },
     });
-    return aulas.map(serializarAula);
+    return responderAulas(this.em, aulas);
   }
 
   async obter(id: string): Promise<AulaResposta> {
-    return serializarAula(await this.carregar(this.em, id));
+    return (await responderAulas(this.em, [await this.carregar(this.em, id)]))[0];
   }
 
   async criar(corpo: unknown, agora = new Date()): Promise<AulaResposta> {
@@ -42,7 +42,7 @@ export class AulasService {
         });
         em.persist(aula);
         await em.flush();
-        return serializarAula(aula);
+        return (await responderAulas(em, [aula]))[0];
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -79,7 +79,7 @@ export class AulasService {
           await em.flush();
           criadas.push(aula);
         }
-        return criadas.map(serializarAula);
+        return responderAulas(em, criadas);
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -156,7 +156,7 @@ export class AulasService {
           await this.agendarReposicao(em, aula, dados.reposicao, agora);
         }
         await em.flush();
-        return serializarAula(aula);
+        return (await responderAulas(em, [aula]))[0];
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -186,7 +186,7 @@ export class AulasService {
         await em.flush();
         if (dados.reposicao != null) await this.agendarReposicao(em, aula, dados.reposicao, agora);
         await em.flush();
-        return serializarAula(aula);
+        return (await responderAulas(em, [aula]))[0];
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -196,6 +196,12 @@ export class AulasService {
   }
 
   private async agendarReposicao(em: EntityManager, origem: Aula, corpo: unknown, agora: Date): Promise<void> {
+    if (!origemConcedeReposicao(origem)) {
+      throw new ErroApi(400, 'DADOS_INVALIDOS', 'Reposição só pode ser criada ao marcar falta ou num cancelamento que gera reposição.');
+    }
+    if ((await reposicoesEmAberto(em, [origem.id])).has(origem.id)) {
+      throw new ErroApi(400, 'DADOS_INVALIDOS', 'Esta aula já tem uma reposição agendada.');
+    }
     const reposicao = await this.montarReposicao(em, origem, corpo);
     this.agenda.exigirDataAgenda(reposicao.inicio, agora);
     await this.agenda.assertPodeAgendar(em, {

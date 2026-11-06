@@ -1,6 +1,6 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { Aluno } from '../entidades/aluno.entity';
-import { CATEGORIAS, FUNCOES, PLANOS, STATUS_AULA, TIPOS_EVENTO, type CategoriaAluno, type FuncaoIntegrante, type PlanoAluno, type StatusAula, type TipoEvento } from '../entidades/enums';
+import { CATEGORIAS, FUNCOES, GENEROS, PLANOS, STATUS_AULA, TIPOS_EVENTO, type CategoriaAluno, type FuncaoIntegrante, type GeneroAluno, type PlanoAluno, type StatusAula, type TipoEvento } from '../entidades/enums';
 import { Integrante } from '../entidades/integrante.entity';
 import { ErroApi, MENSAGEM_PLANO, dadosInvalidos, naoEncontrado } from './erros';
 import { adicionarDias, dataCalendario, dataCalendarioValida, ehDiaSemana, horarioValido, ordenarHorarios, terminaNoMesmoDia, type HorarioPlano } from './tempo';
@@ -98,6 +98,10 @@ export function planoDe(valor: unknown): PlanoAluno {
 
 export function categoriaDe(valor: unknown): CategoriaAluno {
   return enumerado(valor, CATEGORIAS, 'Categoria');
+}
+
+export function generoDe(valor: unknown): GeneroAluno {
+  return enumerado(valor, GENEROS, 'Gênero');
 }
 
 export function statusDe(valor: unknown): StatusAula {

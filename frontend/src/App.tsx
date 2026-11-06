@@ -12,6 +12,7 @@ import { EditarEvento, ModalEscolha, NovoAgendamento } from './paginas/NovoAgend
 import { Alunos } from './paginas/Alunos'
 import { AlunoFormulario } from './paginas/AlunoFormulario'
 import { Checkins } from './paginas/Checkins'
+import { Acompanhamento } from './paginas/Acompanhamento'
 import { Equipe } from './paginas/Equipe'
 import { IntegranteFormulario } from './paginas/IntegranteFormulario'
 
@@ -71,6 +72,7 @@ function Rotas() {
             <Route path="/" element={<Painel />} />
             <Route path="/agenda" element={<AgendaSemana />} />
             <Route path="/checkins" element={<Checkins />} />
+            <Route path="/acompanhamento" element={<Acompanhamento />} />
             <Route path="/agenda/dia" element={<AgendaDia />} />
             <Route path="/agenda/aulas/:id" element={<AulaDetalhe />} />
             <Route path="/agenda/novo" element={<NovoAgendamento />} />

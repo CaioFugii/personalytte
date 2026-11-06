@@ -1,7 +1,8 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
 import type { AulaResposta, AvisoResposta, EventoResposta } from '../../comum/contrato';
-import { serializarAula, serializarAviso, serializarEvento } from '../../comum/serializar';
+import { serializarAviso, serializarEvento } from '../../comum/serializar';
+import { responderAulas } from '../../dominio/reposicao';
 import { adicionarDias, inicioDaSemana, inicioDoDia } from '../../comum/tempo';
 import { garantirAvisoAniversariantes } from '../../dominio/aniversariantes';
 import { Aluno } from '../../entidades/aluno.entity';
@@ -56,7 +57,7 @@ export class DashboardService {
       confirmadas: aulasHoje.filter((aula) => aula.status === 'CONFIRMADA').length,
       alunosCadastrados: await this.em.count(Aluno, { ativo: true, temporario: false }),
       alunosDoDia: new Set(aulasHoje.map((aula) => aula.aluno.id)).size,
-      proximoHorario: doHorario.map(serializarAula),
+      proximoHorario: await responderAulas(this.em, doHorario),
       eventosDaSemana: eventos.map(serializarEvento),
       avisos: avisos.map(serializarAviso),
     };

@@ -7,6 +7,9 @@ export type PlanoAluno = (typeof PLANOS)[number];
 export const CATEGORIAS = ['INICIANTE', 'D', 'C', 'B', 'A'] as const;
 export type CategoriaAluno = (typeof CATEGORIAS)[number];
 
+export const GENEROS = ['FEMININO', 'MASCULINO'] as const;
+export type GeneroAluno = (typeof GENEROS)[number];
+
 export const STATUS_AULA = ['AGUARDANDO', 'CONFIRMADA', 'FALTA', 'CANCELADA'] as const;
 export type StatusAula = (typeof STATUS_AULA)[number];
 

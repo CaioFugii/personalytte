@@ -2,25 +2,23 @@ import { useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Botao } from './ui'
 
-export function ModalImagemAgenda({
-  paginas,
-  podeCompartilhar,
-  onBaixar,
-  onCompartilhar,
+export function ModalTextoAgenda({
+  texto,
+  onCopiar,
   onFechar,
 }: {
-  paginas: { url: string; nome: string }[]
-  podeCompartilhar: boolean
-  onBaixar: () => void
-  onCompartilhar: () => void
+  texto: string
+  onCopiar: () => void
   onFechar: () => void
 }) {
   const tituloId = useId()
   const fecharAtual = useRef(onFechar)
   fecharAtual.current = onFechar
-  const varias = paginas.length > 1
+  const campoRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    campoRef.current?.focus()
+    campoRef.current?.select()
     const anterior = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     function aoTecla(event: KeyboardEvent) {
@@ -46,33 +44,22 @@ export function ModalImagemAgenda({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
-          Imagem da agenda
+          Texto da agenda
         </h2>
-        <p className="text-sm text-muted">
-          {varias
-            ? 'Duas páginas, prontas para mandar no WhatsApp. Confira, baixe ou compartilhe as duas.'
-            : 'Pronto para mandar no WhatsApp. Confira a imagem e baixe ou compartilhe.'}
-        </p>
-        <div className="grid max-h-[55vh] gap-3 overflow-auto rounded-2xl bg-sand p-3">
-          {paginas.map((pagina, indice) => (
-            <figure key={pagina.nome} className="grid gap-2">
-              {varias ? (
-                <figcaption className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Página {indice + 1} de {paginas.length}
-                </figcaption>
-              ) : null}
-              <img src={pagina.url} alt={`Agenda do dia, página ${indice + 1} de ${paginas.length}`} className="mx-auto block w-full max-w-sm rounded-xl" />
-            </figure>
-          ))}
-        </div>
+        <p className="text-sm text-muted">Pronto para colar no WhatsApp.</p>
+        <textarea
+          ref={campoRef}
+          readOnly
+          value={texto}
+          rows={Math.min(16, Math.max(8, texto.split('\n').length))}
+          aria-label="Texto da agenda do dia"
+          className="max-h-[55vh] w-full resize-y rounded-2xl border border-line bg-sand p-3 text-sm leading-relaxed"
+        />
         <div className="flex flex-wrap justify-end gap-2">
           <Botao variante="secundario" onClick={onFechar}>
             Fechar
           </Botao>
-          <Botao variante="secundario" onClick={onBaixar}>
-            {varias ? 'Baixar imagens' : 'Baixar imagem'}
-          </Botao>
-          {podeCompartilhar ? <Botao onClick={onCompartilhar}>Compartilhar</Botao> : null}
+          <Botao onClick={onCopiar}>Copiar</Botao>
         </div>
       </div>
     </div>,

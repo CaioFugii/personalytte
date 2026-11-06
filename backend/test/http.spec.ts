@@ -68,7 +68,7 @@ describe('sessão http', () => {
     const negado = await sessaoProfessor.post('/api/alunos').send({
       nome: 'Ana',
       telefone: '11911110001',
-      plano: 'PARTICULAR',
+      genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
     });
     expect(negado.status).toBe(403);
@@ -77,7 +77,7 @@ describe('sessão http', () => {
     const criado = await admin.post('/api/alunos').send({
       nome: 'Ana Lima',
       telefone: '11911110001',
-      plano: 'PARTICULAR',
+      genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
     });
     expect(criado.status).toBe(201);
@@ -188,7 +188,7 @@ describe('sessão http', () => {
     const aluno = await admin.post('/api/alunos').send({
       nome: 'Sem plano',
       telefone: '11933330003',
-      plano: 'PARTICULAR',
+      genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
       horarios: [],
       responsavelId: null,
@@ -204,7 +204,7 @@ describe('sessão http', () => {
     const nascimentoInvalido = await admin.post('/api/alunos').send({
       nome: 'Data ruim',
       telefone: '11933330004',
-      plano: 'PARTICULAR',
+      genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
       dataNascimento: '15/03/1992',
     });

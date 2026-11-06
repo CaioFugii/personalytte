@@ -151,7 +151,9 @@ export function AulaDetalhe() {
       notificar('erro', 'Informe a data e o horário.')
       return
     }
-    const criaReposicao = form.criarReposicao && (form.status === 'FALTA' || (repoeCancelada && form.status === 'CANCELADA'))
+    const criaReposicao = form.criarReposicao
+      && !aula.reposicaoAgendadaId
+      && (form.status === 'FALTA' || (repoeCancelada && form.status === 'CANCELADA'))
     if (criaReposicao) {
       if (!reposicaoProfessorId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora) {
         notificar('erro', 'Informe o professor e o início da reposição, ou salve sem reposição.')
@@ -401,6 +403,18 @@ export function AulaDetalhe() {
               <fieldset className="rounded-lg border border-line p-4">
                 <legend className="px-1 font-semibold">Reposição</legend>
                 <p className="mb-3 text-sm text-muted">
+                  Reposições disponíveis deste aluno: <span className="font-semibold text-ink tabular-nums">{aula.reposicoesDisponiveis}</span>
+                </p>
+                {aula.reposicaoAgendadaId ? (
+                  <p className="text-sm">
+                    A reposição desta aula já está agendada.{' '}
+                    <Link to={`/agenda/aulas/${aula.reposicaoAgendadaId}`} className="font-semibold text-tide-dark">
+                      Abrir reposição
+                    </Link>
+                  </p>
+                ) : (
+                  <>
+                <p className="mb-3 text-sm text-muted">
                   {form.status === 'FALTA'
                     ? 'A falta pode ser salva sem reposição. A reposição é opcional.'
                     : 'Este cancelamento gera reposição. Agende quando tiver a data.'}
@@ -454,6 +468,8 @@ export function AulaDetalhe() {
                     </Campo>
                   </div>
                 ) : null}
+                  </>
+                )}
               </fieldset>
             ) : null}
 

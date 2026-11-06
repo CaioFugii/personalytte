@@ -41,7 +41,7 @@ export function serializarResponsavel(integrante: Integrante): ResponsavelRespos
   return { id: integrante.id, nome: integrante.nome, funcao: integrante.funcao };
 }
 
-export function serializarAluno(aluno: Aluno): AlunoResposta {
+export function serializarAluno(aluno: Aluno, reposicoesDisponiveis = 0): AlunoResposta {
   return {
     id: aluno.id,
     nome: aluno.nome,
@@ -51,15 +51,20 @@ export function serializarAluno(aluno: Aluno): AlunoResposta {
     dataNascimento: dataNascimentoDe(aluno.dataNascimento),
     plano: aluno.plano,
     categoria: aluno.categoria,
+    genero: aluno.genero,
     horarios: aluno.horarios,
     responsavelId: idRelacao(aluno.responsavel),
     ativo: aluno.ativo,
     temporario: aluno.temporario,
     cadastradoEm: formatarInstante(aluno.cadastradoEm),
+    reposicoesDisponiveis,
   };
 }
 
-export function serializarAula(aula: Aula): AulaResposta {
+export function serializarAula(
+  aula: Aula,
+  contexto: { reposicaoAgendadaId?: string | null; reposicoesDisponiveis?: number } = {},
+): AulaResposta {
   return {
     id: aula.id,
     aluno: {
@@ -75,6 +80,8 @@ export function serializarAula(aula: Aula): AulaResposta {
     status: aula.status,
     experimental: aula.experimental,
     reposicaoDeAulaId: idRelacao(aula.reposicaoDe),
+    reposicaoAgendadaId: contexto.reposicaoAgendadaId ?? null,
+    reposicoesDisponiveis: contexto.reposicoesDisponiveis ?? 0,
     ligadaAoPlano: aula.ligadaAoPlano,
     cancelamento:
       aula.status === 'CANCELADA' && aula.justificativaCancelamento != null

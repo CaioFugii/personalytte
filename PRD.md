@@ -16,6 +16,7 @@ Uma escola, um painel, dados reais. O aluno não entra no sistema. O telefone fi
 
 - Login da equipe
 - Dashboard
+- Acompanhamento do mês
 - Agenda da semana e agenda do dia
 - Aula: detalhe, criação, edição, cancelamento e status
 - Evento
@@ -32,7 +33,7 @@ Idioma da interface: português. Fuso das regras: America/Sao_Paulo. A semana co
 - Portal do aluno
 - Mais de uma escola no mesmo sistema
 - Financeiro, cobrança e mensagens ao aluno
-- Relatórios, configurações e módulos separados de treinos, turmas e professores
+- Configurações e módulos separados de treinos, turmas e professores
 - Quadra como recurso da agenda
 - Importação de planilha
 - Envio de e-mail e “esqueci minha senha”
@@ -46,7 +47,7 @@ Há dois logins. A função do integrante define o papel.
 
 | Função | Papel | O que faz |
 | --- | --- | --- |
-| Professor(a) | Professor | Vê o dashboard, a agenda inteira e a lista de alunos, com telefone. Cria, edita, cancela e muda o status das aulas. |
+| Professor(a) | Professor | Vê o dashboard, o acompanhamento do mês, a agenda inteira e a lista de alunos, com telefone. Cria, edita, cancela e muda o status das aulas. |
 | Outros | Professor | Entra com o mesmo acesso do professor. Não entra na lista de Professor do cadastro do aluno nem do novo agendamento. |
 | Sócio | Administrador | Faz o que o professor faz. Também cria, edita e inativa alunos e integrantes, cria e edita eventos, e cria, edita e apaga avisos. |
 
@@ -60,11 +61,12 @@ Não há cadastro público. O administrador cria cada conta e define a senha, co
 
 ### 5.1 Aluno
 
-Obrigatórios: nome, telefone, plano e categoria.
+Obrigatórios: nome, telefone, plano, categoria e gênero.
 
 - Telefone brasileiro, com 10 ou 11 dígitos.
 - Plano: Particular, Gympass, TotalPass ou Mensal.
 - Categoria: Iniciante, D, C, B ou A.
+- Gênero: Feminino ou Masculino.
 
 E-mail é opcional. Instagram também: o usuário do perfil, para marcação nos stories, sem o endereço. A data de nascimento é opcional, em dia civil, para os aniversariantes da semana. A busca encontra nome, e-mail, telefone ou Instagram.
 
@@ -91,9 +93,9 @@ Status:
 
 Toda aula nova nasce Aguardando. Administrador e professor podem mover o status entre esses quatro. Cancelar aula grava Cancelada e exige a justificativa e a resposta se o cancelamento gera reposição. Quando gera, a reposição pode ser agendada no próprio cancelamento ou depois, no detalhe da aula cancelada. Tirar a aula de Cancelada apaga a justificativa.
 
-Ao marcar Falta, o sistema oferece criar outra aula, ligada a essa, já identificada como reposição. A falta também pode ser salva sozinha. A reposição é uma aula avulsa, segue o mesmo ciclo de status e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
+Ao marcar Falta, o sistema oferece criar outra aula, ligada a essa, já identificada como reposição. A falta também pode ser salva sozinha. A reposição é uma aula avulsa, segue o mesmo ciclo de status e aponta para a aula de origem. Cada falta, e cada cancelamento que gera reposição, concede uma reposição disponível. Agendar a reposição consome essa vaga. A segunda reposição da mesma aula é recusada enquanto a primeira não estiver cancelada. O acompanhamento mostra quantas vagas ainda estão disponíveis.
 
-Aula experimental é avulsa. Pode usar um aluno já cadastrado ou um cadastro temporário, só com nome e telefone opcional, sem plano nem categoria. Esse cadastro não entra na lista de alunos nem na contagem de cadastrados. Avulsa, experimental e reposição ficam fora do plano semanal.
+Aula experimental é avulsa. Pode usar um aluno já cadastrado ou um cadastro temporário, só com nome e telefone opcional, sem plano, categoria nem gênero. Esse cadastro não entra na lista de alunos nem na contagem de cadastrados. Avulsa, experimental e reposição ficam fora do plano semanal.
 
 Um agendamento novo, de aula ou de evento, não aceita data anterior a hoje, no calendário de Brasília. Hoje continua válido. Editar uma aula que já existe não usa essa trava.
 
@@ -145,7 +147,15 @@ Os números usam o dia corrente em Brasília. Aula cancelada fica de fora das co
 - **Eventos da semana:** eventos que cruzam a semana corrente, de segunda a domingo.
 - **Avisos:** a lista descrita em 5.4.
 
-### 5.7 Check-in
+### 5.7 Acompanhamento
+
+Os dois papéis leem o mês civil de Brasília. A tela abre no mês corrente e também abre os meses anteriores. Mês futuro não abre.
+
+Falta, confirmação e cancelamento contam a aula daquele status cujo início cai no mês. Reposição é a aula que aponta para a origem, contada no mês do próprio início, em qualquer status. Uma reposição confirmada, com falta ou cancelada também entra na coluna do status. Aula em Aguardando que não é reposição fica de fora.
+
+A lista traz os alunos que tiveram ao menos um desses registros no mês, com a data de cada aula. As reposições disponíveis ficam à parte: são as vagas ainda não agendadas, e não mudam ao trocar o mês.
+
+### 5.8 Check-in
 
 O painel lista, num dia de Brasília, os check-ins que o Gympass e a TotalPass avisam. Os dois aparecem na mesma tela. A confirmação da visita continua no portal de cada provedor: o sistema não valida o check-in. Quando o e-mail ou o telefone bate com um único aluno ativo, o nome abre a ficha. Sem essa correspondência, o nome fica só na lista. O CPF recebido da TotalPass não é guardado.
 
@@ -155,12 +165,13 @@ A referência visual é o Canva. O comportamento abaixo é o contrato.
 
 - **Login.** E-mail e senha. Sem botão de criar conta e sem recuperação de senha.
 - **Dashboard.** Saudação da equipe, os números de 5.6, próximo horário, eventos da semana e avisos. Atalho para novo agendamento. O administrador também cria aviso daqui.
+- **Acompanhamento.** Mês corrente, com volta aos meses anteriores. Números e lista por aluno de faltas, confirmações, cancelamentos e reposições. Também lista as reposições disponíveis, as vagas ainda não agendadas. Visível para professor e administrador. Cada aula abre o detalhe.
 - **Check-ins.** Lista do dia, visível para professor e administrador, com horário, nome, contato e provedor. Gympass e TotalPass na mesma tabela.
 - **Agenda da semana.** Grade de segunda a domingo, com aulas e eventos. O grupo do horário mostra as categorias presentes. Dá para ir à semana anterior, à seguinte e a hoje.
-- **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição. Dá para mudar o status na lista. Cancelar pede a justificativa e se gera reposição. A oferta de reposição da falta fica no detalhe da aula. A tela exporta a agenda do dia em imagem, em uma ou duas páginas, para enviar no WhatsApp.
-- **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta e na aula cancelada que gera reposição. Cancelar abre a justificativa e a pergunta se gera reposição.
+- **Agenda do dia.** Aulas do dia em ordem de horário, com aluno, responsável, categoria, status e o marcador de experimental ou reposição. Dá para mudar o status na lista. Cancelar pede a justificativa e se gera reposição. A oferta de reposição da falta fica no detalhe da aula. A tela copia a agenda do dia em texto, para colar no WhatsApp. Cada horário lista os alunos. Confirmada leva ✅, falta leva ❌, e a experimental aparece marcada. Aula cancelada não entra.
+- **Detalhe da aula.** Dados da aula e ações de editar, cancelar e mudar status. A oferta de reposição aparece ao marcar Falta e na aula cancelada que gera reposição, e mostra as reposições disponíveis do aluno. Se a reposição desta aula já está agendada, a tela abre essa aula em vez de oferecer outra. Cancelar abre a justificativa e a pergunta se gera reposição.
 - **Novo agendamento.** Primeiro a escolha entre aula e evento. Professor segue só para aula. Em seguida, o formulário correspondente. No formulário da aula, o horário é uma lista dos inícios livres para o professor na data escolhida. Cada opção mostra as vagas e as categorias de quem já está no horário, sem repetir. Horário sem aluno indica isso. Horário com 4 alunos, ou com 6 às 7h, não aparece.
-- **Alunos.** Lista com nome, telefone, plano, categoria, cadastro e ações. Inclui inativos, identificados na lista. Busca por nome, e-mail ou telefone. Formulário de criação e edição. Professor consulta a lista e o detalhe, sem gravar. Aluno inativo abre só para consulta.
+- **Alunos.** Lista com nome, telefone, plano, categoria, gênero, cadastro e ações. Inclui inativos, identificados na lista. Busca por nome, e-mail ou telefone. Formulário de criação e edição. Professor consulta a lista e o detalhe, sem gravar. Aluno inativo abre só para consulta. Cadastro antigo sem gênero aparece vazio até ser editado.
 - **Equipe.** Visível só para o administrador. Lista com nome, telefone, função, data de nascimento, cadastro e ações. Busca por nome, e-mail ou telefone. O formulário inclui e-mail e senha inicial.
 
 ## 7. Arquitetura
@@ -193,10 +204,11 @@ Variáveis previstas na Heroku:
 4. Aluno sem horários e sem professor fica cadastrado e não ganha aula. Com os dois preenchidos, cada dia e horário do plano gera ocorrências futuras até 8 semanas, sempre de 60 minutos.
 5. O mesmo responsável aceita até 4 alunos no mesmo início, e a quinta aula é recusada. Às 7h o limite é 6, e a sétima é recusada. No novo agendamento, a lista de horário só mostra inícios com vaga para os alunos escolhidos. Horários que se cruzam com outro início para o mesmo responsável, ou qualquer cruzamento para o mesmo aluno, são recusados. Aula cancelada não entra nessa conta.
 6. Mudar o plano recria só as futuras Aguardando ainda ligadas a ele. Editar aluno, responsável, data ou horário de um dia deixa essa ocorrência de fora das próximas recriações.
-7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano.
+7. Marcar Falta permite salvar só a falta, ou criar uma aula nova ligada a ela. A nova nasce Aguardando, fora do plano. Cada falta ou cancelamento que gera reposição concede uma vaga. A segunda reposição da mesma aula é recusada enquanto a primeira não estiver cancelada. O acompanhamento mostra as vagas ainda disponíveis.
 8. Qualquer evento recusa aula nova no intervalo, e qualquer aula não cancelada recusa evento novo no mesmo horário. Nada que já estava na agenda é cancelado por isso.
 9. Depois do início da aula, o status muda e a data e o horário não mudam.
 10. Inativar aluno remove as futuras Aguardando e preserva o histórico. O aluno inativo permanece na lista de Alunos. Inativar integrante corta o login e é recusado enquanto essa pessoa tiver plano ativo ou aula futura não cancelada. O último administrador permanece.
 11. Aviso fica no dashboard até o administrador editar ou apagar, do mais recente ao mais antigo.
 12. O cookie de sessão dura 7 dias, não fica disponível ao JavaScript da página, e deixa de valer quando a senha muda ou o integrante é inativado.
 13. O front e a API abrem no mesmo endereço da Heroku. O ambiente local sobe com dados de exemplo. Produção, fora o administrador inicial, não traz esses dados.
+14. O acompanhamento abre no mês corrente de Brasília e também nos meses anteriores. Lista faltas, confirmações, cancelamentos e reposições dos alunos. Aula em Aguardando só entra quando é reposição.

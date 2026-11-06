@@ -5,13 +5,10 @@ import type { Aula, Responsavel, StatusAula } from '../api/types'
 import { useAgenda } from '../api/useAgenda'
 import { useGet } from '../api/useGet'
 import { ModalCancelamento, type DadosCancelamento } from '../componentes/cancelamento'
-import { ModalImagemAgenda } from '../componentes/exportarAgenda'
+import { ModalTextoAgenda } from '../componentes/exportarAgenda'
 import { AcoesEvento, ResumoEvento } from '../componentes/evento'
 import { notificar } from '../componentes/toast'
-import {
-  gerarImagemAgendaDia,
-  podeCompartilharArquivos,
-} from '../lib/exportarAgendaDia'
+import { textoAgendaDia } from '../lib/exportarAgendaDia'
 import {
   Botao,
   Cabecalho,
@@ -42,8 +39,7 @@ export function AgendaDia() {
   const admin = usuario?.papel === 'administrador'
   const [pendente, setPendente] = useState<string | null>(null)
   const [aulaCancelando, setAulaCancelando] = useState<Aula | null>(null)
-  const [exportando, setExportando] = useState(false)
-  const [imagens, setImagens] = useState<{ url: string; blob: Blob; nome: string }[] | null>(null)
+  const [textoExportado, setTextoExportado] = useState<string | null>(null)
 
   const professores = useMemo(
     () =>
@@ -60,55 +56,23 @@ export function AgendaDia() {
     }
   }, [bruta, setParams])
 
-  useEffect(() => {
-    return () => {
-      imagens?.forEach((pagina) => URL.revokeObjectURL(pagina.url))
-    }
-  }, [imagens])
-
   function ir(proxima: string) {
     setParams({ date: proxima })
   }
 
-  function fecharImagem() {
-    setImagens(null)
-  }
-
-  async function exportarImagem() {
-    if (exportando) return
-    setExportando(true)
+  async function copiarTexto(texto: string) {
     try {
-      const paginas = await gerarImagemAgendaDia({ data, aulas: agenda.aulas, eventos: agenda.eventos })
-      setImagens(paginas.map((pagina) => ({ ...pagina, url: URL.createObjectURL(pagina.blob) })))
+      await navigator.clipboard.writeText(texto)
+      notificar('ok', 'Texto copiado. Cole no WhatsApp.')
     } catch {
-      notificar('erro', 'Não foi possível gerar a imagem.')
-    } finally {
-      setExportando(false)
+      notificar('aviso', 'Selecione o texto e copie.')
     }
   }
 
-  function baixarImagem() {
-    if (!imagens) return
-    for (const pagina of imagens) {
-      const atalho = document.createElement('a')
-      atalho.href = pagina.url
-      atalho.download = pagina.nome
-      atalho.click()
-    }
-  }
-
-  async function compartilharImagem() {
-    if (!imagens) return
-    const arquivos = imagens.map((pagina) => new File([pagina.blob], pagina.nome, { type: 'image/png' }))
-    try {
-      await navigator.share({
-        files: arquivos,
-        title: `Agenda · ${formatarDiaLongo(data)}`,
-      })
-    } catch (erro) {
-      if (erro instanceof Error && erro.name === 'AbortError') return
-      notificar('erro', 'Não foi possível abrir o compartilhamento. Baixe a imagem e envie no WhatsApp.')
-    }
+  function abrirTexto() {
+    const texto = textoAgendaDia(agenda.aulas)
+    setTextoExportado(texto)
+    void copiarTexto(texto)
   }
 
   async function mudarStatus(aula: Aula, status: StatusAula) {
@@ -157,13 +121,11 @@ export function AgendaDia() {
           }}
         />
       ) : null}
-      {imagens ? (
-        <ModalImagemAgenda
-          paginas={imagens}
-          podeCompartilhar={podeCompartilharArquivos(imagens.map((pagina) => new File([pagina.blob], pagina.nome, { type: 'image/png' })))}
-          onBaixar={baixarImagem}
-          onCompartilhar={() => void compartilharImagem()}
-          onFechar={fecharImagem}
+      {textoExportado !== null ? (
+        <ModalTextoAgenda
+          texto={textoExportado}
+          onCopiar={() => void copiarTexto(textoExportado)}
+          onFechar={() => setTextoExportado(null)}
         />
       ) : null}
       <Cabecalho
@@ -193,12 +155,8 @@ export function AgendaDia() {
               }}
               className="h-10 rounded-full border border-line bg-paper px-3 text-sm"
             />
-            <Botao
-              variante="secundario"
-              disabled={carregandoLista || Boolean(agenda.erro) || exportando}
-              onClick={() => void exportarImagem()}
-            >
-              {exportando ? 'Gerando…' : 'Exportar imagem'}
+            <Botao variante="secundario" disabled={carregandoLista || Boolean(agenda.erro)} onClick={abrirTexto}>
+              Copiar texto
             </Botao>
             <LinkNovoAgendamento />
           </>

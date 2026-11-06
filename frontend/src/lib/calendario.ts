@@ -195,6 +195,43 @@ export function formatarTelefone(valor: string | null | undefined): string {
   return valor
 }
 
+export function mesAtual(agora = new Date()): string {
+  return hojeSP(agora).slice(0, 7)
+}
+
+export function mesValido(valor: string): boolean {
+  if (!/^\d{4}-\d{2}$/.test(valor)) return false
+  const mes = Number(valor.slice(5, 7))
+  return mes >= 1 && mes <= 12
+}
+
+export function inicioDoMes(mes: string): string {
+  return `${mes}-01`
+}
+
+export function fimDoMes(mes: string): string {
+  const [ano, mesNumero] = mes.split('-').map(Number)
+  const ultimo = new Date(Date.UTC(ano, mesNumero, 0)).getUTCDate()
+  return `${mes}-${String(ultimo).padStart(2, '0')}`
+}
+
+export function deslocarMes(mes: string, delta: number): string {
+  const [ano, mesNumero] = mes.split('-').map(Number)
+  const data = new Date(Date.UTC(ano, mesNumero - 1 + delta, 1))
+  const y = data.getUTCFullYear()
+  const m = String(data.getUTCMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
+
+export function formatarMes(mes: string): string {
+  const texto = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: FUSO,
+    month: 'long',
+    year: 'numeric',
+  }).format(instanteCivil(inicioDoMes(mes)))
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
 export function horaCurta(valor: string | null | undefined): string {
   if (!valor) return ''
   return valor.slice(0, 5)

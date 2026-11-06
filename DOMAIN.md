@@ -6,13 +6,13 @@ Uma escola. O aluno não entra no sistema. O fuso das regras é America/Sao_Paul
 
 **Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` e `OUTROS` entram como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal. No cadastro do aluno e no novo agendamento, o campo se chama Professor e a lista traz só a função `PROFESSOR`.
 
-O professor vê o dashboard, a agenda inteira e os alunos, com telefone. Cria, edita, cancela e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
+O professor vê o dashboard, o acompanhamento do mês, a agenda inteira e os alunos, com telefone. Cria, edita, cancela e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
 
 O administrador faz o que o professor faz e ainda grava alunos, integrantes, eventos e avisos.
 
 Não há cadastro público. O administrador define a senha, com no mínimo 8 caracteres. Inativar um integrante corta o login na hora. A API recusa inativar quem ainda é responsável por um plano de aluno ativo ou por uma aula futura não cancelada. O último administrador ativo permanece.
 
-**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`) e categoria (`INICIANTE`, `D`, `C`, `B` ou `A`). E-mail, Instagram e data de nascimento são opcionais. A data é um dia civil (`YYYY-MM-DD`). O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
+**Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`), categoria (`INICIANTE`, `D`, `C`, `B` ou `A`) e gênero (`FEMININO` ou `MASCULINO`). E-mail, Instagram e data de nascimento são opcionais. A data é um dia civil (`YYYY-MM-DD`). O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
 
 Cada item do plano semanal tem o próprio dia e horário. Segunda às 19h e quinta às 9h são duas aulas. O professor é um só para o plano. Horários e professor entram juntos ou ficam os dois vazios. Vazio significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo permanece na lista de Alunos e sai da busca de um agendamento novo. O detalhe abre; edição e nova aula, não.
 
@@ -30,9 +30,11 @@ Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `
 
 Cancelar exige a justificativa e a resposta se gera reposição. Com reposição, ela pode ser agendada no cancelamento ou depois, a partir da aula cancelada. Sair de `CANCELADA` apaga a justificativa.
 
-Ao marcar `FALTA`, dá para criar outra aula ligada a essa, já identificada como reposição. A falta também pode ficar sozinha. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. Uma falta pode originar mais de uma reposição.
+Ao marcar `FALTA`, dá para criar outra aula ligada a essa, já identificada como reposição. A falta também pode ficar sozinha. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. Cada falta, e cada cancelamento que gera reposição, concede uma reposição disponível. Agendar a reposição consome essa vaga. Outra reposição da mesma aula só entra se a anterior estiver `CANCELADA`. O acompanhamento mostra quantas vagas ainda estão disponíveis.
 
-Aula experimental é avulsa. Pode apontar para um aluno cadastrado ou criar um cadastro temporário: nome obrigatório, telefone opcional, sem plano, categoria ou plano semanal. Temporário não aparece na lista de alunos nem conta como cadastrado. Avulsa, experimental e reposição ficam fora do plano semanal.
+O acompanhamento lê um mês civil de Brasília, o corrente ou um anterior. Falta, confirmação e cancelamento contam a aula daquele status cujo início cai no mês. Reposição é a aula que aponta para a origem, contada no mês do próprio início, em qualquer status. Aula `AGUARDANDO` que não é reposição fica de fora. As reposições disponíveis aparecem na mesma tela e não dependem do mês escolhido. Os dois papéis apenas leem.
+
+Aula experimental é avulsa. Pode apontar para um aluno cadastrado ou criar um cadastro temporário: nome obrigatório, telefone opcional, sem plano, categoria, gênero ou plano semanal. Temporário não aparece na lista de alunos nem conta como cadastrado. Avulsa, experimental e reposição ficam fora do plano semanal.
 
 Um agendamento novo não aceita data anterior a hoje em Brasília. Hoje é permitido.
 

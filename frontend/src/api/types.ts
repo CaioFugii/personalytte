@@ -2,6 +2,7 @@ export type Funcao = 'PROFESSOR' | 'SOCIO' | 'OUTROS'
 export type Papel = 'professor' | 'administrador'
 export type Plano = 'PARTICULAR' | 'GYMPASS' | 'TOTALPASS' | 'MENSAL'
 export type Categoria = 'INICIANTE' | 'D' | 'C' | 'B' | 'A'
+export type Genero = 'FEMININO' | 'MASCULINO'
 export type DiaSemana = 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom'
 export type HorarioPlano = { dia: DiaSemana; horarioInicio: string }
 export type StatusAula = 'AGUARDANDO' | 'CONFIRMADA' | 'FALTA' | 'CANCELADA'
@@ -60,10 +61,12 @@ export type Aluno = {
   dataNascimento: string | null
   plano: Plano
   categoria: Categoria
+  genero: Genero | null
   horarios: HorarioPlano[]
   responsavelId: string | null
   ativo: boolean
   cadastradoEm: string
+  reposicoesDisponiveis: number
 }
 
 export type Aula = {
@@ -75,6 +78,8 @@ export type Aula = {
   status: StatusAula
   experimental: boolean
   reposicaoDeAulaId: string | null
+  reposicaoAgendadaId: string | null
+  reposicoesDisponiveis: number
   ligadaAoPlano: boolean
   cancelamento: { justificativa: string; geraReposicao: boolean } | null
 }

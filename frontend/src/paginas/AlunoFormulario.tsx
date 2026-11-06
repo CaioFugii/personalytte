@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Categoria, DiaSemana, HorarioPlano, Plano, Responsavel } from '../api/types'
+import type { Aluno, Categoria, DiaSemana, Genero, HorarioPlano, Plano, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar, useNotificar } from '../componentes/toast'
@@ -16,7 +16,7 @@ import {
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { civilValida, digitosTelefone, horaCurta } from '../lib/calendario'
-import { CATEGORIAS, DIAS, PLANOS } from '../lib/rotulos'
+import { CATEGORIAS, DIAS, GENEROS, PLANOS } from '../lib/rotulos'
 
 type LinhaHorario = { dia: DiaSemana | ''; horarioInicio: string }
 
@@ -28,6 +28,7 @@ type FormAluno = {
   dataNascimento: string
   plano: Plano | ''
   categoria: Categoria | ''
+  genero: Genero | ''
   horarios: LinhaHorario[]
   responsavelId: string
 }
@@ -40,6 +41,7 @@ const VAZIO: FormAluno = {
   dataNascimento: '',
   plano: '',
   categoria: '',
+  genero: '',
   horarios: [],
   responsavelId: '',
 }
@@ -53,6 +55,7 @@ function doAluno(aluno: Aluno): FormAluno {
     dataNascimento: aluno.dataNascimento ?? '',
     plano: aluno.plano,
     categoria: aluno.categoria,
+    genero: aluno.genero ?? '',
     horarios: (aluno.horarios ?? []).map((horario) => ({
       dia: horario.dia,
       horarioInicio: horaCurta(horario.horarioInicio),
@@ -119,6 +122,10 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', 'Informe um telefone com 10 ou 11 dígitos.')
       return
     }
+    if (!form.genero) {
+      notificar('erro', 'Informe o gênero.')
+      return
+    }
     if (!form.plano || !form.categoria) {
       notificar('erro', 'Informe o plano e a categoria.')
       return
@@ -164,6 +171,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       dataNascimento: form.dataNascimento || null,
       plano: form.plano,
       categoria: form.categoria,
+      genero: form.genero,
       horarios,
       responsavelId: temProfessor ? form.responsavelId : null,
     }
@@ -283,6 +291,23 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
                 className={classeCampo}
               />
+            </Campo>
+            <Campo label="Gênero" htmlFor="genero">
+              <select
+                id="genero"
+                required
+                disabled={somenteLeitura}
+                value={form.genero}
+                onChange={(event) => setForm({ ...form, genero: event.target.value as Genero | '' })}
+                className={classeCampo}
+              >
+                <option value="">Selecione</option>
+                {GENEROS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
             </Campo>
             <Campo label="Plano" htmlFor="plano">
               <select

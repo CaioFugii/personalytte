@@ -1,4 +1,4 @@
-import type { CategoriaAluno, FuncaoIntegrante, PlanoAluno, StatusAula, TipoEvento } from '../entidades/enums';
+import type { CategoriaAluno, FuncaoIntegrante, GeneroAluno, PlanoAluno, StatusAula, TipoEvento } from '../entidades/enums';
 import type { HorarioPlano } from './tempo';
 
 export type IntegranteAtual = {
@@ -31,11 +31,13 @@ export type AlunoResposta = {
   dataNascimento: string | null;
   plano: PlanoAluno | null;
   categoria: CategoriaAluno | null;
+  genero: GeneroAluno | null;
   temporario: boolean;
   horarios: HorarioPlano[];
   responsavelId: string | null;
   ativo: boolean;
   cadastradoEm: string;
+  reposicoesDisponiveis: number;
 };
 
 export type AulaResposta = {
@@ -47,6 +49,8 @@ export type AulaResposta = {
   status: StatusAula;
   experimental: boolean;
   reposicaoDeAulaId: string | null;
+  reposicaoAgendadaId: string | null;
+  reposicoesDisponiveis: number;
   ligadaAoPlano: boolean;
   cancelamento: { justificativa: string; geraReposicao: boolean } | null;
 };

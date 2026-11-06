@@ -1,10 +1,15 @@
-import type { Categoria, DiaSemana, Funcao, Plano, StatusAula, TipoEvento } from '../api/types'
+import type { Categoria, DiaSemana, Funcao, Genero, Plano, StatusAula, TipoEvento } from '../api/types'
 
 export const PLANOS: { value: Plano; label: string }[] = [
   { value: 'PARTICULAR', label: 'Particular' },
   { value: 'GYMPASS', label: 'Gympass' },
   { value: 'TOTALPASS', label: 'TotalPass' },
   { value: 'MENSAL', label: 'Mensal' },
+]
+
+export const GENEROS: { value: Genero; label: string }[] = [
+  { value: 'FEMININO', label: 'Feminino' },
+  { value: 'MASCULINO', label: 'Masculino' },
 ]
 
 export const CATEGORIAS: { value: Categoria; label: string }[] = [
@@ -47,6 +52,11 @@ export const DIAS: { value: DiaSemana; label: string }[] = [
 ]
 
 const ORDEM_DIAS: DiaSemana[] = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']
+
+export function rotuloGenero(genero: Genero | null | undefined): string {
+  if (!genero) return ''
+  return GENEROS.find((item) => item.value === genero)?.label ?? genero
+}
 
 export function rotuloPlano(plano: Plano): string {
   return PLANOS.find((item) => item.value === plano)?.label ?? plano

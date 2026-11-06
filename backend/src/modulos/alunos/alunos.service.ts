@@ -6,6 +6,7 @@ import { serializarAluno } from '../../comum/serializar';
 import {
   categoriaDe,
   dataOpcional,
+  generoDe,
   emailOpcional,
   instagramOpcional,
   escaparLike,
@@ -21,6 +22,7 @@ import {
   veio,
 } from '../../comum/validacao';
 import { AgendaService } from '../../dominio/agenda.service';
+import { contarReposicoesDisponiveis } from '../../dominio/reposicao';
 import { Aluno } from '../../entidades/aluno.entity';
 
 @Injectable()
@@ -35,14 +37,14 @@ export class AlunosService {
       orderBy: incluirInativos ? { ativo: 'desc', nome: 'asc' } : { nome: 'asc' },
       populate: ['responsavel'],
     });
-    return alunos.map(serializarAluno);
+    return this.responder(this.em, alunos);
   }
 
   async obter(id: string): Promise<AlunoResposta> {
     uuidDe(id, 'Identificador');
     const aluno = await this.em.findOne(Aluno, { id }, { populate: ['responsavel'] });
     if (!aluno) throw naoEncontrado('Aluno não encontrado.');
-    return serializarAluno(aluno);
+    return (await this.responder(this.em, [aluno]))[0];
   }
 
   async criar(corpo: unknown, agora = new Date()): Promise<AlunoResposta> {
@@ -57,6 +59,7 @@ export class AlunosService {
         aluno.dataNascimento = dataOpcional(dados.dataNascimento, 'Data de nascimento');
         aluno.plano = planoDe(dados.plano);
         aluno.categoria = categoriaDe(dados.categoria);
+        aluno.genero = generoDe(dados.genero);
         aluno.cadastradoEm = new Date();
         const plano = interpretarPlano(veio(dados, 'horarios'), dados.horarios, veio(dados, 'responsavelId'), dados.responsavelId);
         aluno.horarios = plano.horarios;
@@ -64,7 +67,7 @@ export class AlunosService {
         em.persist(aluno);
         if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');
         await em.flush();
-        return serializarAluno(aluno);
+        return (await this.responder(em, [aluno]))[0];
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -87,6 +90,7 @@ export class AlunosService {
         if (veio(dados, 'dataNascimento')) aluno.dataNascimento = dataOpcional(dados.dataNascimento, 'Data de nascimento');
         if (veio(dados, 'plano')) aluno.plano = planoDe(dados.plano);
         if (veio(dados, 'categoria')) aluno.categoria = categoriaDe(dados.categoria);
+        if (veio(dados, 'genero')) aluno.genero = generoDe(dados.genero);
         const antes = {
           horarios: aluno.horarios.map((horario) => ({ ...horario })),
           responsavelId: idRelacao(aluno.responsavel),
@@ -105,7 +109,7 @@ export class AlunosService {
           if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');
         }
         await em.flush();
-        return serializarAluno(aluno);
+        return (await this.responder(em, [aluno]))[0];
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);
@@ -122,8 +126,13 @@ export class AlunosService {
       await this.agenda.removerAguardandoFuturas(em, aluno.id, agora, false);
       aluno.ativo = false;
       await em.flush();
-      return serializarAluno(aluno);
+      return (await this.responder(em, [aluno]))[0];
     });
+  }
+
+  private async responder(em: EntityManager, alunos: Aluno[]): Promise<AlunoResposta[]> {
+    const contagem = await contarReposicoesDisponiveis(em, alunos.map((aluno) => aluno.id));
+    return alunos.map((aluno) => serializarAluno(aluno, contagem.get(aluno.id) ?? 0));
   }
 
   private filtroBusca(busca?: string, incluirInativos = false): FilterQuery<Aluno> {

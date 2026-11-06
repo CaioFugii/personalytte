@@ -1,7 +1,7 @@
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
 import type { HorarioPlano } from '../comum/tempo';
-import type { CategoriaAluno, PlanoAluno } from './enums';
+import type { CategoriaAluno, GeneroAluno, PlanoAluno } from './enums';
 import { Integrante } from './integrante.entity';
 
 @Entity({ tableName: 'alunos' })
@@ -29,6 +29,9 @@ export class Aluno {
 
   @Property({ type: 'text', nullable: true })
   categoria: CategoriaAluno | null = null;
+
+  @Property({ type: 'text', nullable: true })
+  genero: GeneroAluno | null = null;
 
   @Property({ type: 'boolean' })
   temporario = false;

@@ -9,7 +9,7 @@ import { Botao, Cabecalho, classeBotao, classeBusca, classeIconeAcao, classeTabe
 import { useSessao } from '../contexto/Sessao'
 import { useBusca } from '../lib/busca'
 import { formatarCadastro, formatarTelefone } from '../lib/calendario'
-import { rotuloPlano } from '../lib/rotulos'
+import { rotuloGenero, rotuloPlano } from '../lib/rotulos'
 
 export function Alunos() {
   useTitulo('Alunos')
@@ -90,6 +90,7 @@ export function Alunos() {
                 <th className="px-3 py-3" scope="col">Instagram</th>
                 <th className="px-3 py-3" scope="col">Plano</th>
                 <th className="px-3 py-3" scope="col">Categoria</th>
+                <th className="px-3 py-3" scope="col">Gênero</th>
                 <th className="px-3 py-3" scope="col">Cadastro</th>
                 <th className="px-3 py-3 text-right" scope="col">Ações</th>
               </tr>
@@ -97,7 +98,7 @@ export function Alunos() {
             <tbody>
               {lista.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center text-muted">
+                  <td colSpan={8} className="px-3 py-10 text-center text-muted">
                     {busca ? 'Nenhum aluno encontrado.' : 'Nenhum aluno cadastrado.'}
                   </td>
                 </tr>
@@ -128,6 +129,7 @@ export function Alunos() {
                     <td className="px-3 py-3">
                       <SeloCategoria categoria={aluno.categoria} />
                     </td>
+                    <td className="px-3 py-3 whitespace-nowrap">{rotuloGenero(aluno.genero) || '—'}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{formatarCadastro(aluno.cadastradoEm)}</td>
                     <td className="px-3 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-2">

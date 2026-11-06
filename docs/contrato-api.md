@@ -85,6 +85,7 @@ Leitura: professor e administrador. Escrita: administrador.
   "dataNascimento": "1992-03-15",
   "plano": "PARTICULAR",
   "categoria": "D",
+  "genero": "FEMININO",
   "horarios": [
     { "dia": "seg", "horarioInicio": "19:00" },
     { "dia": "qui", "horarioInicio": "09:00" }
@@ -93,13 +94,13 @@ Leitura: professor e administrador. Escrita: administrador.
 }
 ```
 
-`plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `INICIANTE`, `D`, `C`, `B`, `A`. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
+`plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `INICIANTE`, `D`, `C`, `B`, `A`. `genero`: `FEMININO` ou `MASCULINO`, obrigatório no cadastro permanente. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
 
 `horarios` lista cada aula da semana com o próprio horário. O mesmo dia pode repetir com horários que não se cruzam. Dia e horário iguais são recusados. `horarios` e `responsavelId` vão os dois vazios ou os dois preenchidos. Vazio é `horarios: []` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial. `dataNascimento` é opcional, no formato `YYYY-MM-DD`. Vazio grava `null`.
 
 `POST /api/alunos/:id/inativar` remove as aulas futuras daquele aluno que estejam Aguardando. O restante do histórico fica.
 
-Aluno na resposta inclui `id`, os campos acima, `ativo` e `cadastradoEm`.
+Aluno na resposta inclui `id`, os campos acima, `ativo`, `cadastradoEm` e `reposicoesDisponiveis`. `genero` pode vir `null` num cadastro antigo, até a edição gravar `FEMININO` ou `MASCULINO`. Aluno temporário fica com `genero` `null`. `reposicoesDisponiveis` conta faltas e cancelamentos que geram reposição e ainda não têm aula de reposição em aberto.
 
 ## Aulas
 
@@ -135,7 +136,7 @@ Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje
 
 `PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`. `status: "CANCELADA"` numa aula que não está cancelada responde `DADOS_INVALIDOS`: o cancelamento passa por `POST /api/aulas/:id/cancelar`. Tirar a aula de Cancelada apaga a justificativa.
 
-Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A data da reposição segue a regra de hoje em diante.
+Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A mesma aula recusa outra `reposicao` enquanto existir reposição não cancelada apontando para ela, com a mensagem de que a reposição já está agendada. Cancelar essa reposição devolve a vaga. A data da reposição segue a regra de hoje em diante.
 
 ```json
 { "status": "FALTA", "reposicao": { "responsavelId": "uuid", "inicio": "2026-10-22T19:00:00-03:00" } }
@@ -167,12 +168,14 @@ Aula na resposta:
   "status": "AGUARDANDO",
   "experimental": false,
   "reposicaoDeAulaId": null,
+  "reposicaoAgendadaId": null,
+  "reposicoesDisponiveis": 0,
   "ligadaAoPlano": true,
   "cancelamento": null
 }
 ```
 
-`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras.
+`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras. `reposicaoAgendadaId` aponta a reposição em aberto desta aula, ou `null`. `reposicoesDisponiveis` é o saldo do aluno desta aula.
 
 ## Eventos
 
