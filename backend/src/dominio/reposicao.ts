@@ -4,8 +4,8 @@ import { serializarAula } from '../comum/serializar';
 import { idRelacao } from '../comum/validacao';
 import { Aula } from '../entidades/aula.entity';
 
-export function origemConcedeReposicao(aula: Pick<Aula, 'status' | 'cancelamentoGeraReposicao'>): boolean {
-  return aula.status === 'FALTA' || (aula.status === 'CANCELADA' && aula.cancelamentoGeraReposicao === true);
+export function origemConcedeReposicao(aula: Pick<Aula, 'justificativaReposicao'>): boolean {
+  return Boolean(aula.justificativaReposicao?.trim());
 }
 
 export async function reposicoesEmAberto(em: EntityManager, origemIds: string[]): Promise<Map<string, string>> {
@@ -27,10 +27,7 @@ export async function contarReposicoesDisponiveis(em: EntityManager, alunoIds: s
   if (alunoIds.length === 0) return contagem;
   const origens = await em.find(Aula, {
     aluno: { $in: alunoIds },
-    $or: [
-      { status: 'FALTA' },
-      { status: 'CANCELADA', cancelamentoGeraReposicao: true },
-    ],
+    justificativaReposicao: { $ne: null },
   }, { populate: ['aluno'] });
   const abertas = await reposicoesEmAberto(em, origens.map((origem) => origem.id));
   for (const origem of origens) {

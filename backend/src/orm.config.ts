@@ -20,6 +20,7 @@ import { Migration20261022160000_aluno_nascimento } from './migrations/Migration
 import { Migration20261026120000_aulas_grupo_cancelamento } from './migrations/Migration20261026120000_aulas_grupo_cancelamento';
 import { Migration20261102120000_aluno_categoria_iniciante } from './migrations/Migration20261102120000_aluno_categoria_iniciante';
 import { Migration20261106120000_aluno_genero } from './migrations/Migration20261106120000_aluno_genero';
+import { Migration20261106140000_aula_justificativa_reposicao } from './migrations/Migration20261106140000_aula_justificativa_reposicao';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -49,6 +50,7 @@ export function criarOrmConfig() {
         { name: 'Migration20261026120000_aulas_grupo_cancelamento', class: Migration20261026120000_aulas_grupo_cancelamento },
         { name: 'Migration20261102120000_aluno_categoria_iniciante', class: Migration20261102120000_aluno_categoria_iniciante },
         { name: 'Migration20261106120000_aluno_genero', class: Migration20261106120000_aluno_genero },
+        { name: 'Migration20261106140000_aula_justificativa_reposicao', class: Migration20261106140000_aula_justificativa_reposicao },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

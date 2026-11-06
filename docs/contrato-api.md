@@ -100,7 +100,7 @@ Leitura: professor e administrador. Escrita: administrador.
 
 `POST /api/alunos/:id/inativar` remove as aulas futuras daquele aluno que estejam Aguardando. O restante do histórico fica.
 
-Aluno na resposta inclui `id`, os campos acima, `ativo`, `cadastradoEm` e `reposicoesDisponiveis`. `genero` pode vir `null` num cadastro antigo, até a edição gravar `FEMININO` ou `MASCULINO`. Aluno temporário fica com `genero` `null`. `reposicoesDisponiveis` conta faltas e cancelamentos que geram reposição e ainda não têm aula de reposição em aberto.
+Aluno na resposta inclui `id`, os campos acima, `ativo`, `cadastradoEm` e `reposicoesDisponiveis`. `genero` pode vir `null` num cadastro antigo, até a edição gravar `FEMININO` ou `MASCULINO`. Aluno temporário fica com `genero` `null`. `reposicoesDisponiveis` conta aulas com `justificativaReposicao` gravada que ainda não têm aula de reposição em aberto. Marcar falta, sozinha, não entra nessa conta.
 
 ## Aulas
 
@@ -136,13 +136,17 @@ Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje
 
 `PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`. `status: "CANCELADA"` numa aula que não está cancelada responde `DADOS_INVALIDOS`: o cancelamento passa por `POST /api/aulas/:id/cancelar`. Tirar a aula de Cancelada apaga a justificativa.
 
-Ao enviar `status: "FALTA"`, o corpo pode incluir `reposicao`. Sem `reposicao`, só a falta é gravada. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A mesma aula recusa outra `reposicao` enquanto existir reposição não cancelada apontando para ela, com a mensagem de que a reposição já está agendada. Cancelar essa reposição devolve a vaga. A data da reposição segue a regra de hoje em diante.
+Ao enviar `status: "FALTA"`, o corpo pode incluir `concederReposicao` e `reposicao`. Sem `concederReposicao`, a falta é gravada e nenhuma vaga nasce. `concederReposicao: { "justificativa": "string" }` grava a justificativa e concede uma vaga. `concederReposicao: null` apaga a vaga, desde que não exista reposição em aberto. `reposicao` só vale com essa justificativa já gravada ou enviada no mesmo corpo; sem ela, responde `DADOS_INVALIDOS` pedindo a justificativa. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem, e a vaga é consumida. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`, porque o cancelamento já gravou a justificativa. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A mesma aula recusa outra `reposicao` enquanto existir reposição não cancelada apontando para ela, com a mensagem de que a reposição já está agendada. Cancelar essa reposição devolve a vaga. Sair do status Falta apaga a justificativa da reposição. A data da reposição segue a regra de hoje em diante.
 
 ```json
-{ "status": "FALTA", "reposicao": { "responsavelId": "uuid", "inicio": "2026-10-22T19:00:00-03:00" } }
+{
+  "status": "FALTA",
+  "concederReposicao": { "justificativa": "Aluno avisou" },
+  "reposicao": { "responsavelId": "uuid", "inicio": "2026-10-22T19:00:00-03:00" }
+}
 ```
 
-`POST /api/aulas/:id/cancelar` grava Cancelada. `justificativa` e `geraReposicao` são obrigatórios. `reposicao` é opcional e só vale com `geraReposicao: true`. Aula já cancelada responde `DADOS_INVALIDOS`.
+`POST /api/aulas/:id/cancelar` grava Cancelada. `justificativa` e `geraReposicao` são obrigatórios. Com `geraReposicao: true`, a justificativa do cancelamento também fica em `justificativaReposicao` e concede a vaga. `reposicao` é opcional e só vale com `geraReposicao: true`. Aula já cancelada responde `DADOS_INVALIDOS`.
 
 ```json
 {
@@ -170,12 +174,13 @@ Aula na resposta:
   "reposicaoDeAulaId": null,
   "reposicaoAgendadaId": null,
   "reposicoesDisponiveis": 0,
+  "justificativaReposicao": null,
   "ligadaAoPlano": true,
   "cancelamento": null
 }
 ```
 
-`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras. `reposicaoAgendadaId` aponta a reposição em aberto desta aula, ou `null`. `reposicoesDisponiveis` é o saldo do aluno desta aula.
+`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras. `reposicaoAgendadaId` aponta a reposição em aberto desta aula, ou `null`. `reposicoesDisponiveis` é o saldo do aluno desta aula. `justificativaReposicao` é a justificativa que concedeu a vaga, ou `null` quando a aula não concede reposição.
 
 ## Eventos
 

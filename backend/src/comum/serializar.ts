@@ -82,6 +82,7 @@ export function serializarAula(
     reposicaoDeAulaId: idRelacao(aula.reposicaoDe),
     reposicaoAgendadaId: contexto.reposicaoAgendadaId ?? null,
     reposicoesDisponiveis: contexto.reposicoesDisponiveis ?? 0,
+    justificativaReposicao: aula.justificativaReposicao,
     ligadaAoPlano: aula.ligadaAoPlano,
     cancelamento:
       aula.status === 'CANCELADA' && aula.justificativaCancelamento != null

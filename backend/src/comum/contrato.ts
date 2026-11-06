@@ -51,6 +51,7 @@ export type AulaResposta = {
   reposicaoDeAulaId: string | null;
   reposicaoAgendadaId: string | null;
   reposicoesDisponiveis: number;
+  justificativaReposicao: string | null;
   ligadaAoPlano: boolean;
   cancelamento: { justificativa: string; geraReposicao: boolean } | null;
 };

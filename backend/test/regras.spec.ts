@@ -463,7 +463,8 @@ describe('regras de domínio', () => {
     const faltaPlano = await s.aulas.atualizar(origemPlano.id, { status: 'FALTA' }, AGORA);
     expect(faltaPlano.status).toBe('FALTA');
     expect(faltaPlano.ligadaAoPlano).toBe(true);
-    expect(faltaPlano.reposicoesDisponiveis).toBe(1);
+    expect(faltaPlano.justificativaReposicao).toBeNull();
+    expect(faltaPlano.reposicoesDisponiveis).toBe(0);
     expect(await aulasDe(orm, ana.id)).toHaveLength(quantidade);
 
     const avulsa = await s.aulas.criar({
@@ -473,7 +474,17 @@ describe('regras de domínio', () => {
       experimental: false,
     }, AGORA);
     await s.aulas.atualizar(avulsa.id, { status: 'FALTA' }, AGORA);
-    expect(await aulasDe(orm, ana.id)).toHaveLength((await orm.em.fork().count(Aula, { aluno: ana.id })));
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(0);
+    await expect(s.aulas.atualizar(avulsa.id, {
+      status: 'FALTA',
+      reposicao: { responsavelId: marina.id, inicio: '2026-10-26T11:00:00-03:00' },
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS', mensagem: 'Informe a justificativa da reposição.' });
+    const concedida = await s.aulas.atualizar(avulsa.id, {
+      status: 'FALTA',
+      concederReposicao: { justificativa: '  Aluno avisou  ' },
+    }, AGORA);
+    expect(concedida.justificativaReposicao).toBe('Aluno avisou');
+    expect(concedida.reposicoesDisponiveis).toBe(1);
     const comReposicao = await s.aulas.atualizar(avulsa.id, {
       status: 'FALTA',
       reposicao: { responsavelId: marina.id, inicio: '2026-10-26T11:00:00-03:00' },
@@ -485,19 +496,19 @@ describe('regras de domínio', () => {
     expect(reposicoes[0].status).toBe('AGUARDANDO');
     expect(reposicoes[0].ligadaAoPlano).toBe(false);
     expect(reposicoes[0].experimental).toBe(false);
-    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(1);
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(0);
     await expect(s.aulas.atualizar(avulsa.id, {
       status: 'FALTA',
       reposicao: { responsavelId: marina.id, inicio: '2026-10-28T11:00:00-03:00' },
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS', mensagem: 'Esta aula já tem uma reposição agendada.' });
     await s.aulas.cancelar(reposicoes[0].id, { justificativa: 'Remarcou', geraReposicao: false }, AGORA);
-    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(2);
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(1);
     const remarcada = await s.aulas.atualizar(avulsa.id, {
       status: 'FALTA',
       reposicao: { responsavelId: marina.id, inicio: '2026-10-28T11:00:00-03:00' },
     }, AGORA);
     expect(remarcada.reposicaoAgendadaId).toBeTruthy();
-    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(1);
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(0);
     await expect(s.aulas.atualizar(avulsa.id, {
       status: 'CONFIRMADA',
       reposicao: { responsavelId: marina.id, inicio: '2026-10-30T11:00:00-03:00' },

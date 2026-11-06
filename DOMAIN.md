@@ -30,7 +30,7 @@ Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `
 
 Cancelar exige a justificativa e a resposta se gera reposição. Com reposição, ela pode ser agendada no cancelamento ou depois, a partir da aula cancelada. Sair de `CANCELADA` apaga a justificativa.
 
-Ao marcar `FALTA`, dá para criar outra aula ligada a essa, já identificada como reposição. A falta também pode ficar sozinha. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. Cada falta, e cada cancelamento que gera reposição, concede uma reposição disponível. Agendar a reposição consome essa vaga. Outra reposição da mesma aula só entra se a anterior estiver `CANCELADA`. O acompanhamento mostra quantas vagas ainda estão disponíveis.
+Ao marcar `FALTA`, a vaga de reposição só nasce se a tela marcar criar reposição e gravar a justificativa. A falta sem isso não concede vaga. Com a vaga, a aula de reposição pode ser agendada na hora ou depois. A reposição é avulsa, nasce `AGUARDANDO` e aponta para a aula de origem. O cancelamento que gera reposição também concede uma vaga, usando a justificativa do cancelamento. Agendar a reposição consome essa vaga. Outra reposição da mesma aula só entra se a anterior estiver `CANCELADA`. O acompanhamento mostra quantas vagas ainda estão disponíveis.
 
 O acompanhamento lê um mês civil de Brasília, o corrente ou um anterior. Falta, confirmação e cancelamento contam a aula daquele status cujo início cai no mês. Reposição é a aula que aponta para a origem, contada no mês do próprio início, em qualquer status. Aula `AGUARDANDO` que não é reposição fica de fora. As reposições disponíveis aparecem na mesma tela e não dependem do mês escolhido. Os dois papéis apenas leem.
 

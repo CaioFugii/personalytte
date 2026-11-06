@@ -94,6 +94,7 @@ export class SeedService {
       const reposicao = proximoDia(agora, 'seg', '11:00');
       await aulas.atualizar(daAna[1].id, {
         status: 'FALTA',
+        concederReposicao: { justificativa: 'Aluno avisou' },
         reposicao: { responsavelId: professora.id, inicio: formatarInstante(reposicao) },
       }, agora);
     }

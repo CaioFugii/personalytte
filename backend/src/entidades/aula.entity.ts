@@ -38,4 +38,7 @@ export class Aula {
 
   @Property({ type: 'boolean', nullable: true })
   cancelamentoGeraReposicao: boolean | null = null;
+
+  @Property({ type: 'text', nullable: true })
+  justificativaReposicao: string | null = null;
 }

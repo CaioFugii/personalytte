@@ -29,6 +29,7 @@ type FormAula = {
   experimental: boolean
   telefone: string
   criarReposicao: boolean
+  justificativaReposicao: string
   reposicaoResponsavelId: string
   reposicaoData: string
   reposicaoHora: string
@@ -44,7 +45,8 @@ function doAula(aula: Aula): FormAula {
     status: aula.status,
     experimental: aula.experimental,
     telefone: aula.aluno.telefone ?? '',
-    criarReposicao: false,
+    criarReposicao: aula.status === 'FALTA' && Boolean(aula.justificativaReposicao) && !aula.reposicaoAgendadaId,
+    justificativaReposicao: aula.justificativaReposicao ?? '',
     reposicaoResponsavelId: aula.responsavel.id,
     reposicaoData: '',
     reposicaoHora: '',
@@ -63,6 +65,7 @@ function chaveAula(aula: Aula): string {
     aula.aluno.categoria,
     aula.responsavel.id,
     aula.reposicaoDeAulaId ?? '',
+    aula.justificativaReposicao ?? '',
     aula.ligadaAoPlano,
     aula.cancelamento?.justificativa ?? '',
     aula.cancelamento?.geraReposicao ?? '',
@@ -151,14 +154,20 @@ export function AulaDetalhe() {
       notificar('erro', 'Informe a data e o horário.')
       return
     }
-    const criaReposicao = form.criarReposicao
-      && !aula.reposicaoAgendadaId
-      && (form.status === 'FALTA' || (repoeCancelada && form.status === 'CANCELADA'))
-    if (criaReposicao) {
-      if (!reposicaoProfessorId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora) {
-        notificar('erro', 'Informe o professor e o início da reposição, ou salve sem reposição.')
-        return
-      }
+    const concedeFalta = form.status === 'FALTA' && form.criarReposicao && !aula.reposicaoAgendadaId
+    const agendaCancelada = form.criarReposicao && !aula.reposicaoAgendadaId && repoeCancelada && form.status === 'CANCELADA'
+    const querData = form.reposicaoData !== '' || form.reposicaoHora !== ''
+    if (concedeFalta && !form.justificativaReposicao.trim()) {
+      notificar('erro', 'Informe a justificativa da reposição.')
+      return
+    }
+    if (concedeFalta && querData && (!reposicaoProfessorId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora)) {
+      notificar('erro', 'Informe o professor, a data e o horário da reposição, ou deixe a data e o horário vazios.')
+      return
+    }
+    if (agendaCancelada && (!reposicaoProfessorId || !civilPreenchida(form.reposicaoData) || !form.reposicaoHora)) {
+      notificar('erro', 'Informe o professor e o início da reposição.')
+      return
     }
 
     const corpo: Record<string, unknown> = {}
@@ -176,8 +185,21 @@ export function AulaDetalhe() {
         corpo.inicio = instanteBrasilia(form.data, form.hora)
       }
     }
-    if (criaReposicao) {
-      if (form.status === 'FALTA') corpo.status = 'FALTA'
+    if (form.status === 'FALTA' && !aula.reposicaoAgendadaId) {
+      if (form.criarReposicao) {
+        corpo.status = 'FALTA'
+        corpo.concederReposicao = { justificativa: form.justificativaReposicao.trim() }
+        if (querData) {
+          corpo.reposicao = {
+            responsavelId: reposicaoProfessorId,
+            inicio: instanteBrasilia(form.reposicaoData, form.reposicaoHora),
+          }
+        }
+      } else if (aula.justificativaReposicao) {
+        corpo.concederReposicao = null
+      }
+    }
+    if (agendaCancelada) {
       corpo.reposicao = {
         responsavelId: reposicaoProfessorId,
         inicio: instanteBrasilia(form.reposicaoData, form.reposicaoHora),
@@ -194,11 +216,13 @@ export function AulaDetalhe() {
       const dataAgenda = !comecou && civilPreenchida(form.data) ? form.data : partesSP(aula.inicio).data
       navigate(`/agenda?semana=${inicioDaSemana(dataAgenda)}`, {
         state: {
-          sucesso: !criaReposicao
-            ? 'Alterações salvas.'
-            : form.status === 'FALTA'
+          sucesso: corpo.reposicao
+            ? form.status === 'FALTA'
               ? 'Falta registrada e reposição criada.'
-              : 'Reposição agendada.',
+              : 'Reposição agendada.'
+            : corpo.concederReposicao
+              ? 'Vaga de reposição registrada.'
+              : 'Alterações salvas.',
         },
       })
     } catch (err) {
@@ -406,68 +430,90 @@ export function AulaDetalhe() {
                   Reposições disponíveis deste aluno: <span className="font-semibold text-ink tabular-nums">{aula.reposicoesDisponiveis}</span>
                 </p>
                 {aula.reposicaoAgendadaId ? (
-                  <p className="text-sm">
-                    A reposição desta aula já está agendada.{' '}
-                    <Link to={`/agenda/aulas/${aula.reposicaoAgendadaId}`} className="font-semibold text-tide-dark">
-                      Abrir reposição
-                    </Link>
-                  </p>
+                  <div className="text-sm">
+                    <p>
+                      A reposição desta aula já está agendada.{' '}
+                      <Link to={`/agenda/aulas/${aula.reposicaoAgendadaId}`} className="font-semibold text-tide-dark">
+                        Abrir reposição
+                      </Link>
+                    </p>
+                    {aula.justificativaReposicao ? <p className="mt-2">Justificativa: {aula.justificativaReposicao}</p> : null}
+                  </div>
                 ) : (
                   <>
-                <p className="mb-3 text-sm text-muted">
-                  {form.status === 'FALTA'
-                    ? 'A falta pode ser salva sem reposição. A reposição é opcional.'
-                    : 'Este cancelamento gera reposição. Agende quando tiver a data.'}
-                </p>
-                <label className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                  <input
-                    type="checkbox"
-                    checked={form.criarReposicao}
-                    onChange={(event) => setForm({ ...form, criarReposicao: event.target.checked })}
-                    className="accent-tide"
-                  />
-                  Criar reposição
-                </label>
-                {form.criarReposicao ? (
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Campo label="Professor da reposição" htmlFor="resp-reposicao">
-                      <select
-                        id="resp-reposicao"
-                        required
-                        value={reposicaoProfessorId}
-                        onChange={(event) => setForm({ ...form, reposicaoResponsavelId: event.target.value })}
-                        className={classeCampo}
-                      >
-                        <option value="">Selecione</option>
-                        {professores.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </Campo>
-                    <Campo label="Data da reposição" htmlFor="data-reposicao">
+                    <p className="mb-3 text-sm text-muted">
+                      {form.status === 'FALTA'
+                        ? 'A vaga só entra com este quadro marcado e a justificativa preenchida.'
+                        : 'Este cancelamento gera reposição. Agende quando tiver a data.'}
+                    </p>
+                    <label className="mb-3 flex items-center gap-2 text-sm font-semibold">
                       <input
-                        id="data-reposicao"
-                        type="date"
-                        required
-                        value={form.reposicaoData}
-                        onChange={(event) => setForm({ ...form, reposicaoData: event.target.value })}
-                        className={classeCampo}
+                        type="checkbox"
+                        checked={form.criarReposicao}
+                        onChange={(event) => setForm({ ...form, criarReposicao: event.target.checked })}
+                        className="accent-tide"
                       />
-                    </Campo>
-                    <Campo label="Horário da reposição" htmlFor="hora-reposicao">
-                      <input
-                        id="hora-reposicao"
-                        type="time"
-                        required
-                        value={form.reposicaoHora}
-                        onChange={(event) => setForm({ ...form, reposicaoHora: event.target.value })}
-                        className={classeCampo}
-                      />
-                    </Campo>
-                  </div>
-                ) : null}
+                      Criar reposição
+                    </label>
+                    {form.criarReposicao && form.status === 'FALTA' ? (
+                      <Campo label="Justificativa da reposição" htmlFor="justificativa-reposicao">
+                        <textarea
+                          id="justificativa-reposicao"
+                          required
+                          rows={3}
+                          value={form.justificativaReposicao}
+                          onChange={(event) => setForm({ ...form, justificativaReposicao: event.target.value })}
+                          className={classeCampo}
+                        />
+                      </Campo>
+                    ) : null}
+                    {form.criarReposicao ? (
+                      <>
+                        {form.status === 'FALTA' ? (
+                          <p className="mb-3 mt-4 text-sm text-muted">
+                            Para agendar agora, informe professor, data e horário. Sem a data, a vaga fica disponível.
+                          </p>
+                        ) : null}
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <Campo label="Professor da reposição" htmlFor="resp-reposicao">
+                            <select
+                              id="resp-reposicao"
+                              required={form.status !== 'FALTA'}
+                              value={reposicaoProfessorId}
+                              onChange={(event) => setForm({ ...form, reposicaoResponsavelId: event.target.value })}
+                              className={classeCampo}
+                            >
+                              <option value="">Selecione</option>
+                              {professores.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.nome}
+                                </option>
+                              ))}
+                            </select>
+                          </Campo>
+                          <Campo label="Data da reposição" htmlFor="data-reposicao">
+                            <input
+                              id="data-reposicao"
+                              type="date"
+                              required={form.status !== 'FALTA'}
+                              value={form.reposicaoData}
+                              onChange={(event) => setForm({ ...form, reposicaoData: event.target.value })}
+                              className={classeCampo}
+                            />
+                          </Campo>
+                          <Campo label="Horário da reposição" htmlFor="hora-reposicao">
+                            <input
+                              id="hora-reposicao"
+                              type="time"
+                              required={form.status !== 'FALTA'}
+                              value={form.reposicaoHora}
+                              onChange={(event) => setForm({ ...form, reposicaoHora: event.target.value })}
+                              className={classeCampo}
+                            />
+                          </Campo>
+                        </div>
+                      </>
+                    ) : null}
                   </>
                 )}
               </fieldset>

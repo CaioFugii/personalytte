@@ -39,15 +39,24 @@ test('a reposição só entra se o aluno ainda tem vaga', async ({ page }) => {
   const origem = (await criada.json()) as Aula
   const falta = await page.request.patch(`/api/aulas/${origem.id}`, { data: { status: 'FALTA' } })
   expect(falta.ok(), await falta.text()).toBeTruthy()
+  const depoisDaFalta = await json<Aluno>(await page.request.get(`/api/alunos/${ana!.id}`))
+  expect(depoisDaFalta.reposicoesDisponiveis).toBe(antes)
 
   try {
+    await page.goto(`/agenda/aulas/${origem.id}`)
+    await expect(page.getByText(`Reposições disponíveis deste aluno: ${antes}`)).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Criar reposição' }).check()
+    await page.locator('#justificativa-reposicao').fill('Aluno avisou com antecedência')
+    await page.getByRole('button', { name: 'Salvar' }).click()
+    await expect(page.getByText('Vaga de reposição registrada.')).toBeVisible()
+
     await page.goto('/acompanhamento')
     const saldo = page.getByRole('region', { name: 'Reposições disponíveis' })
     await expect(saldo.getByRole('row', { name: /Ana Lima/ })).toContainText(String(antes + 1))
 
     await page.goto(`/agenda/aulas/${origem.id}`)
     await expect(page.getByText(`Reposições disponíveis deste aluno: ${antes + 1}`)).toBeVisible()
-    await page.getByRole('checkbox', { name: 'Criar reposição' }).check()
+    await expect(page.locator('#justificativa-reposicao')).toHaveValue('Aluno avisou com antecedência')
     await page.locator('#resp-reposicao').selectOption({ label: 'Marina Costa' })
     await page.locator('#data-reposicao').fill(DIA_REPOSICAO)
     await page.locator('#hora-reposicao').fill('16:00')

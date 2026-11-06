@@ -143,6 +143,23 @@ export class AulasService {
         if (voltouAOcupar) {
           aula.justificativaCancelamento = null;
           aula.cancelamentoGeraReposicao = null;
+          aula.justificativaReposicao = null;
+        }
+        if (veio(dados, 'concederReposicao')) {
+          if (dados.concederReposicao == null) {
+            if ((await reposicoesEmAberto(em, [aula.id])).has(aula.id)) {
+              throw new ErroApi(400, 'DADOS_INVALIDOS', 'Esta aula já tem uma reposição agendada.');
+            }
+            aula.justificativaReposicao = null;
+          } else {
+            if (aula.status !== 'FALTA') {
+              throw new ErroApi(400, 'DADOS_INVALIDOS', 'A vaga de reposição da falta só vale com o status Falta.');
+            }
+            const concessao = exigirObjeto(dados.concederReposicao);
+            aula.justificativaReposicao = textoObrigatorio(concessao.justificativa, 'a justificativa da reposição');
+          }
+        } else if (statusAnterior === 'FALTA' && aula.status !== 'FALTA') {
+          aula.justificativaReposicao = null;
         }
         if ((mudouAgenda || voltouAOcupar) && aula.status !== 'CANCELADA') {
           await this.agenda.assertPodeAgendar(em, {
@@ -183,6 +200,7 @@ export class AulasService {
         aula.status = 'CANCELADA';
         aula.justificativaCancelamento = justificativa;
         aula.cancelamentoGeraReposicao = geraReposicao;
+        aula.justificativaReposicao = geraReposicao ? justificativa : null;
         await em.flush();
         if (dados.reposicao != null) await this.agendarReposicao(em, aula, dados.reposicao, agora);
         await em.flush();
@@ -197,7 +215,7 @@ export class AulasService {
 
   private async agendarReposicao(em: EntityManager, origem: Aula, corpo: unknown, agora: Date): Promise<void> {
     if (!origemConcedeReposicao(origem)) {
-      throw new ErroApi(400, 'DADOS_INVALIDOS', 'Reposição só pode ser criada ao marcar falta ou num cancelamento que gera reposição.');
+      throw new ErroApi(400, 'DADOS_INVALIDOS', 'Informe a justificativa da reposição.');
     }
     if ((await reposicoesEmAberto(em, [origem.id])).has(origem.id)) {
       throw new ErroApi(400, 'DADOS_INVALIDOS', 'Esta aula já tem uma reposição agendada.');
