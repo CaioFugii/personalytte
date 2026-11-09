@@ -874,7 +874,7 @@ describe('regras de domínio', () => {
     expect(pelaLista.filter((aviso) => aviso.titulo === titulo)).toHaveLength(1);
   });
 
-  it('não cria aviso de aniversariantes quando ninguém faz aniversário na semana', async () => {
+  it('cria aviso informando que não há aniversariantes na semana', async () => {
     const s = servicos(orm);
     await s.alunos.criar({
       nome: 'Carla Mendes',
@@ -884,7 +884,13 @@ describe('regras de domínio', () => {
       dataNascimento: '1990-11-01',
     }, AGORA);
     const painel = await new DashboardService(s.em).obter(AGORA);
-    expect(painel.avisos.some((aviso) => aviso.titulo.startsWith('Aniversariantes da semana'))).toBe(false);
+    const titulo = tituloAvisoAniversariantes(AGORA);
+    const aniversario = painel.avisos.filter((aviso) => aviso.titulo === titulo);
+    expect(aniversario).toHaveLength(1);
+    expect(aniversario[0].mensagem).toBe('Não há aniversariantes nesta semana.');
+
+    const outraLeitura = await new DashboardService(s.em).obter(AGORA);
+    expect(outraLeitura.avisos.filter((aviso) => aviso.titulo === titulo)).toHaveLength(1);
   });
 
   it('trata 29 de fevereiro como 28 em ano comum', async () => {

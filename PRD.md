@@ -121,7 +121,7 @@ Qualquer evento ocupa a agenda inteira no intervalo. Uma aula nova que cruze ess
 
 Título e mensagem são obrigatórios. Os dois papéis veem a lista no dashboard, do mais recente para o mais antigo. O aviso permanece até o administrador editar ou apagar. Não tem data de validade e não é enviado ao aluno.
 
-Na primeira leitura do painel ou da lista de avisos em cada semana, o sistema cria um aviso com os alunos ativos que fazem aniversário de segunda a domingo, se ainda não existir o daquela semana. Sem aniversariante, não cria. Não usa agendamento: a criação acontece nessa leitura, para funcionar com o dyno da Heroku em sleep. O administrador pode editar ou apagar como os demais.
+Na primeira leitura do painel ou da lista de avisos em cada semana, o sistema cria um aviso com os alunos ativos que fazem aniversário de segunda a domingo, se ainda não existir o daquela semana. Sem aniversariante, o aviso informa que não há aniversariantes na semana. Não usa agendamento: a criação acontece nessa leitura, para funcionar com o dyno da Heroku em sleep. O administrador pode editar ou apagar como os demais.
 
 ### 5.5 Equipe e sessão
 

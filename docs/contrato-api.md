@@ -212,7 +212,7 @@ Cada evento na lista traz `id`, `tipo`, `nome`, `inicio`, `fim`, `contato`, `blo
 
 ## Avisos
 
-`GET /api/avisos` professor e administrador, do mais recente ao mais antigo. Se a semana ainda não tem o aviso dos aniversariantes e houver aluno ativo aniversariando, essa leitura cria o aviso.
+`GET /api/avisos` professor e administrador, do mais recente ao mais antigo. Se a semana ainda não tem o aviso dos aniversariantes, essa leitura cria o aviso. Sem aluno ativo aniversariando, a mensagem informa que não há aniversariantes na semana.
 
 `POST /api/avisos`, `PATCH /api/avisos/:id`, `DELETE /api/avisos/:id`: só administrador. Corpo: `{ "titulo", "mensagem" }`.
 

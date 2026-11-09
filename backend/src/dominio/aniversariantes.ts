@@ -17,7 +17,6 @@ export async function garantirAvisoAniversariantes(em: EntityManager, agora = ne
   const existe = await em.findOne(Aviso, { titulo });
   if (existe) return;
   const aniversariantes = await listarAniversariantesDaSemana(em, agora);
-  if (aniversariantes.length === 0) return;
   const aviso = new Aviso();
   aviso.titulo = titulo;
   aviso.mensagem = montarMensagem(aniversariantes);
@@ -60,6 +59,7 @@ function diaDoAniversario(nascimento: string, dias: string[]): string | null {
 }
 
 function montarMensagem(aniversariantes: Aniversariante[]): string {
+  if (aniversariantes.length === 0) return 'Não há aniversariantes nesta semana.';
   const linhas = aniversariantes.map((item) => `• ${item.nome} — ${formatarDia(item.dia)}`);
   return `Alunos que fazem aniversário nesta semana:\n\n${linhas.join('\n')}`;
 }

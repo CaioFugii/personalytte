@@ -56,4 +56,4 @@ Qualquer evento bloqueia aula nova em todo o intervalo, para qualquer responsáv
 
 Título e mensagem. Os dois papéis leem a lista no dashboard, do mais recente ao mais antigo. O aviso permanece até o administrador editar ou apagar. Nada é enviado ao aluno.
 
-A primeira leitura do painel ou dos avisos na semana cria o aviso dos aniversariantes, se ainda não existir. Entram alunos ativos com data de nascimento na semana corrente, de segunda a domingo. Em ano sem 29 de fevereiro, o aniversário de 29 cai no dia 28. Sem aniversariante, não cria. Não há rotina agendada.
+A primeira leitura do painel ou dos avisos na semana cria o aviso dos aniversariantes, se ainda não existir. Entram alunos ativos com data de nascimento na semana corrente, de segunda a domingo. Em ano sem 29 de fevereiro, o aniversário de 29 cai no dia 28. Sem aniversariante, o aviso informa que não há aniversariantes na semana. Não há rotina agendada.
