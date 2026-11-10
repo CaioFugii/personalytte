@@ -9,14 +9,16 @@ import {
   mensagemGrupoCheio,
 } from '../comum/erros';
 import { DURACAO_AULA_MS, calcularOcorrencias, dataRetroativa, fimDaAula, partesSP, terminaNoMesmoDia } from '../comum/tempo';
+import { responsavelAtivo } from '../comum/validacao';
+import { Integrante } from '../entidades/integrante.entity';
 import { Aluno } from '../entidades/aluno.entity';
 import { Aula } from '../entidades/aula.entity';
 import { Evento } from '../entidades/evento.entity';
 
 type PoliticaConflito = 'recusar' | 'ignorar';
 
-export function planoCompleto(aluno: Pick<Aluno, 'horarios' | 'responsavel'>): boolean {
-  return aluno.horarios.length > 0 && aluno.responsavel != null;
+export function planoCompleto(aluno: Pick<Aluno, 'horarios'>): boolean {
+  return aluno.horarios.length > 0 && aluno.horarios.every((horario) => Boolean(horario.responsavelId));
 }
 
 export const LIMITE_GRUPO = 4;
@@ -36,16 +38,19 @@ export class AgendaService {
   ): Promise<string | null> {
     const fim = fimDaAula(params.inicio);
     const where: FilterQuery<Aula> = {
-      status: { $ne: 'CANCELADA' },
       inicio: { $lt: fim },
       fim: { $gt: params.inicio },
-      $or: [{ aluno: params.alunoId }, { responsavel: params.responsavelId }],
+      $or: [
+        { aluno: params.alunoId },
+        { responsavel: params.responsavelId, status: { $nin: ['CANCELADA', 'FALTA'] } },
+      ],
     };
     if (params.ignorarAulaId) where.id = { $ne: params.ignorarAulaId };
     const achou = await em.find(Aula, where, { flushMode: FlushMode.COMMIT });
     let noGrupo = 0;
     for (const aula of achou) {
       if (aula.aluno.id === params.alunoId) return MENSAGEM_OCUPADO;
+      if (aula.status === 'FALTA' || aula.status === 'CANCELADA') continue;
       if (aula.inicio.getTime() !== params.inicio.getTime()) return MENSAGEM_OCUPADO;
       noGrupo += 1;
     }
@@ -105,27 +110,37 @@ export class AgendaService {
   }
 
   async gerarOcorrencias(em: EntityManager, aluno: Aluno, agora: Date, politica: PoliticaConflito): Promise<number> {
-    if (!planoCompleto(aluno) || !aluno.responsavel) return 0;
+    if (aluno.planoSuspenso || !planoCompleto(aluno)) return 0;
     const slots = calcularOcorrencias(aluno.horarios, agora);
+    const professores = new Map<string, Integrante>();
+    const professorDe = async (id: string): Promise<Integrante> => {
+      const guardado = professores.get(id);
+      if (guardado) return guardado;
+      const pessoa = await responsavelAtivo(em, id);
+      professores.set(id, pessoa);
+      return pessoa;
+    };
     const pendentes: { inicio: number; fim: number }[] = [];
     let criadas = 0;
-    for (const inicio of slots) {
+    for (const slot of slots) {
+      const inicio = slot.inicio;
+      const responsavel = await professorDe(slot.responsavelId);
       if (!terminaNoMesmoDia(inicio)) continue;
       const ligada = await em.findOne(Aula, { aluno: aluno.id, inicio, ligadaAoPlano: true });
       if (ligada) continue;
-      if (await this.bloqueada(em, aluno.responsavel.id, inicio)) continue;
+      if (await this.bloqueada(em, responsavel.id, inicio)) continue;
       const fim = fimDaAula(inicio).getTime();
       const cruzaPendente = pendentes.some((item) => item.inicio < fim && item.fim > inicio.getTime());
       const conflito = cruzaPendente
         ? MENSAGEM_OCUPADO
-        : await this.conflito(em, { alunoId: aluno.id, responsavelId: aluno.responsavel.id, inicio });
+        : await this.conflito(em, { alunoId: aluno.id, responsavelId: responsavel.id, inicio });
       if (conflito) {
         if (politica === 'recusar') throw new ErroApi(409, 'HORARIO_OCUPADO', conflito);
         continue;
       }
       const aula = new Aula();
       aula.aluno = aluno;
-      aula.responsavel = aluno.responsavel;
+      aula.responsavel = responsavel;
       aula.inicio = inicio;
       aula.fim = fimDaAula(inicio);
       aula.status = 'AGUARDANDO';
@@ -141,10 +156,10 @@ export class AgendaService {
 
   async estenderHorizonte(em: EntityManager, agora = new Date()): Promise<number> {
     return em.transactional(async (tx) => {
-      const alunos = await tx.find(Aluno, { ativo: true }, { populate: ['responsavel'] });
+      const alunos = await tx.find(Aluno, { ativo: true });
       let total = 0;
       for (const aluno of alunos) {
-        if (!planoCompleto(aluno)) continue;
+        if (!planoCompleto(aluno) || aluno.planoSuspenso) continue;
         total += await this.gerarOcorrencias(tx, aluno, agora, 'ignorar');
         await tx.flush();
       }

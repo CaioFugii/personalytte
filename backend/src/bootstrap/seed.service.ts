@@ -43,10 +43,9 @@ export class SeedService {
       genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
       horarios: [
-        { dia: 'ter', horarioInicio: '19:00' },
-        { dia: 'qui', horarioInicio: '19:00' },
+        { dia: 'ter', horarioInicio: '19:00', responsavelId: professora.id },
+        { dia: 'qui', horarioInicio: '19:00', responsavelId: professora.id },
       ],
-      responsavelId: professora.id,
     }, agora);
     await alunos.criar({
       nome: 'Bruno Souza',
@@ -55,7 +54,6 @@ export class SeedService {
       genero: 'FEMININO', plano: 'GYMPASS',
       categoria: 'C',
       horarios: [],
-      responsavelId: null,
     }, agora);
     await alunos.criar({
       nome: 'Carla Mendes',
@@ -64,19 +62,17 @@ export class SeedService {
       genero: 'FEMININO', plano: 'MENSAL',
       categoria: 'B',
       horarios: [
-        { dia: 'seg', horarioInicio: '07:00' },
-        { dia: 'qua', horarioInicio: '07:00' },
-        { dia: 'sex', horarioInicio: '07:00' },
+        { dia: 'seg', horarioInicio: '07:00', responsavelId: admin.id },
+        { dia: 'qua', horarioInicio: '07:00', responsavelId: admin.id },
+        { dia: 'sex', horarioInicio: '07:00', responsavelId: admin.id },
       ],
-      responsavelId: admin.id,
     }, agora);
     await alunos.criar({
       nome: 'Diego Alves',
       telefone: '11911110004',
       genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'A',
-      horarios: [{ dia: 'sab', horarioInicio: '09:00' }],
-      responsavelId: professora.id,
+      horarios: [{ dia: 'sab', horarioInicio: '09:00', responsavelId: professora.id }],
     }, agora);
     const elena = await alunos.criar({
       nome: 'Elena Prado',

@@ -1,7 +1,7 @@
 import { EntityManager, type FilterQuery } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
 import type { AlunoResposta } from '../../comum/contrato';
-import { naoEncontrado, traduzirErroBanco } from '../../comum/erros';
+import { dadosInvalidos, naoEncontrado, traduzirErroBanco } from '../../comum/erros';
 import { serializarAluno } from '../../comum/serializar';
 import {
   categoriaDe,
@@ -11,7 +11,6 @@ import {
   instagramOpcional,
   escaparLike,
   exigirObjeto,
-  idRelacao,
   interpretarPlano,
   planoDe,
   planoMudou,
@@ -35,14 +34,13 @@ export class AlunosService {
   async listar(busca?: string, incluirInativos = false): Promise<AlunoResposta[]> {
     const alunos = await this.em.find(Aluno, this.filtroBusca(busca, incluirInativos), {
       orderBy: incluirInativos ? { ativo: 'desc', nome: 'asc' } : { nome: 'asc' },
-      populate: ['responsavel'],
     });
     return this.responder(this.em, alunos);
   }
 
   async obter(id: string): Promise<AlunoResposta> {
     uuidDe(id, 'Identificador');
-    const aluno = await this.em.findOne(Aluno, { id }, { populate: ['responsavel'] });
+    const aluno = await this.em.findOne(Aluno, { id });
     if (!aluno) throw naoEncontrado('Aluno não encontrado.');
     return (await this.responder(this.em, [aluno]))[0];
   }
@@ -61,9 +59,11 @@ export class AlunosService {
         aluno.categoria = categoriaDe(dados.categoria);
         aluno.genero = generoDe(dados.genero);
         aluno.cadastradoEm = new Date();
-        const plano = interpretarPlano(veio(dados, 'horarios'), dados.horarios, veio(dados, 'responsavelId'), dados.responsavelId);
+        const plano = interpretarPlano(veio(dados, 'horarios'), dados.horarios);
         aluno.horarios = plano.horarios;
-        aluno.responsavel = plano.responsavelId ? await responsavelAtivo(em, plano.responsavelId) : null;
+        for (const id of new Set(plano.horarios.map((horario) => horario.responsavelId))) {
+          await responsavelAtivo(em, id);
+        }
         em.persist(aluno);
         if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');
         await em.flush();
@@ -81,7 +81,7 @@ export class AlunosService {
     const dados = exigirObjeto(corpo);
     try {
       return await this.em.transactional(async (em) => {
-        const aluno = await em.findOne(Aluno, { id }, { populate: ['responsavel'] });
+        const aluno = await em.findOne(Aluno, { id });
         if (!aluno || !aluno.ativo) throw naoEncontrado('Aluno não encontrado.');
         if (veio(dados, 'nome')) aluno.nome = textoObrigatorio(dados.nome, 'o nome');
         if (veio(dados, 'telefone')) aluno.telefone = telefoneObrigatorio(dados.telefone);
@@ -91,20 +91,14 @@ export class AlunosService {
         if (veio(dados, 'plano')) aluno.plano = planoDe(dados.plano);
         if (veio(dados, 'categoria')) aluno.categoria = categoriaDe(dados.categoria);
         if (veio(dados, 'genero')) aluno.genero = generoDe(dados.genero);
-        const antes = {
-          horarios: aluno.horarios.map((horario) => ({ ...horario })),
-          responsavelId: idRelacao(aluno.responsavel),
-        };
-        const plano = interpretarPlano(
-          veio(dados, 'horarios'),
-          dados.horarios,
-          veio(dados, 'responsavelId'),
-          dados.responsavelId,
-          antes,
-        );
-        if (planoMudou(antes, plano)) {
+        const antes = aluno.horarios.map((horario) => ({ ...horario }));
+        const plano = interpretarPlano(veio(dados, 'horarios'), dados.horarios, antes);
+        if (planoMudou(antes, plano.horarios)) {
           aluno.horarios = plano.horarios;
-          aluno.responsavel = plano.responsavelId ? await responsavelAtivo(em, plano.responsavelId) : null;
+          for (const id of new Set(plano.horarios.map((horario) => horario.responsavelId))) {
+            await responsavelAtivo(em, id);
+          }
+          aluno.planoSuspenso = false;
           await this.agenda.removerAguardandoFuturas(em, aluno.id, agora, true);
           if (plano.completo) await this.agenda.gerarOcorrencias(em, aluno, agora, 'recusar');
         }
@@ -121,10 +115,24 @@ export class AlunosService {
   async inativar(id: string, agora = new Date()): Promise<AlunoResposta> {
     uuidDe(id, 'Identificador');
     return this.em.transactional(async (em) => {
-      const aluno = await em.findOne(Aluno, { id }, { populate: ['responsavel'] });
+      const aluno = await em.findOne(Aluno, { id });
       if (!aluno || !aluno.ativo) throw naoEncontrado('Aluno não encontrado.');
       await this.agenda.removerAguardandoFuturas(em, aluno.id, agora, false);
       aluno.ativo = false;
+      aluno.planoSuspenso = true;
+      await em.flush();
+      return (await this.responder(em, [aluno]))[0];
+    });
+  }
+
+  async reativar(id: string): Promise<AlunoResposta> {
+    uuidDe(id, 'Identificador');
+    return this.em.transactional(async (em) => {
+      const aluno = await em.findOne(Aluno, { id });
+      if (!aluno || aluno.temporario) throw naoEncontrado('Aluno não encontrado.');
+      if (aluno.ativo) throw dadosInvalidos('Aluno já está ativo.');
+      aluno.ativo = true;
+      aluno.planoSuspenso = true;
       await em.flush();
       return (await this.responder(em, [aluno]))[0];
     });

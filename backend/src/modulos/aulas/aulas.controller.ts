@@ -27,6 +27,12 @@ export class AulasController {
     return this.aulas.criarGrupo(corpo);
   }
 
+  @Post('reposicao')
+  @HttpCode(201)
+  usarReposicao(@Body() corpo: unknown) {
+    return this.aulas.usarReposicao(corpo);
+  }
+
   @Patch(':id')
   atualizar(@Param('id') id: string, @Body() corpo: unknown) {
     return this.aulas.atualizar(id, corpo);

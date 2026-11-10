@@ -18,7 +18,7 @@ import { useSessao } from '../contexto/Sessao'
 import { civilValida, digitosTelefone, horaCurta } from '../lib/calendario'
 import { CATEGORIAS, DIAS, GENEROS, PLANOS } from '../lib/rotulos'
 
-type LinhaHorario = { dia: DiaSemana | ''; horarioInicio: string }
+type LinhaHorario = { dia: DiaSemana | ''; horarioInicio: string; responsavelId: string }
 
 type FormAluno = {
   nome: string
@@ -30,7 +30,6 @@ type FormAluno = {
   categoria: Categoria | ''
   genero: Genero | ''
   horarios: LinhaHorario[]
-  responsavelId: string
 }
 
 const VAZIO: FormAluno = {
@@ -43,7 +42,6 @@ const VAZIO: FormAluno = {
   categoria: '',
   genero: '',
   horarios: [],
-  responsavelId: '',
 }
 
 function doAluno(aluno: Aluno): FormAluno {
@@ -59,8 +57,8 @@ function doAluno(aluno: Aluno): FormAluno {
     horarios: (aluno.horarios ?? []).map((horario) => ({
       dia: horario.dia,
       horarioInicio: horaCurta(horario.horarioInicio),
+      responsavelId: horario.responsavelId,
     })),
-    responsavelId: aluno.responsavelId ?? '',
   }
 }
 
@@ -99,8 +97,10 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
   const opcoes = responsaveis.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
-  if (aluno?.responsavelId && !opcoes.some((item) => item.id === aluno.responsavelId)) {
-    opcoes.unshift({ id: aluno.responsavelId, nome: 'Professor atual', funcao: 'PROFESSOR' })
+  for (const horario of form.horarios) {
+    if (horario.responsavelId && !opcoes.some((item) => item.id === horario.responsavelId)) {
+      opcoes.push({ id: horario.responsavelId, nome: 'Professor atual', funcao: 'PROFESSOR' })
+    }
   }
   opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
@@ -134,9 +134,9 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', 'A data de nascimento não é válida.')
       return
     }
-    const preenchidas = form.horarios.filter((horario) => horario.dia || horario.horarioInicio)
-    if (preenchidas.some((horario) => !horario.dia || !horario.horarioInicio)) {
-      notificar('erro', 'Preencha o dia e o horário de cada aula.')
+    const preenchidas = form.horarios.filter((horario) => horario.dia || horario.horarioInicio || horario.responsavelId)
+    if (preenchidas.some((horario) => !horario.dia || !horario.horarioInicio || !horario.responsavelId)) {
+      notificar('erro', 'Preencha o dia, o horário e o professor de cada aula.')
       return
     }
     const horarios = preenchidas as HorarioPlano[]
@@ -157,12 +157,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', 'Dois horários do mesmo dia se cruzam.')
       return
     }
-    const temHorario = horarios.length > 0
-    const temProfessor = form.responsavelId !== ''
-    if (temHorario !== temProfessor) {
-      notificar('erro', 'Informe os horários e o professor, ou deixe os dois vazios.')
-      return
-    }
     const corpo = {
       nome: form.nome.trim(),
       telefone: form.telefone,
@@ -173,7 +167,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       categoria: form.categoria,
       genero: form.genero,
       horarios,
-      responsavelId: temProfessor ? form.responsavelId : null,
     }
     setEnviando(true)
     try {
@@ -188,6 +181,23 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', mensagemDeErro(err))
     } finally {
       setEnviando(false)
+    }
+  }
+
+  async function reativar() {
+    if (!aluno) return
+    const confirma = await pedir({
+      titulo: 'Reativar aluno',
+      mensagem: `Reativar ${aluno.nome}? As aulas que saíram na inativação não voltam. O plano semanal só gera aula de novo se for alterado.`,
+      confirmar: 'Reativar',
+    })
+    if (!confirma) return
+    try {
+      await api(`/api/alunos/${aluno.id}/reativar`, { method: 'POST' })
+      notificar('ok', 'Aluno reativado.')
+      alunoQ.recarregar()
+    } catch (err) {
+      notificar('erro', mensagemDeErro(err))
     }
   }
 
@@ -347,12 +357,12 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
           <fieldset className="rounded-lg border border-line p-4" disabled={somenteLeitura}>
             <legend className="px-1 font-semibold">Plano semanal</legend>
             <p className="mb-3 text-sm text-muted">
-              Cada linha é um dia e um horário. O mesmo aluno pode ter horários diferentes, como segunda às 19h e
-              quinta às 9h. O professor vale para todos. Sem linhas e sem professor, o aluno fica sem aula.
+              Cada linha é um dia, um horário e um professor. O mesmo aluno pode ter professores diferentes, como terça
+              às 19h com um e quinta às 19h com outro. Sem linhas, o aluno fica sem aula.
             </p>
-            <div className="mb-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-3">
               {form.horarios.map((horario, indice) => (
-                <div key={indice} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <div key={indice} className="grid items-end gap-3 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
                   <Campo label={indice === 0 ? 'Dia' : `Dia ${indice + 1}`} htmlFor={`dia-${indice}`}>
                     <select
                       id={`dia-${indice}`}
@@ -377,6 +387,21 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                       className={classeCampo}
                     />
                   </Campo>
+                  <Campo label="Professor" htmlFor={`professor-${indice}`}>
+                    <select
+                      id={`professor-${indice}`}
+                      value={horario.responsavelId}
+                      onChange={(event) => atualizarHorario(indice, { responsavelId: event.target.value })}
+                      className={classeCampo}
+                    >
+                      <option value="">Selecione</option>
+                      {opcoes.map((pessoa) => (
+                        <option key={pessoa.id} value={pessoa.id}>
+                          {pessoa.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </Campo>
                   <Botao
                     type="button"
                     variante="secundario"
@@ -392,30 +417,25 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
                 <Botao
                   type="button"
                   variante="secundario"
-                  onClick={() => setForm((atual) => ({ ...atual, horarios: [...atual.horarios, { dia: '', horarioInicio: '' }] }))}
+                  onClick={() =>
+                    setForm((atual) => ({
+                      ...atual,
+                      horarios: [...atual.horarios, { dia: '', horarioInicio: '', responsavelId: '' }],
+                    }))
+                  }
                 >
                   Adicionar horário
                 </Botao>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Campo label="Professor" htmlFor="responsavel-plano">
-                <select
-                  id="responsavel-plano"
-                  value={form.responsavelId}
-                  onChange={(event) => setForm({ ...form, responsavelId: event.target.value })}
-                  className={classeCampo}
-                >
-                  <option value="">Nenhum</option>
-                  {opcoes.map((pessoa) => (
-                    <option key={pessoa.id} value={pessoa.id}>
-                      {pessoa.nome}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-            </div>
           </fieldset>
+          {inativo && admin ? (
+            <div className="flex flex-wrap gap-2">
+              <Botao type="button" onClick={() => void reativar()}>
+                Reativar
+              </Botao>
+            </div>
+          ) : null}
           {!somenteLeitura ? (
             <div className="flex flex-wrap gap-2">
               <Botao type="submit" disabled={enviando}>

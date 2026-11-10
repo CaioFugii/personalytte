@@ -4,7 +4,7 @@ export type Plano = 'PARTICULAR' | 'GYMPASS' | 'TOTALPASS' | 'MENSAL'
 export type Categoria = 'INICIANTE' | 'D' | 'C' | 'B' | 'A'
 export type Genero = 'FEMININO' | 'MASCULINO'
 export type DiaSemana = 'seg' | 'ter' | 'qua' | 'qui' | 'sex' | 'sab' | 'dom'
-export type HorarioPlano = { dia: DiaSemana; horarioInicio: string }
+export type HorarioPlano = { dia: DiaSemana; horarioInicio: string; responsavelId: string }
 export type StatusAula = 'AGUARDANDO' | 'CONFIRMADA' | 'FALTA' | 'CANCELADA'
 export type TipoEvento = 'FERIADO' | 'AGENDA_FECHADA' | 'AUSENCIA' | 'ANIVERSARIO' | 'TORNEIO'
 export type ProvedorCheckin = 'GYMPASS' | 'TOTALPASS'
@@ -63,7 +63,6 @@ export type Aluno = {
   categoria: Categoria
   genero: Genero | null
   horarios: HorarioPlano[]
-  responsavelId: string | null
   ativo: boolean
   cadastradoEm: string
   reposicoesDisponiveis: number

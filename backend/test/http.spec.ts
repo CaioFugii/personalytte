@@ -191,13 +191,11 @@ describe('sessão http', () => {
       genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
       horarios: [],
-      responsavelId: null,
       dataNascimento: '1992-03-15',
     });
     expect(aluno.status).toBe(201);
     expect(aluno.body).toMatchObject({
       horarios: [],
-      responsavelId: null,
       dataNascimento: '1992-03-15',
       ativo: true,
     });

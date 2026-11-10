@@ -8,6 +8,15 @@ export function origemConcedeReposicao(aula: Pick<Aula, 'justificativaReposicao'
   return Boolean(aula.justificativaReposicao?.trim());
 }
 
+export async function origemDisponivelMaisAntiga(em: EntityManager, alunoId: string): Promise<Aula | null> {
+  const origens = await em.find(Aula, {
+    aluno: alunoId,
+    justificativaReposicao: { $ne: null },
+  }, { populate: ['aluno', 'responsavel'], orderBy: { inicio: 'asc', id: 'asc' } });
+  const abertas = await reposicoesEmAberto(em, origens.map((origem) => origem.id));
+  return origens.find((origem) => !abertas.has(origem.id)) ?? null;
+}
+
 export async function reposicoesEmAberto(em: EntityManager, origemIds: string[]): Promise<Map<string, string>> {
   const mapa = new Map<string, string>();
   if (origemIds.length === 0) return mapa;

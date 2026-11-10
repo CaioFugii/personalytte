@@ -34,7 +34,6 @@ export type AlunoResposta = {
   genero: GeneroAluno | null;
   temporario: boolean;
   horarios: HorarioPlano[];
-  responsavelId: string | null;
   ativo: boolean;
   cadastradoEm: string;
   reposicoesDisponiveis: number;

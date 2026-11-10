@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const DATA = '2026-11-12'
-const INICIO = '2026-11-12T07:00'
+const DATA = '2026-11-19'
+const INICIO = '2026-11-19T07:00'
 const QUATRO = ['Ana Lima', 'Bruno Souza', 'Diego Alves', 'Elena Prado']
 const MAIS_DOIS = ['Fábio Iniciante', 'Gabriela Nunes']
 const SETIMO = 'Kaio Ferreira'
@@ -33,6 +33,18 @@ async function limparSeteHoras(page: Page) {
       data: { justificativa: 'Limpeza do teste da aula das 7h', geraReposicao: false },
     })
     expect(cancelamento.ok(), await cancelamento.text()).toBeTruthy()
+  }
+  const depois = await page.request.get(`/api/aulas?de=${DATA}&ate=${DATA}`)
+  expect(depois.ok()).toBeTruthy()
+  const restantes = (await depois.json()) as Array<{ id: string; status: string; inicio: string; aluno: { nome: string } }>
+  for (const aula of restantes) {
+    if (aula.status !== 'CANCELADA') continue
+    if (!aula.inicio.startsWith(INICIO)) continue
+    if (!nomes.has(aula.aluno.nome)) continue
+    const deslocada = await page.request.patch(`/api/aulas/${aula.id}`, {
+      data: { inicio: `${DATA}T05:00:00-03:00` },
+    })
+    expect(deslocada.ok(), await deslocada.text()).toBeTruthy()
   }
 }
 
@@ -81,7 +93,7 @@ test('a aula das 7h aceita 6 alunos e recusa o sétimo', async ({ page }) => {
     await expect(page.getByText('O grupo já tem 6 alunos.')).toBeVisible()
 
     await page.getByRole('button', { name: 'Agendar aula' }).click()
-    await expect(page).toHaveURL(/\/agenda\?semana=2026-11-09/)
+    await expect(page).toHaveURL(/\/agenda\?semana=2026-11-16/)
     await expect(page.getByText('Aula em grupo agendada para 6 alunos.')).toBeVisible()
 
     const grupo = page

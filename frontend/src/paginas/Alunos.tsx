@@ -25,6 +25,25 @@ export function Alunos() {
   useNotificar(consulta.dados && !lista ? 'erro' : null, 'A resposta da lista veio em um formato inesperado.')
   const { pedir, dialogo } = useConfirmacao()
 
+  async function reativar(aluno: Aluno) {
+    const confirma = await pedir({
+      titulo: 'Reativar aluno',
+      mensagem: `Reativar ${aluno.nome}? As aulas que saíram na inativação não voltam. O plano semanal só gera aula de novo se for alterado.`,
+      confirmar: 'Reativar',
+    })
+    if (!confirma) return
+    setPendente(aluno.id)
+    try {
+      await api(`/api/alunos/${aluno.id}/reativar`, { method: 'POST' })
+      notificar('ok', 'Aluno reativado.')
+      consulta.recarregar()
+    } catch (erro) {
+      notificar('erro', mensagemDeErro(erro))
+    } finally {
+      setPendente(null)
+    }
+  }
+
   async function inativar(aluno: Aluno) {
     const confirma = await pedir({
       titulo: 'Inativar aluno',
@@ -149,6 +168,16 @@ export function Alunos() {
                             onClick={() => void inativar(aluno)}
                           >
                             Inativar
+                          </button>
+                        ) : null}
+                        {admin && !aluno.ativo ? (
+                          <button
+                            type="button"
+                            className="font-semibold text-tide-dark disabled:opacity-50"
+                            disabled={pendente === aluno.id}
+                            onClick={() => void reativar(aluno)}
+                          >
+                            Reativar
                           </button>
                         ) : null}
                       </div>

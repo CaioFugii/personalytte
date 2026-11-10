@@ -15,7 +15,7 @@ export function ordenarDias(dias: DiaSemana[]): DiaSemana[] {
   return [...dias].sort((a, b) => ORDEM_DIAS.indexOf(a) - ORDEM_DIAS.indexOf(b));
 }
 
-export type HorarioPlano = { dia: DiaSemana; horarioInicio: string };
+export type HorarioPlano = { dia: DiaSemana; horarioInicio: string; responsavelId: string };
 
 export function ordenarHorarios(horarios: HorarioPlano[]): HorarioPlano[] {
   return [...horarios].sort((a, b) => {
@@ -135,9 +135,12 @@ export function horarioValido(valor: string): boolean {
   return hora * 60 + minuto + 60 < 24 * 60;
 }
 
-export function calcularOcorrencias(horarios: readonly HorarioPlano[], agora: Date): Date[] {
+export function calcularOcorrencias(
+  horarios: readonly HorarioPlano[],
+  agora: Date,
+): { inicio: Date; responsavelId: string }[] {
   const limite = limiteHorizonte(agora);
-  const ocorrencias: Date[] = [];
+  const ocorrencias: { inicio: Date; responsavelId: string }[] = [];
   for (let dia = inicioDoDia(agora); dia.getTime() < limite.getTime(); dia = adicionarDias(dia, 1)) {
     const semana = diaDaSemana(dia);
     for (const horario of horarios) {
@@ -145,7 +148,7 @@ export function calcularOcorrencias(horarios: readonly HorarioPlano[], agora: Da
       const inicio = combinarDataHorario(dia, horario.horarioInicio);
       if (inicio.getTime() <= agora.getTime()) continue;
       if (inicio.getTime() >= limite.getTime()) continue;
-      ocorrencias.push(inicio);
+      ocorrencias.push({ inicio, responsavelId: horario.responsavelId });
     }
   }
   return ocorrencias;

@@ -103,8 +103,8 @@ export class IntegrantesService {
     return this.em.transactional(async (em) => {
       const integrante = await em.findOne(Integrante, { id });
       if (!integrante || !integrante.ativo) throw naoEncontrado();
-      const alunos = await em.find(Aluno, { ativo: true, responsavel: integrante.id });
-      if (alunos.some((aluno) => aluno.horarios.length > 0)) {
+      const alunos = await em.find(Aluno, { ativo: true });
+      if (alunos.some((aluno) => aluno.horarios.some((horario) => horario.responsavelId === integrante.id))) {
         throw new ErroApi(409, 'INTEGRANTE_COM_AGENDA', MENSAGEM_AGENDA);
       }
       const aulaFutura = await em.findOne(Aula, {

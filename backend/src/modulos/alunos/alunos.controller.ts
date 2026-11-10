@@ -38,4 +38,11 @@ export class AlunosController {
   inativar(@Param('id') id: string) {
     return this.alunos.inativar(id);
   }
+
+  @Post(':id/reativar')
+  @HttpCode(200)
+  @UseGuards(GuardAdministrador)
+  reativar(@Param('id') id: string) {
+    return this.alunos.reativar(id);
+  }
 }

@@ -157,7 +157,14 @@ export function horariosDe(valor: unknown): HorarioPlano[] {
     if (typeof bruto.horarioInicio !== 'string' || !horarioValido(bruto.horarioInicio)) {
       throw dadosInvalidos('Horário precisa caber em uma aula de 60 minutos no mesmo dia.');
     }
-    horarios.push({ dia: bruto.dia, horarioInicio: bruto.horarioInicio });
+    if (typeof bruto.responsavelId !== 'string' || bruto.responsavelId.trim() === '') {
+      throw new ErroApi(400, 'PLANO_INCOMPLETO', MENSAGEM_PLANO);
+    }
+    horarios.push({
+      dia: bruto.dia,
+      horarioInicio: bruto.horarioInicio,
+      responsavelId: uuidDe(bruto.responsavelId, 'Professor'),
+    });
   }
   const ordenados = ordenarHorarios(horarios);
   for (let indice = 1; indice < ordenados.length; indice += 1) {
@@ -172,32 +179,16 @@ export function horariosDe(valor: unknown): HorarioPlano[] {
 
 export type PlanoInterpretado = {
   horarios: HorarioPlano[];
-  responsavelId: string | null;
   completo: boolean;
 };
 
 export function interpretarPlano(
   horariosInformados: boolean,
   horariosValor: unknown,
-  responsavelInformado: boolean,
-  responsavelValor: unknown,
-  atual?: { horarios: HorarioPlano[]; responsavelId: string | null },
+  atual: HorarioPlano[] = [],
 ): PlanoInterpretado {
-  const horarios = horariosInformados ? horariosDe(horariosValor) : (atual?.horarios ?? []);
-  let responsavelId: string | null;
-  if (responsavelInformado) {
-    responsavelId = responsavelValor == null || responsavelValor === '' ? null : uuidDe(responsavelValor, 'Responsável');
-  } else {
-    responsavelId = atual?.responsavelId ?? null;
-  }
-  const temHorario = horarios.length > 0;
-  const temResponsavel = responsavelId != null;
-  if (temHorario !== temResponsavel) throw new ErroApi(400, 'PLANO_INCOMPLETO', MENSAGEM_PLANO);
-  return {
-    horarios: temHorario ? horarios : [],
-    responsavelId: temResponsavel ? responsavelId : null,
-    completo: temHorario && temResponsavel,
-  };
+  const horarios = horariosInformados ? horariosDe(horariosValor) : atual;
+  return { horarios, completo: horarios.length > 0 };
 }
 
 export function exigirMesmoDia(inicio: Date): void {
@@ -223,12 +214,11 @@ export function escaparLike(valor: string): string {
   return valor.replace(/[\\%_]/g, '\\$&');
 }
 
-export function planoMudou(
-  antes: { horarios: HorarioPlano[]; responsavelId: string | null },
-  depois: { horarios: HorarioPlano[]; responsavelId: string | null },
-): boolean {
-  const chave = (horarios: HorarioPlano[]) => horarios.map((horario) => `${horario.dia} ${horario.horarioInicio}`).join('|');
-  return antes.responsavelId !== depois.responsavelId || chave(antes.horarios) !== chave(depois.horarios);
+export function planoMudou(antes: HorarioPlano[], depois: HorarioPlano[]): boolean {
+  const chave = (horarios: HorarioPlano[]) => horarios
+    .map((horario) => `${horario.dia} ${horario.horarioInicio} ${horario.responsavelId}`)
+    .join('|');
+  return chave(antes) !== chave(depois);
 }
 
 export function idRelacao(relacao: { id: string } | null | undefined): string | null {

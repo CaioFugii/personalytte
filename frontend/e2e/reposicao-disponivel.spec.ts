@@ -89,3 +89,68 @@ test('a reposição só entra se o aluno ainda tem vaga', async ({ page }) => {
     })
   }
 })
+
+test('o novo agendamento usa a reposição disponível do aluno', async ({ page }) => {
+  await entrar(page)
+  const responsaveis = await json<Responsavel[]>(await page.request.get('/api/integrantes/responsaveis'))
+  const marina = responsaveis.find((pessoa) => pessoa.nome === 'Marina Costa')
+  expect(marina).toBeTruthy()
+  const criado = await page.request.post('/api/alunos', {
+    data: {
+      nome: 'Verificacao Reposicao',
+      telefone: '11900003344',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      horarios: [],
+    },
+  })
+  expect(criado.ok(), await criado.text()).toBeTruthy()
+  const aluno = (await criado.json()) as Aluno
+
+  try {
+    const origemResposta = await page.request.post('/api/aulas', {
+      data: {
+        alunoId: aluno.id,
+        responsavelId: marina!.id,
+        inicio: `${DIA}T15:00:00-03:00`,
+        experimental: false,
+      },
+    })
+    expect(origemResposta.ok(), await origemResposta.text()).toBeTruthy()
+    const origem = (await origemResposta.json()) as Aula
+    const concedida = await page.request.patch(`/api/aulas/${origem.id}`, {
+      data: { status: 'FALTA', concederReposicao: { justificativa: 'Aluno avisou' } },
+    })
+    expect(concedida.ok(), await concedida.text()).toBeTruthy()
+
+    await page.goto('/agenda/novo?tipo=aula')
+    const campo = page.locator('#aluno-aula')
+    await campo.click()
+    await campo.fill('Verificacao Reposicao')
+    await page.getByRole('option', { name: /^Verificacao Reposicao ·/ }).click()
+    await expect(page.getByRole('checkbox', { name: 'Usar reposição' })).toBeVisible()
+    await expect(page.getByText('Este aluno tem 1 reposição disponível.')).toBeVisible()
+    await page.getByRole('checkbox', { name: 'Usar reposição' }).check()
+    await page.locator('#resp-aula').selectOption({ label: 'Marina Costa' })
+    await page.locator('#data-aula').fill('2026-12-22')
+    await expect(page.locator('#hora-aula option[value="15:00"]')).toBeAttached()
+    await page.locator('#hora-aula').selectOption('15:00')
+    await page.getByRole('button', { name: 'Agendar aula' }).click()
+    await expect(page.getByText('Reposição agendada.')).toBeVisible()
+
+    const saldo = await json<Aluno>(await page.request.get(`/api/alunos/${aluno.id}`))
+    expect(saldo.reposicoesDisponiveis).toBe(0)
+    const aulas = await json<Aula[]>(await page.request.get(`/api/aulas?de=${DIA}&ate=2026-12-22`))
+    const reposicao = aulas.find((aula) => aula.aluno.id === aluno.id && aula.reposicaoDeAulaId === origem.id)
+    expect(reposicao?.status).toBe('AGUARDANDO')
+  } finally {
+    const aulas = await json<Aula[]>(await page.request.get(`/api/aulas?de=${DIA}&ate=2026-12-22`))
+    for (const aula of aulas.filter((item) => item.aluno.id === aluno.id && item.status !== 'CANCELADA')) {
+      await page.request.post(`/api/aulas/${aula.id}/cancelar`, {
+        data: { justificativa: 'Limpeza da verificação de reposição', geraReposicao: false },
+      })
+    }
+    await page.request.post(`/api/alunos/${aluno.id}/inativar`)
+  }
+})

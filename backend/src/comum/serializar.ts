@@ -53,7 +53,6 @@ export function serializarAluno(aluno: Aluno, reposicoesDisponiveis = 0): AlunoR
     categoria: aluno.categoria,
     genero: aluno.genero,
     horarios: aluno.horarios,
-    responsavelId: idRelacao(aluno.responsavel),
     ativo: aluno.ativo,
     temporario: aluno.temporario,
     cadastradoEm: formatarInstante(aluno.cadastradoEm),

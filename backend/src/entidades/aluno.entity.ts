@@ -1,8 +1,7 @@
-import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
 import type { HorarioPlano } from '../comum/tempo';
 import type { CategoriaAluno, GeneroAluno, PlanoAluno } from './enums';
-import { Integrante } from './integrante.entity';
 
 @Entity({ tableName: 'alunos' })
 export class Aluno {
@@ -39,11 +38,11 @@ export class Aluno {
   @Property({ type: 'jsonb' })
   horarios: HorarioPlano[] = [];
 
-  @ManyToOne(() => Integrante, { nullable: true })
-  responsavel: Integrante | null = null;
-
   @Property({ type: 'boolean' })
   ativo = true;
+
+  @Property({ type: 'boolean' })
+  planoSuspenso = false;
 
   @Property({ type: 'timestamptz' })
   cadastradoEm: Date = new Date();

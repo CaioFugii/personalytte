@@ -44,9 +44,9 @@ function cabeNoDia(hora: string): boolean {
 type HorarioLivre = { hora: string; vagas: number; limite: number; categorias: Array<Aula['aluno']['categoria']> }
 
 function horariosLivres(aulas: Aula[], responsavelId: string, alunoIds: string[], pedidos: number): HorarioLivre[] {
-  const ativas = aulas.filter((aula) => aula.status !== 'CANCELADA')
+  const ocupam = aulas.filter((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA')
   const horas = new Set(GRADE_HORARIOS)
-  for (const aula of ativas) {
+  for (const aula of ocupam) {
     if (aula.responsavel.id !== responsavelId) continue
     const hora = partesSP(aula.inicio).hora
     if (cabeNoDia(hora)) horas.add(hora)
@@ -56,12 +56,12 @@ function horariosLivres(aulas: Aula[], responsavelId: string, alunoIds: string[]
     .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b))
     .flatMap((hora) => {
       const limite = limiteDoHorario(hora)
-      const doProfessor = ativas.filter(
+      const doProfessor = ocupam.filter(
         (aula) => aula.responsavel.id === responsavelId && horariosCruzam(partesSP(aula.inicio).hora, hora),
       )
       const mesmoInicio = doProfessor.filter((aula) => partesSP(aula.inicio).hora === hora)
       if (doProfessor.length !== mesmoInicio.length) return []
-      const alunoOcupado = ativas.some(
+      const alunoOcupado = aulas.some(
         (aula) => alunoIds.includes(aula.aluno.id) && horariosCruzam(partesSP(aula.inicio).hora, hora),
       )
       if (alunoOcupado) return []
@@ -294,6 +294,7 @@ function FormAula() {
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [experimental, setExperimental] = useState(false)
+  const [usarReposicao, setUsarReposicao] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const diaValido = civilValida(data)
   const aulasDia = useGet<Aula[]>(diaValido ? `/api/aulas?de=${data}&ate=${data}` : null)
@@ -327,8 +328,14 @@ function FormAula() {
       .slice(0, 8)
   }, [alunos, selecionados, texto])
 
+  const alunoReposicao = !experimental && selecionados.length === 1 ? selecionados[0] : null
+  const vagasReposicao = alunoReposicao?.reposicoesDisponiveis ?? 0
+  const podeUsarReposicao = vagasReposicao > 0
+  useEffect(() => {
+    if (!podeUsarReposicao) setUsarReposicao(false)
+  }, [podeUsarReposicao])
   const limite = escolhido ? escolhido.vagas : limiteDoHorario(hora)
-  const grupoCheio = selecionados.length >= limite
+  const grupoCheio = usarReposicao ? selecionados.length >= 1 : selecionados.length >= limite
   const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
   const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
   const carregando = (alunosQ.carregando && !alunosQ.dados) || (respQ.carregando && !respQ.dados)
@@ -351,7 +358,7 @@ function FormAula() {
     const nome = texto.trim()
     const digitado = alunoPeloNome(alunos, nome, selecionados)
     const ids = selecionados.map((aluno) => aluno.id)
-    if (digitado && ids.length < limite) ids.push(digitado.id)
+    if (!usarReposicao && digitado && ids.length < limite) ids.push(digitado.id)
     const temporario = ids.length === 0 && experimental && nome !== ''
     if (!responsavelId || !civilValida(data) || !hora || (ids.length === 0 && !temporario)) {
       notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
@@ -359,6 +366,10 @@ function FormAula() {
     }
     if (consultaPronta && !livres.some((item) => item.hora === hora)) {
       notificar('erro', 'Esse horário não está disponível.')
+      return
+    }
+    if (usarReposicao && (ids.length !== 1 || (selecionados[0]?.reposicoesDisponiveis ?? 0) < 1)) {
+      notificar('erro', 'Selecione um aluno com reposição disponível.')
       return
     }
     if (ids.length > limite) {
@@ -372,7 +383,12 @@ function FormAula() {
     setEnviando(true)
     const base = { responsavelId, inicio: instanteBrasilia(data, hora), experimental }
     try {
-      if (ids.length > 1) {
+      if (usarReposicao) {
+        await api('/api/aulas/reposicao', {
+          method: 'POST',
+          body: JSON.stringify({ alunoId: ids[0], responsavelId, inicio: base.inicio }),
+        })
+      } else if (ids.length > 1) {
         await api('/api/aulas/grupo', { method: 'POST', body: JSON.stringify({ ...base, alunoIds: ids }) })
       } else {
         await api('/api/aulas', {
@@ -385,7 +401,13 @@ function FormAula() {
         })
       }
       navigate(`/agenda?semana=${inicioDaSemana(data)}`, {
-        state: { sucesso: ids.length > 1 ? `Aula em grupo agendada para ${ids.length} alunos.` : 'Aula agendada.' },
+        state: {
+          sucesso: usarReposicao
+            ? 'Reposição agendada.'
+            : ids.length > 1
+              ? `Aula em grupo agendada para ${ids.length} alunos.`
+              : 'Aula agendada.',
+        },
       })
     } catch (err) {
       notificar('erro', mensagemDeErro(err))
@@ -431,10 +453,12 @@ function FormAula() {
         Aula experimental
       </label>
       <Campo
-        label={`Alunos (até ${limite})`}
+        label={usarReposicao ? 'Aluno' : `Alunos (até ${limite})`}
         htmlFor="aluno-aula"
         dica={
-          selecionados.length > limite
+          usarReposicao
+            ? 'A reposição vale para este aluno.'
+            : selecionados.length > limite
             ? `Nesse horário o grupo aceita até ${limite} alunos.`
             : grupoCheio
               ? `O grupo já tem ${limite} alunos.`
@@ -506,6 +530,23 @@ function FormAula() {
           ) : null}
         </div>
       </Campo>
+      {podeUsarReposicao ? (
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input
+              id="usar-reposicao"
+              type="checkbox"
+              checked={usarReposicao}
+              onChange={(event) => setUsarReposicao(event.target.checked)}
+              className="accent-tide"
+            />
+            Usar reposição
+          </label>
+          <p className="mt-1 text-sm text-muted">
+            Este aluno tem {vagasReposicao === 1 ? '1 reposição disponível' : `${vagasReposicao} reposições disponíveis`}. A aula consome a vaga mais antiga.
+          </p>
+        </div>
+      ) : null}
       {cadastroTemporario ? (
         <Campo label="Telefone (opcional)" htmlFor="telefone-temporario" dica="Só deste cadastro temporário. Não entra na lista de alunos.">
           <input

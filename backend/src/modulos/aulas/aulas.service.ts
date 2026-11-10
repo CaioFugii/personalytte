@@ -5,7 +5,7 @@ import { ErroApi, MENSAGEM_JA_INICIOU, naoEncontrado, traduzirErroBanco } from '
 import { alunoAtivo, booleanoDe, exigirIntervalo, exigirObjeto, instanteDe, responsavelAtivo, statusDe, telefoneOpcional, textoObrigatorio, uuidDe, veio } from '../../comum/validacao';
 import { fimDaAula, jaComecou } from '../../comum/tempo';
 import { AgendaService, LIMITE_GRUPO, limiteDoGrupo } from '../../dominio/agenda.service';
-import { origemConcedeReposicao, reposicoesEmAberto, responderAulas } from '../../dominio/reposicao';
+import { origemConcedeReposicao, origemDisponivelMaisAntiga, reposicoesEmAberto, responderAulas } from '../../dominio/reposicao';
 import { Aluno } from '../../entidades/aluno.entity';
 import { Aula } from '../../entidades/aula.entity';
 
@@ -88,6 +88,28 @@ export class AulasService {
     }
   }
 
+  async usarReposicao(corpo: unknown, agora = new Date()): Promise<AulaResposta> {
+    const dados = exigirObjeto(corpo);
+    const alunoId = uuidDe(dados.alunoId, 'Aluno');
+    try {
+      return await this.em.transactional(async (em) => {
+        const aluno = await alunoAtivo(em, alunoId);
+        const origem = await origemDisponivelMaisAntiga(em, aluno.id);
+        if (!origem) throw new ErroApi(400, 'DADOS_INVALIDOS', 'Este aluno não tem reposição disponível.');
+        const reposicao = await this.agendarReposicao(em, origem, {
+          responsavelId: dados.responsavelId,
+          inicio: dados.inicio,
+        }, agora);
+        await em.flush();
+        return (await responderAulas(em, [reposicao]))[0];
+      });
+    } catch (erro) {
+      const traduzido = traduzirErroBanco(erro);
+      if (traduzido) throw traduzido;
+      throw erro;
+    }
+  }
+
   async atualizar(id: string, corpo: unknown, agora = new Date()): Promise<AulaResposta> {
     uuidDe(id, 'Identificador');
     const dados = exigirObjeto(corpo);
@@ -140,6 +162,7 @@ export class AulasService {
         if (veio(dados, 'experimental')) aula.experimental = booleanoDe(dados.experimental, 'Experimental');
         if (veio(dados, 'status')) aula.status = statusDe(dados.status);
         const voltouAOcupar = statusAnterior === 'CANCELADA' && aula.status !== 'CANCELADA';
+        const saiuDaFalta = statusAnterior === 'FALTA' && aula.status !== 'FALTA';
         if (voltouAOcupar) {
           aula.justificativaCancelamento = null;
           aula.cancelamentoGeraReposicao = null;
@@ -161,7 +184,7 @@ export class AulasService {
         } else if (statusAnterior === 'FALTA' && aula.status !== 'FALTA') {
           aula.justificativaReposicao = null;
         }
-        if ((mudouAgenda || voltouAOcupar) && aula.status !== 'CANCELADA') {
+        if ((mudouAgenda || voltouAOcupar || saiuDaFalta) && aula.status !== 'CANCELADA') {
           await this.agenda.assertPodeAgendar(em, {
             alunoId: aula.aluno.id,
             responsavelId: aula.responsavel.id,
@@ -213,7 +236,7 @@ export class AulasService {
     }
   }
 
-  private async agendarReposicao(em: EntityManager, origem: Aula, corpo: unknown, agora: Date): Promise<void> {
+  private async agendarReposicao(em: EntityManager, origem: Aula, corpo: unknown, agora: Date): Promise<Aula> {
     if (!origemConcedeReposicao(origem)) {
       throw new ErroApi(400, 'DADOS_INVALIDOS', 'Informe a justificativa da reposição.');
     }
@@ -228,6 +251,7 @@ export class AulasService {
       inicio: reposicao.inicio,
     });
     em.persist(reposicao);
+    return reposicao;
   }
 
   private async carregar(em: EntityManager, id: string): Promise<Aula> {
@@ -273,7 +297,6 @@ export class AulasService {
     aluno.categoria = null;
     aluno.temporario = true;
     aluno.horarios = [];
-    aluno.responsavel = null;
     aluno.cadastradoEm = new Date();
     em.persist(aluno);
     return aluno;

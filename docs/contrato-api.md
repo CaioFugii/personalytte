@@ -87,18 +87,19 @@ Leitura: professor e administrador. Escrita: administrador.
   "categoria": "D",
   "genero": "FEMININO",
   "horarios": [
-    { "dia": "seg", "horarioInicio": "19:00" },
-    { "dia": "qui", "horarioInicio": "09:00" }
-  ],
-  "responsavelId": "uuid"
+    { "dia": "ter", "horarioInicio": "19:00", "responsavelId": "uuid" },
+    { "dia": "qui", "horarioInicio": "19:00", "responsavelId": "uuid" }
+  ]
 }
 ```
 
 `plano`: `PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`. `categoria`: `INICIANTE`, `D`, `C`, `B`, `A`. `genero`: `FEMININO` ou `MASCULINO`, obrigatório no cadastro permanente. `dia`: `seg`, `ter`, `qua`, `qui`, `sex`, `sab`, `dom`.
 
-`horarios` lista cada aula da semana com o próprio horário. O mesmo dia pode repetir com horários que não se cruzam. Dia e horário iguais são recusados. `horarios` e `responsavelId` vão os dois vazios ou os dois preenchidos. Vazio é `horarios: []` e `responsavelId: null`. Caso contrário, `PLANO_INCOMPLETO`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial. `dataNascimento` é opcional, no formato `YYYY-MM-DD`. Vazio grava `null`.
+`horarios` lista cada aula da semana com o próprio horário e o próprio professor. O mesmo dia pode repetir com horários que não se cruzam. Dia e horário iguais são recusados. Cada item traz `dia`, `horarioInicio` e `responsavelId`. Professores diferentes na mesma lista são aceitos. Linha sem professor responde `PLANO_INCOMPLETO`. Vazio é `horarios: []`. Telefone com 10 ou 11 dígitos; a API guarda só os dígitos. `instagram` é opcional: o usuário do perfil, até 30 caracteres, sem `@` e sem o endereço. A API tira um `@` inicial. `dataNascimento` é opcional, no formato `YYYY-MM-DD`. Vazio grava `null`.
 
 `POST /api/alunos/:id/inativar` remove as aulas futuras daquele aluno que estejam Aguardando. O restante do histórico fica.
+
+`POST /api/alunos/:id/reativar` torna o aluno ativo de novo e não recria as aulas que saíram na inativação. O plano semanal permanece no cadastro. O horizonte não gera ocorrência dele enquanto o plano não for alterado. Alterar o plano gera as ocorrências futuras a partir dessa alteração. Aluno já ativo responde `400` com `DADOS_INVALIDOS`. Aluno inexistente responde `404`.
 
 Aluno na resposta inclui `id`, os campos acima, `ativo`, `cadastradoEm` e `reposicoesDisponiveis`. `genero` pode vir `null` num cadastro antigo, até a edição gravar `FEMININO` ou `MASCULINO`. Aluno temporário fica com `genero` `null`. `reposicoesDisponiveis` conta aulas com `justificativaReposicao` gravada que ainda não têm aula de reposição em aberto. Marcar falta, sozinha, não entra nessa conta.
 
@@ -122,6 +123,16 @@ Leitura e escrita de aula: professor e administrador.
 ```
 
 Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
+
+`POST /api/aulas/reposicao` agenda a reposição de um aluno que já tem vaga. O corpo traz `alunoId`, `responsavelId` e `inicio`. A aula nasce Aguardando, fora do plano, e aponta para a origem disponível mais antiga. A vaga é consumida. Sem vaga, responde `DADOS_INVALIDOS` com a mensagem de que o aluno não tem reposição disponível. A data segue a regra de hoje em diante, e o horário segue o mesmo conflito da aula avulsa. Responde `201` com a aula criada.
+
+```json
+{
+  "alunoId": "uuid",
+  "responsavelId": "uuid",
+  "inicio": "2026-10-26T11:00:00-03:00"
+}
+```
 
 `POST /api/aulas/grupo` cria a mesma aula avulsa para 1 a 4 alunos cadastrados, com o mesmo responsável e o mesmo início. O início às 7h, em Brasília, aceita de 1 a 6. Responde `201` com a lista de aulas criadas. Se um aluno for recusado, nenhuma aula é gravada. Aluno repetido ou mais alunos do que o horário permite responde `DADOS_INVALIDOS`.
 
@@ -158,7 +169,7 @@ Ao enviar `status: "FALTA"`, o corpo pode incluir `concederReposicao` e `reposic
 
 Criar, editar, obter e cancelar devolvem a aula, inclusive o `id`.
 
-Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas não canceladas com o mesmo início, uma por aluno. A quinta responde `HORARIO_OCUPADO`. Às 7h, em Brasília, o limite é 6 e a sétima responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`.
+Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas que ocupam vaga no mesmo início, uma por aluno. Ocupam vaga `AGUARDANDO` e `CONFIRMADA`. `FALTA` e `CANCELADA` liberam a vaga do grupo. A quinta responde `HORARIO_OCUPADO`. Às 7h, em Brasília, o limite é 6 e a sétima responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`. A falta ou o cancelamento do próprio aluno continua respondendo `HORARIO_OCUPADO` em horário que cruze essa aula. Sair de `FALTA` ou de `CANCELADA` volta a ocupar a vaga e, com o grupo cheio, responde `HORARIO_OCUPADO`.
 
 Aula na resposta:
 

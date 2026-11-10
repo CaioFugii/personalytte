@@ -21,6 +21,9 @@ import { Migration20261026120000_aulas_grupo_cancelamento } from './migrations/M
 import { Migration20261102120000_aluno_categoria_iniciante } from './migrations/Migration20261102120000_aluno_categoria_iniciante';
 import { Migration20261106120000_aluno_genero } from './migrations/Migration20261106120000_aluno_genero';
 import { Migration20261106140000_aula_justificativa_reposicao } from './migrations/Migration20261106140000_aula_justificativa_reposicao';
+import { Migration20261110120000_falta_nao_ocupa_professor } from './migrations/Migration20261110120000_falta_nao_ocupa_professor';
+import { Migration20261110130000_aluno_plano_suspenso } from './migrations/Migration20261110130000_aluno_plano_suspenso';
+import { Migration20261110150000_plano_professor_por_horario } from './migrations/Migration20261110150000_plano_professor_por_horario';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -51,6 +54,9 @@ export function criarOrmConfig() {
         { name: 'Migration20261102120000_aluno_categoria_iniciante', class: Migration20261102120000_aluno_categoria_iniciante },
         { name: 'Migration20261106120000_aluno_genero', class: Migration20261106120000_aluno_genero },
         { name: 'Migration20261106140000_aula_justificativa_reposicao', class: Migration20261106140000_aula_justificativa_reposicao },
+        { name: 'Migration20261110120000_falta_nao_ocupa_professor', class: Migration20261110120000_falta_nao_ocupa_professor },
+        { name: 'Migration20261110130000_aluno_plano_suspenso', class: Migration20261110130000_aluno_plano_suspenso },
+        { name: 'Migration20261110150000_plano_professor_por_horario', class: Migration20261110150000_plano_professor_por_horario },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },
