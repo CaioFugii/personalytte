@@ -19,58 +19,63 @@ import { notificar, useNotificar } from '../componentes/toast'
 import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
 import { categoriasPresentes, rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
 
-const CAPACIDADE_PADRAO = 4
 const CAPACIDADE_MAXIMA = 6
-
-const GRADE_HORARIOS = Array.from({ length: 16 }, (_, indice) => `${String(indice + 7).padStart(2, '0')}:00`)
 
 function minutosDoHorario(hora: string): number {
   const [horas, minutos] = hora.slice(0, 5).split(':').map(Number)
   return horas * 60 + minutos
 }
 
-function horariosCruzam(inicio: string, fim: string, hora: string): boolean {
-  const slot = minutosDoHorario(hora)
-  return minutosDoHorario(inicio) < slot + 60 && minutosDoHorario(fim) > slot
+function intervalosCruzam(inicio: string, fim: string, outroInicio: string, outroFim: string): boolean {
+  return new Date(inicio).getTime() < new Date(outroFim).getTime() && new Date(outroInicio).getTime() < new Date(fim).getTime()
 }
 
-function cabeNoDia(hora: string): boolean {
-  return minutosDoHorario(hora) + 60 < 24 * 60
+function ocupaVaga(status: string): boolean {
+  return status !== 'CANCELADA' && status !== 'FALTA'
 }
 
-type HorarioLivre = { hora: string; vagas: number; limite: number; categorias: Array<Aluno['categoria'] | null> }
+type HorarioLivre = {
+  grupoId: string
+  hora: string
+  inicio: string
+  responsavelId: string
+  vagas: number
+  categorias: Array<Aluno['categoria'] | null>
+}
 
-function horariosLivres(grupos: Grupo[], responsavelId: string, alunoIds: string[], pedidos: number, ampliar: boolean): HorarioLivre[] {
-  const ocupam = (grupo: Grupo) => grupo.aulas.filter((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA')
-  const horas = new Set<string>(GRADE_HORARIOS)
-  for (const grupo of grupos) {
-    if (grupo.responsavel.id !== responsavelId) continue
-    const hora = partesSP(grupo.inicio).hora.slice(0, 5)
-    if (cabeNoDia(hora)) horas.add(hora)
-  }
-  return [...horas]
-    .filter(cabeNoDia)
-    .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b))
-    .flatMap((hora) => {
-      const doProfessor = grupos.filter(
-        (grupo) => grupo.responsavel.id === responsavelId && horariosCruzam(partesSP(grupo.inicio).hora, partesSP(grupo.fim).hora, hora) && ocupam(grupo).length > 0,
-      )
-      const mesmoInicio = grupos.find(
-        (grupo) => grupo.responsavel.id === responsavelId && partesSP(grupo.inicio).hora.slice(0, 5) === hora,
-      )
-      const cruzaOutro = doProfessor.some((grupo) => grupo.id !== mesmoInicio?.id)
-      if (cruzaOutro) return []
+function horariosLivres(
+  grupos: Grupo[],
+  eventos: Evento[],
+  responsavelId: string,
+  alunoIds: string[],
+  pedidos: number,
+): HorarioLivre[] {
+  return grupos
+    .filter((grupo) => grupo.responsavel.id === responsavelId)
+    .filter((grupo) => !eventos.some((evento) => intervalosCruzam(grupo.inicio, grupo.fim, evento.inicio, evento.fim)))
+    .flatMap((grupo) => {
+      const ocupando = grupo.aulas.filter((aula) => ocupaVaga(aula.status))
+      const vagas = grupo.capacidade - ocupando.length
+      if (vagas < pedidos) return []
+      const alunoNoGrupo = grupo.aulas.some((aula) => alunoIds.includes(aula.aluno.id))
+      if (alunoNoGrupo) return []
       const alunoOcupado = grupos.some(
-        (grupo) => horariosCruzam(partesSP(grupo.inicio).hora, partesSP(grupo.fim).hora, hora)
-          && grupo.aulas.some((aula) => alunoIds.includes(aula.aluno.id)),
+        (outro) =>
+          outro.id !== grupo.id
+          && intervalosCruzam(grupo.inicio, grupo.fim, outro.inicio, outro.fim)
+          && outro.aulas.some((aula) => alunoIds.includes(aula.aluno.id)),
       )
       if (alunoOcupado) return []
-      const ocupando = mesmoInicio ? ocupam(mesmoInicio) : []
-      const limite = ampliar ? CAPACIDADE_MAXIMA : (mesmoInicio?.capacidade ?? CAPACIDADE_PADRAO)
-      const vagas = limite - ocupando.length
-      if (vagas < pedidos) return []
-      return [{ hora, vagas, limite, categorias: ocupando.map((aula) => aula.aluno.categoria) }]
+      return [{
+        grupoId: grupo.id,
+        hora: partesSP(grupo.inicio).hora.slice(0, 5),
+        inicio: grupo.inicio,
+        responsavelId: grupo.responsavel.id,
+        vagas,
+        categorias: ocupando.map((aula) => aula.aluno.categoria),
+      }]
     })
+    .sort((a, b) => minutosDoHorario(a.hora) - minutosDoHorario(b.hora) || a.grupoId.localeCompare(b.grupoId))
 }
 
 function rotuloHorarioLivre(item: HorarioLivre): string {
@@ -89,7 +94,7 @@ function alunoPeloNome(alunos: Aluno[], texto: string, selecionados: Aluno[]): A
 }
 
 function professoresDe(lista: Responsavel[], atual?: { id: string; nome: string } | null): Responsavel[] {
-  const professores = lista.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
+  const professores = lista.filter((pessoa) => pessoa.funcao === 'PROFESSOR' || pessoa.funcao === 'SOCIO')
   if (atual && !professores.some((pessoa) => pessoa.id === atual.id)) {
     professores.unshift({ id: atual.id, nome: atual.nome, funcao: 'PROFESSOR' })
   }
@@ -294,27 +299,34 @@ function FormAula() {
   const [aberto, setAberto] = useState(false)
   const [responsavelId, setResponsavelId] = useState('')
   const [data, setData] = useState('')
-  const [hora, setHora] = useState('')
+  const [grupoId, setGrupoId] = useState('')
   const [experimental, setExperimental] = useState(false)
-  const [ampliar, setAmpliar] = useState(false)
-  const [fim, setFim] = useState('')
-  const [fimManual, setFimManual] = useState(false)
   const [usarReposicao, setUsarReposicao] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const diaValido = civilValida(data)
   const gruposDia = useGet<Grupo[]>(diaValido ? `/api/grupos?de=${data}&ate=${data}` : null)
+  const eventosDia = useGet<Evento[]>(diaValido ? `/api/eventos?de=${data}&ate=${data}` : null)
   const gruposDoDia = Array.isArray(gruposDia.dados) ? gruposDia.dados : []
-  const consultaPronta = Boolean(responsavelId) && diaValido && !gruposDia.carregando && !gruposDia.erro && Array.isArray(gruposDia.dados)
+  const eventosDoDia = Array.isArray(eventosDia.dados) ? eventosDia.dados : []
+  const consultaPronta =
+    Boolean(responsavelId)
+    && diaValido
+    && !gruposDia.carregando
+    && !gruposDia.erro
+    && Array.isArray(gruposDia.dados)
+    && !eventosDia.carregando
+    && !eventosDia.erro
+    && Array.isArray(eventosDia.dados)
   const livres = useMemo(() => {
     if (!consultaPronta) return []
-    return horariosLivres(gruposDoDia, responsavelId, selecionados.map((aluno) => aluno.id), Math.max(selecionados.length, 1), ampliar)
-  }, [consultaPronta, gruposDoDia, responsavelId, selecionados, ampliar])
-  const escolhido = livres.find((item) => item.hora === hora)
+    return horariosLivres(gruposDoDia, eventosDoDia, responsavelId, selecionados.map((aluno) => aluno.id), Math.max(selecionados.length, 1))
+  }, [consultaPronta, gruposDoDia, eventosDoDia, responsavelId, selecionados])
+  const escolhido = livres.find((item) => item.grupoId === grupoId)
 
   useEffect(() => {
     if (!consultaPronta) return
-    if (hora && !livres.some((item) => item.hora === hora)) setHora('')
-  }, [consultaPronta, hora, livres])
+    if (grupoId && !livres.some((item) => item.grupoId === grupoId)) setGrupoId('')
+  }, [consultaPronta, grupoId, livres])
 
   const sugestoes = useMemo(() => {
     const consulta = texto.trim().toLowerCase()
@@ -333,22 +345,13 @@ function FormAula() {
       .slice(0, 8)
   }, [alunos, selecionados, texto])
 
-  useEffect(() => {
-    if (!hora || fimManual) return
-    const total = minutosDoHorario(hora) + 60
-    if (total >= 24 * 60) return
-    const horas = String(Math.floor(total / 60)).padStart(2, '0')
-    const mins = String(total % 60).padStart(2, '0')
-    setFim(`${horas}:${mins}`)
-  }, [hora, fimManual])
-
   const alunoReposicao = !experimental && selecionados.length === 1 ? selecionados[0] : null
   const vagasReposicao = alunoReposicao?.reposicoesDisponiveis ?? 0
   const podeUsarReposicao = vagasReposicao > 0
   useEffect(() => {
     if (!podeUsarReposicao) setUsarReposicao(false)
   }, [podeUsarReposicao])
-  const limite = usarReposicao ? 1 : (escolhido ? escolhido.limite : (ampliar ? CAPACIDADE_MAXIMA : CAPACIDADE_PADRAO))
+  const limite = usarReposicao ? 1 : (escolhido ? escolhido.vagas : CAPACIDADE_MAXIMA)
   const grupoCheio = usarReposicao ? selecionados.length >= 1 : selecionados.length >= limite
   const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
   const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
@@ -374,12 +377,8 @@ function FormAula() {
     const ids = selecionados.map((aluno) => aluno.id)
     if (!usarReposicao && digitado && ids.length < limite) ids.push(digitado.id)
     const temporario = ids.length === 0 && experimental && nome !== ''
-    if (!responsavelId || !civilValida(data) || !hora || (ids.length === 0 && !temporario)) {
+    if (!responsavelId || !civilValida(data) || !escolhido || (ids.length === 0 && !temporario)) {
       notificar('erro', experimental ? 'Informe o aluno, o professor, a data e o horário.' : 'Selecione um aluno cadastrado, o professor, a data e o horário.')
-      return
-    }
-    if (consultaPronta && !livres.some((item) => item.hora === hora)) {
-      notificar('erro', 'Esse horário não está disponível.')
       return
     }
     if (usarReposicao && (ids.length !== 1 || (selecionados[0]?.reposicoesDisponiveis ?? 0) < 1)) {
@@ -394,38 +393,39 @@ function FormAula() {
       notificar('erro', 'Não é possível agendar uma data anterior a hoje.')
       return
     }
-    if (!usarReposicao && fim) {
-      const duracao = minutosDoHorario(fim) - minutosDoHorario(hora)
-      if (duracao < 60) {
-        notificar('erro', 'O grupo dura no mínimo 1 hora.')
-        return
-      }
-    }
     setEnviando(true)
-    const inicio = instanteBrasilia(data, hora)
-    const sessao: Record<string, unknown> = { responsavelId, inicio, experimental }
-    if (!usarReposicao && fimManual && fim) sessao.fim = instanteBrasilia(data, fim)
-    if (!usarReposicao && ampliar) sessao.capacidade = CAPACIDADE_MAXIMA
     try {
       if (usarReposicao) {
         await api('/api/aulas/reposicao', {
           method: 'POST',
-          body: JSON.stringify({ alunoId: ids[0], responsavelId, inicio }),
+          body: JSON.stringify({ alunoId: ids[0], responsavelId: escolhido.responsavelId, inicio: escolhido.inicio }),
         })
       } else if (temporario) {
         await api('/api/aulas', {
           method: 'POST',
-          body: JSON.stringify({ ...sessao, alunoTemporario: { nome, telefone: telefone.trim() ? telefone.trim() : null } }),
+          body: JSON.stringify({
+            grupoId: escolhido.grupoId,
+            experimental: true,
+            alunoTemporario: { nome, telefone: telefone.trim() ? telefone.trim() : null },
+          }),
         })
       } else {
-        await api('/api/grupos', { method: 'POST', body: JSON.stringify({ ...sessao, alunoIds: ids }) })
+        await api('/api/grupos', {
+          method: 'POST',
+          body: JSON.stringify({
+            responsavelId: escolhido.responsavelId,
+            inicio: escolhido.inicio,
+            experimental,
+            alunoIds: ids,
+          }),
+        })
       }
       navigate(`/agenda?semana=${inicioDaSemana(data)}`, {
         state: {
           sucesso: usarReposicao
             ? 'Reposição agendada.'
             : ids.length > 1
-              ? `Grupo agendado para ${ids.length} alunos.`
+              ? `Aulas agendadas para ${ids.length} alunos.`
               : 'Aula agendada.',
         },
       })
@@ -436,10 +436,11 @@ function FormAula() {
   }
 
   function dicaDoHorario(): string {
-    if (!responsavelId || !diaValido) return 'Escolha o professor e a data para ver os horários livres.'
-    if (gruposDia.carregando) return 'Carregando horários…'
+    if (!responsavelId || !diaValido) return 'Escolha o professor e a data para ver os grupos com vaga.'
+    if (gruposDia.carregando || eventosDia.carregando) return 'Carregando horários…'
     if (gruposDia.erro) return gruposDia.erro
-    if (livres.length === 0) return 'Não há horário livre para este professor nesse dia.'
+    if (eventosDia.erro) return eventosDia.erro
+    if (livres.length === 0) return 'Não há grupo com vaga para este professor nesse dia.'
     return ''
   }
 
@@ -481,12 +482,12 @@ function FormAula() {
             : selecionados.length > limite
             ? `Nesse horário o grupo aceita até ${limite} alunos.`
             : grupoCheio
-              ? `O grupo já tem ${limite} alunos.`
+              ? 'Esse grupo não aceita mais alunos.'
               : experimental && selecionados.length === 0
                 ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
-                : escolhido && escolhido.vagas < escolhido.limite
-                  ? `Esse horário ainda aceita ${escolhido.vagas} ${escolhido.vagas === 1 ? 'aluno' : 'alunos'}.`
-                  : 'Busque por nome, e-mail ou telefone e selecione. O grupo nasce com 4 vagas e pode ser ampliado para 6.'
+                : escolhido
+                  ? `Esse grupo ainda aceita ${escolhido.vagas} ${escolhido.vagas === 1 ? 'aluno' : 'alunos'}.`
+                  : 'Busque por nome, e-mail ou telefone e selecione. A aula entra num grupo que já tem vaga.'
         }
       >
         {selecionados.length > 0 ? (
@@ -607,52 +608,32 @@ function FormAula() {
           <select
             id="hora-aula"
             required
-            value={hora}
-            disabled={!responsavelId || !diaValido || gruposDia.carregando || Boolean(gruposDia.erro) || (consultaPronta && livres.length === 0)}
-            onChange={(event) => setHora(event.target.value)}
+            value={grupoId}
+            disabled={!responsavelId || !diaValido || gruposDia.carregando || eventosDia.carregando || Boolean(gruposDia.erro || eventosDia.erro) || (consultaPronta && livres.length === 0)}
+            onChange={(event) => setGrupoId(event.target.value)}
             className={classeCampo}
           >
-            <option value="">{livres.length === 0 && consultaPronta ? 'Nenhum horário livre' : 'Selecione'}</option>
-            {hora && !livres.some((item) => item.hora === hora) ? <option value={hora}>{hora}</option> : null}
+            <option value="">{livres.length === 0 && consultaPronta ? 'Nenhum grupo com vaga' : 'Selecione'}</option>
             {livres.map((item) => (
-              <option key={item.hora} value={item.hora}>
+              <option key={item.grupoId} value={item.grupoId}>
                 {rotuloHorarioLivre(item)}
               </option>
             ))}
           </select>
-          {gruposDia.erro ? (
-            <button type="button" className="mt-2 text-sm font-semibold text-tide" onClick={() => gruposDia.recarregar()}>
+          {gruposDia.erro || eventosDia.erro ? (
+            <button
+              type="button"
+              className="mt-2 text-sm font-semibold text-tide"
+              onClick={() => {
+                gruposDia.recarregar()
+                eventosDia.recarregar()
+              }}
+            >
               Tentar de novo
             </button>
           ) : null}
         </Campo>
       </div>
-      {!usarReposicao ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Campo label="Término" htmlFor="fim-aula" dica="O grupo dura no mínimo 1 hora e termina no mesmo dia.">
-            <input
-              id="fim-aula"
-              type="time"
-              required
-              value={fim}
-              onChange={(event) => {
-                setFimManual(true)
-                setFim(event.target.value)
-              }}
-              className={classeCampo}
-            />
-          </Campo>
-          <label className="flex items-end gap-2 pb-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={ampliar}
-              onChange={(event) => setAmpliar(event.target.checked)}
-              className="accent-tide"
-            />
-            Ampliar para 6 alunos
-          </label>
-        </div>
-      ) : null}
       <div className="flex gap-2">
         <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0) || (diaValido && gruposDia.carregando)}>
           {enviando ? 'Salvando…' : 'Agendar aula'}

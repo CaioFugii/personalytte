@@ -52,7 +52,7 @@ Lista e escrita: só administrador.
 
 `GET /api/integrantes?busca=` lista só ativos. Busca em nome, e-mail e telefone.
 
-`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve os seletores de responsável. Professor e administrador. No novo agendamento, o painel mostra só `funcao` `PROFESSOR` e chama o campo de Professor. A ficha do aluno não envia `horarios`.
+`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve os seletores de responsável. Professor e administrador. No novo agendamento, o painel chama o campo de Professor e mostra `PROFESSOR` e `SOCIO`. A aula entra num grupo que já tem vaga. A ficha do aluno não envia `horarios`.
 
 `POST /api/integrantes` cria a conta. Campos: `nome`, `email`, `senha` (mínimo 8), `funcao`, `telefone` opcional, `dataNascimento` opcional (`YYYY-MM-DD`).
 

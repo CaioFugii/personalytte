@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Categoria, Genero, Plano } from '../api/types'
+import type { Aluno, Categoria, DiaSemana, Genero, GrupoFixo, Plano } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar } from '../componentes/toast'
@@ -16,7 +16,7 @@ import {
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
 import { civilValida, digitosTelefone } from '../lib/calendario'
-import { CATEGORIAS, GENEROS, PLANOS } from '../lib/rotulos'
+import { CATEGORIAS, DIAS, GENEROS, PLANOS } from '../lib/rotulos'
 
 type FormAluno = {
   nome: string
@@ -40,6 +40,22 @@ const VAZIO: FormAluno = {
   genero: '',
 }
 
+function gruposDoAluno(lista: GrupoFixo[], alunoId: string): GrupoFixo[] {
+  const ordem = new Map(DIAS.map((dia, indice) => [dia.value, indice]))
+  return lista
+    .filter((grupo) => grupo.alunos.some((aluno) => aluno.id === alunoId))
+    .sort(
+      (a, b) =>
+        (ordem.get(a.dia) ?? 0) - (ordem.get(b.dia) ?? 0) ||
+        a.horarioInicio.localeCompare(b.horarioInicio) ||
+        a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR'),
+    )
+}
+
+function rotuloDia(dia: DiaSemana): string {
+  return DIAS.find((item) => item.value === dia)?.label ?? dia
+}
+
 function doAluno(aluno: Aluno): FormAluno {
   return {
     nome: aluno.nome ?? '',
@@ -59,7 +75,9 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   const { usuario } = useSessao()
   const admin = usuario?.papel === 'administrador'
   const alunoQ = useGet<Aluno>(modo === 'editar' && id ? `/api/alunos/${id}` : null)
+  const gruposQ = useGet<GrupoFixo[]>(modo === 'editar' && id ? '/api/grupos/semana' : null)
   const aluno = alunoQ.dados
+  const grupos = Array.isArray(gruposQ.dados) ? gruposDoAluno(gruposQ.dados, id) : null
   const inativo = aluno?.ativo === false
   const somenteLeitura = modo === 'editar' && (!admin || inativo)
   useTitulo(modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno')
@@ -298,6 +316,27 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
               </select>
             </Campo>
           </div>
+          {modo === 'editar' ? (
+            <section aria-labelledby="grupos-do-aluno" className="border-t border-line pt-4">
+              <h2 id="grupos-do-aluno" className="text-sm font-semibold">
+                Grupos
+              </h2>
+              {gruposQ.carregando && !grupos ? <p className="mt-2 text-sm text-muted">Carregando…</p> : null}
+              {gruposQ.erro ? <p className="mt-2 text-sm text-clay">{gruposQ.erro}</p> : null}
+              {grupos && grupos.length === 0 ? (
+                <p className="mt-2 text-sm text-muted">Este aluno não está em nenhum grupo.</p>
+              ) : null}
+              {grupos && grupos.length > 0 ? (
+                <ul className="mt-2 grid gap-1 text-sm">
+                  {grupos.map((grupo) => (
+                    <li key={`${grupo.dia}|${grupo.horarioInicio}|${grupo.responsavel.id}`}>
+                      {rotuloDia(grupo.dia)} · {grupo.horarioInicio.slice(0, 5)} · {grupo.responsavel.nome}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
           {inativo && admin ? (
             <div className="flex flex-wrap gap-2">
               <Botao type="button" onClick={() => void reativar()}>

@@ -358,13 +358,10 @@ function GradeGrupos({
                             </section>
                           )
                         })}
-                        {busca.trim() ? null : (
+                        {busca.trim() || doHorario.length > 0 ? null : (
                           <button
                             type="button"
-                            className={cx(
-                              'rounded-xl px-2 py-1.5 text-left text-xs font-semibold text-muted hover:text-tide-dark',
-                              doHorario.length === 0 ? 'bg-sand' : 'border border-dashed border-line',
-                            )}
+                            className="rounded-xl bg-sand px-2 py-1.5 text-left text-xs font-semibold text-muted hover:text-tide-dark"
                             onClick={() => onNovo(dia.value, hora)}
                           >
                             Novo grupo

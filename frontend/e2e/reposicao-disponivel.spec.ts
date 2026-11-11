@@ -17,6 +17,84 @@ async function json<T>(resposta: Awaited<ReturnType<APIRequestContext['get']>>):
   return resposta.json() as Promise<T>
 }
 
+type GrupoComVaga = {
+  inicio: string
+  fim: string
+  capacidade: number
+  responsavel: { id: string }
+  aulas: Array<{ status: string; aluno: { id: string } }>
+}
+
+function horaDe(iso: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso))
+}
+
+function vagasDo(grupo: GrupoComVaga): number {
+  const ocupando = grupo.aulas.filter((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA').length
+  return grupo.capacidade - ocupando
+}
+
+async function garantirGrupoComVaga(page: Page, responsavelId: string, dia: string, alunoId: string): Promise<string> {
+  const atuais = await json<GrupoComVaga[]>(await page.request.get(`/api/grupos?de=${dia}&ate=${dia}`))
+  const pronto = atuais.find(
+    (grupo) =>
+      grupo.responsavel.id === responsavelId
+      && vagasDo(grupo) >= 1
+      && !grupo.aulas.some((aula) => aula.aluno.id === alunoId),
+  )
+  if (pronto) return horaDe(pronto.inicio)
+
+  const alunos = await json<Aluno[]>(await page.request.get('/api/alunos?busca=Bruno%20Souza'))
+  const bruno = alunos.find((aluno) => aluno.nome === 'Bruno Souza')
+  expect(bruno).toBeTruthy()
+  for (const hora of ['15:00', '16:00', '17:00', '18:00', '20:00', '21:00', '10:00', '11:00']) {
+    const criado = await page.request.post('/api/grupos', {
+      data: { responsavelId, inicio: `${dia}T${hora}:00-03:00`, alunoIds: [bruno!.id] },
+    })
+    if (criado.ok()) return hora
+  }
+  throw new Error('Não foi possível preparar um grupo com vaga.')
+}
+
+function cruza(inicio: string, fim: string, outroInicio: string, outroFim: string): boolean {
+  return new Date(inicio).getTime() < new Date(outroFim).getTime() && new Date(outroInicio).getTime() < new Date(fim).getTime()
+}
+
+function inicioLivre(
+  grupos: GrupoComVaga[],
+  dia: string,
+  alunoId: string,
+  responsavelId: string,
+): string | null {
+  for (let hora = 6; hora <= 21; hora += 1) {
+    if (hora === 12 || hora === 13) continue
+    const texto = `${String(hora).padStart(2, '0')}:00`
+    const inicio = `${dia}T${texto}:00-03:00`
+    const fim = new Date(new Date(inicio).getTime() + 60 * 60 * 1000).toISOString()
+    const ocupado = grupos.some((grupo) => {
+      if (!cruza(inicio, fim, grupo.inicio, grupo.fim)) return false
+      if (grupo.aulas.some((aula) => aula.aluno.id === alunoId)) return true
+      return grupo.responsavel.id === responsavelId && grupo.aulas.some((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA')
+    })
+    if (!ocupado) return inicio
+  }
+  return null
+}
+
+async function escolherHorario(page: Page, hora: string) {
+  const valor = await page.locator('#hora-aula option').evaluateAll((opcoes, prefixo) => {
+    const alvo = (opcoes as HTMLOptionElement[]).find((opcao) => (opcao.textContent ?? '').startsWith(prefixo))
+    return alvo?.value ?? ''
+  }, hora)
+  expect(valor, `horário ${hora}`).toBeTruthy()
+  await page.locator('#hora-aula').selectOption(valor)
+}
+
 test('a reposição só entra se o aluno ainda tem vaga', async ({ page }) => {
   await entrar(page)
   const alunos = await json<Aluno[]>(await page.request.get('/api/alunos?busca=Ana%20Lima'))
@@ -26,12 +104,16 @@ test('a reposição só entra se o aluno ainda tem vaga', async ({ page }) => {
   const marina = responsaveis.find((pessoa) => pessoa.nome === 'Marina Costa')
   expect(marina).toBeTruthy()
   const antes = ana!.reposicoesDisponiveis
+  const gruposDoPeriodo = await json<GrupoComVaga[]>(await page.request.get(`/api/grupos?de=${DIA}&ate=${DIA_REPOSICAO}`))
+  const inicioOrigem = inicioLivre(gruposDoPeriodo, DIA, ana!.id, marina!.id)
+  const inicioReposicao = inicioLivre(gruposDoPeriodo, DIA_REPOSICAO, ana!.id, marina!.id)
+  expect(inicioOrigem && inicioReposicao).toBeTruthy()
 
   const criada = await page.request.post('/api/aulas', {
     data: {
       alunoId: ana!.id,
       responsavelId: marina!.id,
-      inicio: `${DIA}T16:00:00-03:00`,
+      inicio: inicioOrigem,
       experimental: false,
     },
   })
@@ -59,7 +141,7 @@ test('a reposição só entra se o aluno ainda tem vaga', async ({ page }) => {
     await expect(page.locator('#justificativa-reposicao')).toHaveValue('Aluno avisou com antecedência')
     await page.locator('#resp-reposicao').selectOption({ label: 'Marina Costa' })
     await page.locator('#data-reposicao').fill(DIA_REPOSICAO)
-    await page.locator('#hora-reposicao').fill('16:00')
+    await page.locator('#hora-reposicao').fill(horaDe(inicioReposicao!))
     await page.getByRole('button', { name: 'Salvar' }).click()
     await expect(page.getByText('Falta registrada e reposição criada.')).toBeVisible()
 
@@ -134,8 +216,8 @@ test('o novo agendamento usa a reposição disponível do aluno', async ({ page 
     await page.getByRole('checkbox', { name: 'Usar reposição' }).check()
     await page.locator('#resp-aula').selectOption({ label: 'Marina Costa' })
     await page.locator('#data-aula').fill('2026-12-22')
-    await expect(page.locator('#hora-aula option[value="15:00"]')).toBeAttached()
-    await page.locator('#hora-aula').selectOption('15:00')
+    const hora = await garantirGrupoComVaga(page, marina!.id, '2026-12-22', aluno.id)
+    await escolherHorario(page, hora)
     await page.getByRole('button', { name: 'Agendar aula' }).click()
     await expect(page.getByText('Reposição agendada.')).toBeVisible()
 
