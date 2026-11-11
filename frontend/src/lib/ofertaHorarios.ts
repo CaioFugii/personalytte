@@ -2,7 +2,7 @@ import type { Aula, Evento } from '../api/types'
 import { formatarDiaLongo, instanteBrasilia, partesSP } from './calendario'
 import { categoriasPresentes } from './rotulos'
 
-/** Inícios oferecidos: 07:00 às 22:00, sem a janela das 12:00 às 14:00. */
+/** Inícios oferecidos: 07:00 às 21:00, sem a janela das 12:00 às 14:00. */
 export const HORARIOS_OFERTA = [
   '07:00',
   '08:00',
@@ -17,7 +17,6 @@ export const HORARIOS_OFERTA = [
   '19:00',
   '20:00',
   '21:00',
-  '22:00',
 ] as const
 
 const DURACAO_MS = 60 * 60 * 1000

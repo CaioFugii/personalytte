@@ -19,7 +19,6 @@ const HORAS = [
   '19:00',
   '20:00',
   '21:00',
-  '22:00',
 ]
 
 function hojeSP(): string {
@@ -97,9 +96,10 @@ test('a agenda da semana mostra horário vago, sem 12h e 13h, com domingo', asyn
   await expect(page.getByText('Horário vago').first()).toBeVisible()
   await expect(page.getByText('7h', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('14h', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText('22h', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('21h', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('12h', { exact: true })).toHaveCount(0)
   await expect(page.getByText('13h', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('22h', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /^Dom/ })).toBeVisible()
 })
 
@@ -168,7 +168,8 @@ test('a semana de vagas oferece horário vago e categoria com vagas', async ({ p
     await expect(page.getByRole('rowheader', { name: '12:00' })).toHaveCount(0)
     await expect(page.getByRole('rowheader', { name: '13:00' })).toHaveCount(0)
     await expect(page.getByRole('rowheader', { name: '07:00' })).toBeVisible()
-    await expect(page.getByRole('rowheader', { name: '22:00' })).toBeVisible()
+    await expect(page.getByRole('rowheader', { name: '21:00' })).toBeVisible()
+    await expect(page.getByRole('rowheader', { name: '22:00' })).toHaveCount(0)
     await expect(page.getByRole('columnheader', { name: /^Sáb/ })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: /^Dom/ })).toHaveCount(0)
 

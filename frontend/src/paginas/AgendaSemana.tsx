@@ -135,12 +135,12 @@ function naJanelaAlmoco(hora: string): boolean {
   return minutos >= 12 * 60 && minutos < 14 * 60
 }
 
-/** Das 7h às 22h, sem 12h e 13h. Horário fora dessa grade entra se já tiver aula. */
+/** Das 7h às 21h, sem 12h e 13h. Horário fora dessa grade entra se já tiver aula. */
 function gradeDoDia(aulas: Aula[]): GrupoHorario[] {
   const porHorario = new Map<string, Aula[]>()
   for (const aula of aulas) {
     const horario = formatarHora(aula.inicio).slice(0, 5)
-    if (naJanelaAlmoco(horario)) continue
+    if (naJanelaAlmoco(horario) || minutosDoHorario(horario) >= 22 * 60) continue
     const lista = porHorario.get(horario) ?? []
     lista.push(aula)
     porHorario.set(horario, lista)

@@ -139,7 +139,7 @@ export function AgendaVagas() {
             </ul>
           </div>
           <table className="w-full min-w-[72rem] border-separate border-spacing-1 text-left">
-            <caption className="sr-only">Horários com vaga, {intervalo}. Das 7h às 22h, sem 12h e 13h.</caption>
+            <caption className="sr-only">Horários com vaga, {intervalo}. Das 7h às 21h, sem 12h e 13h.</caption>
             <thead>
               <tr>
                 <th scope="col">
