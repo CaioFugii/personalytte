@@ -5,11 +5,31 @@ import type { Aluno, DiaSemana, GrupoFixo, Responsavel } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar, useNotificar } from '../componentes/toast'
-import { Botao, Cabecalho, classeBusca, classeCampo, classeTabela, classeThead, cx, PainelEstado, SeloCategoria, useTitulo } from '../componentes/ui'
+import { Botao, Cabecalho, classeBusca, classeCampo, cx, PainelEstado, SeloCategoria, useTitulo } from '../componentes/ui'
 import { useBusca } from '../lib/busca'
+import { HORARIOS_OFERTA } from '../lib/ofertaHorarios'
 import { DIAS } from '../lib/rotulos'
 
 const DIAS_LISTA = DIAS.filter((dia) => dia.value !== 'dom')
+const CURTO_DIA: Record<DiaSemana, string> = {
+  seg: 'Seg',
+  ter: 'Ter',
+  qua: 'Qua',
+  qui: 'Qui',
+  sex: 'Sex',
+  sab: 'Sáb',
+  dom: 'Dom',
+}
+
+function horaDoGrupo(grupo: GrupoFixo): string {
+  return grupo.horarioInicio.slice(0, 5)
+}
+
+function horasDaGrade(grupos: GrupoFixo[], buscaAtiva: boolean): string[] {
+  const extras = grupos.map(horaDoGrupo)
+  if (buscaAtiva) return [...new Set(extras)].sort()
+  return [...new Set<string>([...HORARIOS_OFERTA, ...extras])].sort()
+}
 
 function chave(grupo: GrupoFixo): string {
   return `${grupo.dia}|${grupo.horarioInicio}|${grupo.responsavel.id}`
@@ -36,7 +56,7 @@ export function Grupos() {
   const visiveis = lista?.filter((grupo) => corresponde(grupo, busca)) ?? []
   const [pendente, setPendente] = useState<string | null>(null)
   const [aberto, setAberto] = useState<GrupoFixo | null>(null)
-  const [novoDia, setNovoDia] = useState<DiaSemana | null>(null)
+  const [novo, setNovo] = useState<{ dia: DiaSemana; horario: string } | null>(null)
   const [confirmando, setConfirmando] = useState(false)
   const listaVista = useRef(lista)
   const { pedir, dialogo } = useConfirmacao()
@@ -130,7 +150,7 @@ export function Grupos() {
         body: JSON.stringify({ dia, ...dados }),
       })
       notificar('ok', 'Grupo criado.')
-      setNovoDia(null)
+      setNovo(null)
       consulta.recarregar()
     } catch (erro) {
       notificar('erro', mensagemDeErro(erro))
@@ -194,14 +214,15 @@ export function Grupos() {
   return (
     <div>
       {dialogo}
-      {novoDia ? (
+      {novo ? (
         <NovoGrupo
-          dia={novoDia}
+          dia={novo.dia}
+          horarioInicial={novo.horario}
           alunos={alunos.filter((aluno) => aluno.ativo)}
           professores={professores}
           pendente={pendente !== null}
-          onFechar={() => setNovoDia(null)}
-          onCriar={(dados) => void criar(novoDia, dados)}
+          onFechar={() => setNovo(null)}
+          onCriar={(dados) => void criar(novo.dia, dados)}
         />
       ) : null}
       {aberto ? (
@@ -221,7 +242,7 @@ export function Grupos() {
       <Cabecalho
         sobretitulo="Gestão"
         titulo="Grupos"
-        descricao="De segunda a sábado. Novo grupo cria um horário fixo no dia. Editar abre o professor, o limite e os alunos. As próximas aulas em Aguardando acompanham essa lista."
+        descricao="De segunda a sábado, com o horário à esquerda e o dia em cima. Novo grupo cria um horário fixo. Editar abre o professor, o limite e os alunos. As próximas aulas em Aguardando acompanham essa lista."
       />
       <form role="search" className="mb-4" onSubmit={(event) => event.preventDefault()}>
         <label htmlFor="busca-grupos" className="sr-only">
@@ -251,82 +272,112 @@ export function Grupos() {
         </PainelEstado>
       ) : null}
       {lista ? (
-        <div className={classeTabela}>
-          <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
-            <thead className={classeThead}>
-              <tr>
-                {DIAS_LISTA.map((dia) => (
-                  <th key={dia.value} className="w-1/6 px-3 py-3" scope="col">
-                    {dia.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
+        <GradeGrupos
+          grupos={visiveis}
+          busca={busca}
+          onEditar={setAberto}
+          onNovo={(dia, horario) => setNovo({ dia, horario })}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function GradeGrupos({
+  grupos,
+  busca,
+  onEditar,
+  onNovo,
+}: {
+  grupos: GrupoFixo[]
+  busca: string
+  onEditar: (grupo: GrupoFixo) => void
+  onNovo: (dia: DiaSemana, horario: string) => void
+}) {
+  const horas = horasDaGrade(grupos, Boolean(busca.trim()))
+  return (
+    <div className="overflow-x-auto rounded-3xl bg-paper p-4 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
+      {horas.length === 0 ? <p className="text-muted">Nenhum grupo encontrado.</p> : null}
+      {horas.length > 0 ? (
+        <table className="w-full min-w-[72rem] table-fixed border-separate border-spacing-1 text-left">
+          <caption className="sr-only">Grupos de segunda a sábado, com o horário à esquerda.</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="w-16">
+                <span className="sr-only">Horário</span>
+              </th>
+              {DIAS_LISTA.map((dia) => (
+                <th key={dia.value} scope="col" className="rounded-xl px-2 py-2 text-center text-ink">
+                  <span className="block text-xs font-semibold tracking-wide uppercase">{CURTO_DIA[dia.value]}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {horas.map((hora) => (
+              <tr key={hora}>
+                <th scope="row" className="pr-2 text-right text-sm font-bold tabular-nums text-tide-dark">
+                  {hora}
+                </th>
                 {DIAS_LISTA.map((dia) => {
-                  const doDia = visiveis
-                    .filter((grupo) => grupo.dia === dia.value)
-                    .sort((a, b) => a.horarioInicio.localeCompare(b.horarioInicio) || a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR'))
+                  const doHorario = grupos
+                    .filter((grupo) => grupo.dia === dia.value && horaDoGrupo(grupo) === hora)
+                    .sort((a, b) => a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR'))
                   return (
-                    <td key={dia.value} className="w-1/6 border-t border-line px-2 py-3 align-top">
-                      <div className="grid gap-2">
-                        {doDia.length === 0 ? (
-                          <p className="rounded-2xl border border-dashed border-line px-2 py-4 text-center text-xs text-muted">
-                            {busca ? 'Nenhum grupo encontrado.' : 'Nenhum grupo'}
-                          </p>
-                        ) : (
-                          <ul className="grid gap-2">
-                            {doDia.map((grupo) => {
-                              const cheio = grupo.alunos.length >= grupo.capacidade
-                              return (
-                                <li
-                                  key={chave(grupo)}
-                                  className={cx('rounded-2xl px-2.5 py-2.5', cheio ? 'bg-blush' : 'border border-line bg-sand')}
+                    <td key={dia.value} className="rounded-xl align-top">
+                      <div className="grid gap-1.5">
+                        {doHorario.map((grupo) => {
+                          const cheio = grupo.alunos.length >= grupo.capacidade
+                          return (
+                            <section
+                              key={chave(grupo)}
+                              className={cx('rounded-xl px-2 py-1.5 text-xs', cheio ? 'bg-blush' : 'border border-line bg-sand')}
+                            >
+                              <div className="flex items-start justify-between gap-1">
+                                <p className="font-semibold text-ink">{grupo.responsavel.nome}</p>
+                                <button
+                                  type="button"
+                                  className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-[10px] font-semibold text-tide-dark hover:bg-sand"
+                                  onClick={() => onEditar(grupo)}
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-bold text-tide-dark tabular-nums">{grupo.horarioInicio}</p>
-                                    <button
-                                      type="button"
-                                      className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-xs font-semibold text-tide-dark hover:bg-sand"
-                                      onClick={() => setAberto(grupo)}
-                                    >
-                                      Editar
-                                    </button>
-                                  </div>
-                                  <p className="mt-1 text-xs font-semibold text-ink">{grupo.responsavel.nome}</p>
-                                  <p className={cx('mt-1 text-xs tabular-nums', cheio ? 'font-semibold text-clay' : 'text-muted')}>
-                                    {grupo.alunos.length} de {grupo.capacidade}
-                                    {cheio ? ' · Cheio' : ''}
-                                  </p>
-                                  <ul className="mt-2 grid gap-1.5">
-                                    {grupo.alunos.map((aluno) => (
-                                      <li key={aluno.id} className="inline-flex min-w-0 flex-wrap items-center gap-1">
-                                        <span className="truncate">{aluno.nome}</span>
-                                        <SeloCategoria categoria={aluno.categoria} />
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </li>
-                              )
-                            })}
-                          </ul>
+                                  Editar
+                                </button>
+                              </div>
+                              <p className={cx('mt-0.5 tabular-nums', cheio ? 'font-semibold text-clay' : 'text-muted')}>
+                                {grupo.alunos.length} de {grupo.capacidade}
+                                {cheio ? ' · Cheio' : ''}
+                              </p>
+                              <ul className="mt-1 grid gap-1">
+                                {grupo.alunos.map((aluno) => (
+                                  <li key={aluno.id} className="inline-flex min-w-0 flex-wrap items-center gap-1">
+                                    <span className="truncate">{aluno.nome}</span>
+                                    <SeloCategoria categoria={aluno.categoria} />
+                                  </li>
+                                ))}
+                              </ul>
+                            </section>
+                          )
+                        })}
+                        {busca.trim() ? null : (
+                          <button
+                            type="button"
+                            className={cx(
+                              'rounded-xl px-2 py-1.5 text-left text-xs font-semibold text-muted hover:text-tide-dark',
+                              doHorario.length === 0 ? 'bg-sand' : 'border border-dashed border-line',
+                            )}
+                            onClick={() => onNovo(dia.value, hora)}
+                          >
+                            Novo grupo
+                          </button>
                         )}
-                        <button
-                          type="button"
-                          className="rounded-2xl border border-dashed border-line px-2 py-2 text-xs font-semibold text-tide-dark hover:bg-sand"
-                          onClick={() => setNovoDia(dia.value)}
-                        >
-                          Novo grupo
-                        </button>
                       </div>
                     </td>
                   )
                 })}
               </tr>
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       ) : null}
     </div>
   )
@@ -334,6 +385,7 @@ export function Grupos() {
 
 function NovoGrupo({
   dia,
+  horarioInicial,
   alunos,
   professores,
   pendente,
@@ -341,6 +393,7 @@ function NovoGrupo({
   onCriar,
 }: {
   dia: DiaSemana
+  horarioInicial: string
   alunos: Aluno[]
   professores: Responsavel[]
   pendente: boolean
@@ -350,7 +403,7 @@ function NovoGrupo({
   const tituloId = useId()
   const fecharRef = useRef<HTMLButtonElement>(null)
   const rotulo = rotuloDia(dia)
-  const [horarioInicio, setHorarioInicio] = useState('')
+  const [horarioInicio, setHorarioInicio] = useState(horarioInicial)
   const [responsavelId, setResponsavelId] = useState('')
   const [capacidade, setCapacidade] = useState<4 | 6>(4)
   const [escolhidos, setEscolhidos] = useState<Aluno[]>([])
