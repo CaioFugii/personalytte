@@ -52,7 +52,7 @@ Lista e escrita: só administrador.
 
 `GET /api/integrantes?busca=` lista só ativos. Busca em nome, e-mail e telefone.
 
-`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve os seletores de responsável. Professor e administrador. No novo agendamento e no cadastro do aluno, o painel mostra só `funcao` `PROFESSOR` e chama o campo de Professor.
+`GET /api/integrantes/responsaveis` autenticado. Lista ativos com `id`, `nome`, `funcao`. Serve os seletores de responsável. Professor e administrador. No novo agendamento, o painel mostra só `funcao` `PROFESSOR` e chama o campo de Professor. A ficha do aluno não envia `horarios`.
 
 `POST /api/integrantes` cria a conta. Campos: `nome`, `email`, `senha` (mínimo 8), `funcao`, `telefone` opcional, `dataNascimento` opcional (`YYYY-MM-DD`).
 
@@ -103,6 +103,54 @@ Leitura: professor e administrador. Escrita: administrador.
 
 Aluno na resposta inclui `id`, os campos acima, `ativo`, `cadastradoEm` e `reposicoesDisponiveis`. `genero` pode vir `null` num cadastro antigo, até a edição gravar `FEMININO` ou `MASCULINO`. Aluno temporário fica com `genero` `null`. `reposicoesDisponiveis` conta aulas com `justificativaReposicao` gravada que ainda não têm aula de reposição em aberto. Marcar falta, sozinha, não entra nessa conta.
 
+## Grupos
+
+Leitura e escrita de grupo: professor e administrador. O grupo é a sessão. A aula é a participação de um aluno.
+
+`GET /api/grupos` devolve todas as sessões, da mais antiga à mais recente. `GET /api/grupos?de=YYYY-MM-DD&ate=YYYY-MM-DD` limita às sessões cujo início cai nesse intervalo, em Brasília. Cada uma traz professor, início, fim, capacidade e as aulas aninhadas. A agenda da semana, do dia e de vagas lê o intervalo.
+
+`GET /api/grupos/semana` devolve os grupos fixos, de segunda a sábado, sem data. Cada item junta os alunos ativos cujo plano semanal tem aquele dia, horário e professor. Domingo não entra. A capacidade é a da próxima sessão daquele horário, ou 4 se ela ainda não existe.
+
+`POST /api/grupos/semana` cria um grupo fixo. O corpo traz `dia`, `horarioInicio`, `responsavelId` e `alunoIds`, com de 1 aluno até o limite. `capacidade` é opcional e só aceita 4 ou 6; sem ela, o limite é 4. O horário entra no plano de cada aluno e as próximas aulas Aguardando são geradas. Horário que já tem esse professor responde `DADOS_INVALIDOS`. Domingo, horário inválido, aluno repetido ou acima do limite também. Professor ocupado ou aluno em outro horário que cruze responde `HORARIO_OCUPADO`. A resposta é a lista atualizada de `GET /api/grupos/semana`.
+
+`POST /api/grupos/semana/alunos` inclui o aluno no grupo fixo. O corpo traz `dia`, `horarioInicio`, `responsavelId` e `alunoId`. O horário entra no plano semanal e as próximas aulas Aguardando são geradas. Aluno que já está no grupo não muda. Grupo cheio responde `HORARIO_OCUPADO`. Domingo responde `DADOS_INVALIDOS`.
+
+`DELETE /api/grupos/semana/alunos` tira o aluno desse horário do plano. As próximas aulas Aguardando ligadas ao plano saem. Aula já confirmada permanece. Os dois métodos respondem a lista atualizada de `GET /api/grupos/semana`.
+
+`PATCH /api/grupos/semana` altera o grupo fixo. O corpo traz `dia`, `horarioInicio` e `responsavelId`. `novoResponsavelId` troca o professor. `capacidade` troca o limite, e só aceita 4 ou 6. Pelo menos um dos dois vem no corpo. No painel, o botão Editar de cada horário oferece Professor e Sócio, o limite e a entrada e a saída de alunos. O mesmo professor não muda nada. O professor novo entra no plano de todos os alunos daquele horário. As próximas aulas Aguardando ligadas ao plano são recriadas com ele. Aula já confirmada permanece com o professor anterior. Se o professor novo ainda não tem esse horário, a capacidade da próxima sessão acompanha o grupo. Se ele já tem, os alunos entram nessa capacidade. O limite novo vale para as sessões desse horário que ainda não começaram, e a ocorrência nova desse professor, dia e horário usa essa capacidade. Reduzir abaixo dos alunos do horário, ou de uma sessão que já ocupe mais vagas, responde `HORARIO_OCUPADO`. Professor ocupado nesse horário também. Grupo sem aluno responde `DADOS_INVALIDOS`. A resposta é a lista atualizada de `GET /api/grupos/semana`.
+
+`GET /api/grupos/:id`
+
+`POST /api/grupos` cria a sessão e as participações, de 1 aluno até a capacidade. Se já existir grupo daquele professor naquele início, as aulas entram nele. `fim` e `capacidade` são opcionais. Sem eles, a sessão nova dura 1 hora e nasce com capacidade 4. Num grupo que já existe, `fim` e `capacidade` só mudam quando o corpo os envia. Capacidade diferente de 4 ou 6 responde `DADOS_INVALIDOS`. Duração menor que 1 hora, ou início e fim em dias diferentes, também. Mais alunos do que a capacidade, ou aluno repetido, responde `DADOS_INVALIDOS`. Responde `201` com o grupo e as aulas. Se um aluno for recusado, nenhuma aula nova é gravada.
+
+```json
+{
+  "alunoIds": ["uuid", "uuid"],
+  "responsavelId": "uuid",
+  "inicio": "2026-10-20T19:00:00-03:00",
+  "fim": "2026-10-20T20:30:00-03:00",
+  "capacidade": 6,
+  "experimental": false
+}
+```
+
+O painel não edita a sessão datada. Professor, limite e alunos do horário fixo ficam em Grupos.
+
+`PATCH /api/grupos/:id` troca `responsavelId`, `inicio`, `fim` ou `capacidade`. Se só o início muda, o fim acompanha e a duração permanece. Se o fim vem no corpo, ele vale. O mesmo instante de início não altera a sessão. Mudar professor, início ou fim solta do plano todas as aulas do grupo. Mudar a capacidade não solta. Reduzir a capacidade abaixo das vagas ocupadas responde `HORARIO_OCUPADO`. Capacidade diferente de 4 ou 6 responde `DADOS_INVALIDOS` com a mensagem de que a capacidade do grupo é 4 ou 6. Duração menor que 1 hora responde `DADOS_INVALIDOS` com a mensagem de que o grupo dura no mínimo 1 hora. Começo e fim em dias diferentes responde `DADOS_INVALIDOS`. Mudar início ou fim depois que a sessão começou responde `AULA_JA_INICIOU`. Trocar o professor continua permitido depois do início.
+
+Grupo na resposta:
+
+```json
+{
+  "id": "uuid",
+  "responsavel": { "id": "uuid", "nome": "string" },
+  "inicio": "2026-10-20T19:00:00-03:00",
+  "fim": "2026-10-20T20:00:00-03:00",
+  "capacidade": 4,
+  "aulas": []
+}
+```
+
 ## Aulas
 
 Leitura e escrita de aula: professor e administrador.
@@ -111,7 +159,7 @@ Leitura e escrita de aula: professor e administrador.
 
 `GET /api/aulas/:id`
 
-`POST /api/aulas` cria avulsa, status Aguardando, fora do plano:
+`POST /api/aulas` cria avulsa, status Aguardando, fora do plano. O corpo traz `grupoId` ou, para achar ou criar o grupo, `responsavelId` e `inicio`. `fim` e `capacidade` são opcionais e seguem a mesma regra do `POST /api/grupos`.
 
 ```json
 {
@@ -124,7 +172,7 @@ Leitura e escrita de aula: professor e administrador.
 
 Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje é aceito. Com `experimental: true` e sem `alunoId`, o corpo pode trazer `alunoTemporario: { "nome": "string", "telefone": "string ou null" }`. Isso grava um aluno temporário, fora de `GET /api/alunos` e da contagem do dashboard. Sem experimental, `alunoId` de um aluno efetivo é obrigatório.
 
-`POST /api/aulas/reposicao` agenda a reposição de um aluno que já tem vaga. O corpo traz `alunoId`, `responsavelId` e `inicio`. A aula nasce Aguardando, fora do plano, e aponta para a origem disponível mais antiga. A vaga é consumida. Sem vaga, responde `DADOS_INVALIDOS` com a mensagem de que o aluno não tem reposição disponível. A data segue a regra de hoje em diante, e o horário segue o mesmo conflito da aula avulsa. Responde `201` com a aula criada.
+`POST /api/aulas/reposicao` agenda a reposição de um aluno que já tem vaga. O corpo traz `alunoId` e, como na aula avulsa, `grupoId` ou `responsavelId` com `inicio`. A aula nasce Aguardando, fora do plano, e aponta para a origem disponível mais antiga. A vaga é consumida. Sem vaga, responde `DADOS_INVALIDOS` com a mensagem de que o aluno não tem reposição disponível. A data segue a regra de hoje em diante, e o horário segue o mesmo conflito da aula avulsa. Responde `201` com a aula criada.
 
 ```json
 {
@@ -134,18 +182,7 @@ Data de `inicio` anterior a hoje, em Brasília, responde `DADOS_INVALIDOS`. Hoje
 }
 ```
 
-`POST /api/aulas/grupo` cria a mesma aula avulsa para 1 a 4 alunos cadastrados, com o mesmo responsável e o mesmo início. O início às 7h, em Brasília, aceita de 1 a 6. Responde `201` com a lista de aulas criadas. Se um aluno for recusado, nenhuma aula é gravada. Aluno repetido ou mais alunos do que o horário permite responde `DADOS_INVALIDOS`.
-
-```json
-{
-  "alunoIds": ["uuid", "uuid"],
-  "responsavelId": "uuid",
-  "inicio": "2026-10-20T19:00:00-03:00",
-  "experimental": false
-}
-```
-
-`PATCH /api/aulas/:id` aceita `alunoId`, `responsavelId`, `inicio`, `status`, `experimental` e, no aluno temporário, `telefone`. Mudar aluno, responsável ou início solta a ocorrência do plano. Mudar status mantém o vínculo. Se a aula já começou, mudar `inicio` responde `AULA_JA_INICIOU`. `status: "CANCELADA"` numa aula que não está cancelada responde `DADOS_INVALIDOS`: o cancelamento passa por `POST /api/aulas/:id/cancelar`. Tirar a aula de Cancelada apaga a justificativa.
+`PATCH /api/aulas/:id` aceita `alunoId`, `status`, `experimental` e, no aluno temporário, `telefone`. Professor, início, fim e capacidade ficam em `PATCH /api/grupos/:id`. Mudar o aluno solta a ocorrência do plano. Mudar status mantém o vínculo. `status: "CANCELADA"` numa aula que não está cancelada responde `DADOS_INVALIDOS`: o cancelamento passa por `POST /api/aulas/:id/cancelar`. Tirar a aula de Cancelada apaga a justificativa.
 
 Ao enviar `status: "FALTA"`, o corpo pode incluir `concederReposicao` e `reposicao`. Sem `concederReposicao`, a falta é gravada e nenhuma vaga nasce. `concederReposicao: { "justificativa": "string" }` grava a justificativa e concede uma vaga. `concederReposicao: null` apaga a vaga, desde que não exista reposição em aberto. `reposicao` só vale com essa justificativa já gravada ou enviada no mesmo corpo; sem ela, responde `DADOS_INVALIDOS` pedindo a justificativa. Com `reposicao`, nasce outra aula Aguardando, fora do plano, apontando para a origem, e a vaga é consumida. Numa aula Cancelada com `cancelamento.geraReposicao: true`, o PATCH aceita `reposicao` sem `status`, porque o cancelamento já gravou a justificativa. Fora desses dois casos, `reposicao` responde `DADOS_INVALIDOS`. A mesma aula recusa outra `reposicao` enquanto existir reposição não cancelada apontando para ela, com a mensagem de que a reposição já está agendada. Cancelar essa reposição devolve a vaga. Sair do status Falta apaga a justificativa da reposição. A data da reposição segue a regra de hoje em diante.
 
@@ -169,13 +206,20 @@ Ao enviar `status: "FALTA"`, o corpo pode incluir `concederReposicao` e `reposic
 
 Criar, editar, obter e cancelar devolvem a aula, inclusive o `id`.
 
-Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O mesmo responsável pode ter até 4 aulas que ocupam vaga no mesmo início, uma por aluno. Ocupam vaga `AGUARDANDO` e `CONFIRMADA`. `FALTA` e `CANCELADA` liberam a vaga do grupo. A quinta responde `HORARIO_OCUPADO`. Às 7h, em Brasília, o limite é 6 e a sétima responde `HORARIO_OCUPADO`. Aula do mesmo responsável com outro início que cruze o horário também responde `HORARIO_OCUPADO`. A falta ou o cancelamento do próprio aluno continua respondendo `HORARIO_OCUPADO` em horário que cruze essa aula. Sair de `FALTA` ou de `CANCELADA` volta a ocupar a vaga e, com o grupo cheio, responde `HORARIO_OCUPADO`.
+Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O conflito usa o intervalo real do grupo. O mesmo professor não pode ter dois grupos que se cruzem enquanto os dois ocupam vaga. Ocupam vaga `AGUARDANDO` e `CONFIRMADA`. `FALTA` e `CANCELADA` liberam a vaga. A aula além da capacidade responde `HORARIO_OCUPADO`. O mesmo aluno em dois grupos que se cruzem responde `HORARIO_OCUPADO` em qualquer status da própria aula. Sair de `FALTA` ou de `CANCELADA` volta a ocupar a vaga e, com o grupo cheio, responde `HORARIO_OCUPADO`.
 
-Aula na resposta:
+Aula na resposta. `responsavel`, `inicio` e `fim` repetem o grupo:
 
 ```json
 {
   "id": "uuid",
+  "grupo": {
+    "id": "uuid",
+    "responsavel": { "id": "uuid", "nome": "string" },
+    "inicio": "2026-10-20T19:00:00-03:00",
+    "fim": "2026-10-20T20:00:00-03:00",
+    "capacidade": 4
+  },
   "aluno": { "id": "uuid", "nome": "string", "categoria": "D", "telefone": "11999990000", "temporario": false },
   "responsavel": { "id": "uuid", "nome": "string" },
   "inicio": "2026-10-20T19:00:00-03:00",

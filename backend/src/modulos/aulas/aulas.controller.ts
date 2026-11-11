@@ -21,12 +21,6 @@ export class AulasController {
     return this.aulas.criar(corpo);
   }
 
-  @Post('grupo')
-  @HttpCode(201)
-  criarGrupo(@Body() corpo: unknown) {
-    return this.aulas.criarGrupo(corpo);
-  }
-
   @Post('reposicao')
   @HttpCode(201)
   usarReposicao(@Body() corpo: unknown) {

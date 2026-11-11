@@ -70,6 +70,7 @@ export type Aluno = {
 
 export type Aula = {
   id: string
+  grupo: GrupoResumo
   aluno: { id: string; nome: string; categoria: Categoria | null; telefone: string | null; temporario: boolean }
   responsavel: { id: string; nome: string }
   inicio: string
@@ -82,6 +83,26 @@ export type Aula = {
   justificativaReposicao: string | null
   ligadaAoPlano: boolean
   cancelamento: { justificativa: string; geraReposicao: boolean } | null
+}
+
+export type GrupoResumo = {
+  id: string
+  responsavel: { id: string; nome: string }
+  inicio: string
+  fim: string
+  capacidade: number
+}
+
+export type Grupo = GrupoResumo & {
+  aulas: Aula[]
+}
+
+export type GrupoFixo = {
+  dia: DiaSemana
+  horarioInicio: string
+  responsavel: { id: string; nome: string }
+  capacidade: number
+  alunos: { id: string; nome: string; categoria: Categoria | null }[]
 }
 
 export type Evento = {

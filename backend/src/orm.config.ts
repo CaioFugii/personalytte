@@ -6,8 +6,9 @@ import { carregarEnv } from './comum/carregar-env';
 import { Aluno } from './entidades/aluno.entity';
 import { Aula } from './entidades/aula.entity';
 import { Aviso } from './entidades/aviso.entity';
-import { Evento } from './entidades/evento.entity';
 import { Checkin } from './entidades/checkin.entity';
+import { Evento } from './entidades/evento.entity';
+import { Grupo } from './entidades/grupo.entity';
 import { Integrante } from './entidades/integrante.entity';
 import { Migration20261019120000_inicial } from './migrations/Migration20261019120000_inicial';
 import { Migration20261020140000_aluno_temporario } from './migrations/Migration20261020140000_aluno_temporario';
@@ -24,6 +25,7 @@ import { Migration20261106140000_aula_justificativa_reposicao } from './migratio
 import { Migration20261110120000_falta_nao_ocupa_professor } from './migrations/Migration20261110120000_falta_nao_ocupa_professor';
 import { Migration20261110130000_aluno_plano_suspenso } from './migrations/Migration20261110130000_aluno_plano_suspenso';
 import { Migration20261110150000_plano_professor_por_horario } from './migrations/Migration20261110150000_plano_professor_por_horario';
+import { Migration20261111120000_grupos } from './migrations/Migration20261111120000_grupos';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -32,7 +34,7 @@ export function criarOrmConfig() {
   const local = /localhost|127\.0\.0\.1/.test(url);
   return defineConfig({
     clientUrl: url,
-    entities: [Integrante, Aluno, Aula, Evento, Aviso, Checkin],
+    entities: [Integrante, Aluno, Grupo, Aula, Evento, Aviso, Checkin],
     extensions: [Migrator],
     allowGlobalContext: true,
     debug: process.env.DEBUG_SQL === '1',
@@ -57,6 +59,7 @@ export function criarOrmConfig() {
         { name: 'Migration20261110120000_falta_nao_ocupa_professor', class: Migration20261110120000_falta_nao_ocupa_professor },
         { name: 'Migration20261110130000_aluno_plano_suspenso', class: Migration20261110130000_aluno_plano_suspenso },
         { name: 'Migration20261110150000_plano_professor_por_horario', class: Migration20261110150000_plano_professor_por_horario },
+        { name: 'Migration20261111120000_grupos', class: Migration20261111120000_grupos },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

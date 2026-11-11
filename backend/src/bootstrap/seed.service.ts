@@ -82,7 +82,10 @@ export class SeedService {
     }, agora);
 
     const leitura = orm.em.fork();
-    const daAna = await leitura.find(Aula, { aluno: ana.id, ligadaAoPlano: true }, { orderBy: { inicio: 'asc' } });
+    const daAna = await leitura.find(Aula, { aluno: ana.id, ligadaAoPlano: true }, {
+      populate: ['grupo'],
+      orderBy: { grupo: { inicio: 'asc' } },
+    });
     if (daAna[0]) {
       await aulas.atualizar(daAna[0].id, { status: 'CONFIRMADA' }, agora);
     }

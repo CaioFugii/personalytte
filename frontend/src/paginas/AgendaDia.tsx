@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aula, Responsavel, StatusAula } from '../api/types'
@@ -213,7 +213,7 @@ export function AgendaDia() {
           </section>
           <section>
             <h2 className="mb-2 text-xl font-bold">Aulas</h2>
-            {agenda.aulas.length === 0 ? (
+            {agenda.grupos.length === 0 ? (
               <p className="text-muted">Nenhuma aula neste dia.</p>
             ) : (
               <div className={classeTabela}>
@@ -241,49 +241,60 @@ export function AgendaDia() {
                     </tr>
                   </thead>
                   <tbody>
-                    {agenda.aulas.map((aula) => (
-                      <tr
-                        key={aula.id}
-                        className={cx(
-                          'border-t border-line',
-                          aula.experimental && aula.status === 'CONFIRMADA' && classeFundoAula(aula),
-                        )}
-                      >
-                        <td className="px-3 py-3 whitespace-nowrap tabular-nums">
-                          <Link to={`/agenda/aulas/${aula.id}`} className="font-semibold text-tide-dark">
-                            {formatarHora(aula.inicio)}–{formatarHora(aula.fim)}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-3">{aula.aluno.nome}</td>
-                        <td className="px-3 py-3">{aula.responsavel.nome}</td>
-                        <td className="px-3 py-3">
-                          <SeloCategoria categoria={aula.aluno.categoria} />
-                        </td>
-                        <td className="px-3 py-3">
-                          <label className="sr-only" htmlFor={`status-${aula.id}`}>
-                            Status de {aula.aluno.nome}
-                          </label>
-                          <select
-                            id={`status-${aula.id}`}
-                            value={aula.status}
-                            disabled={pendente === aula.id}
-                            onChange={(event) => void mudarStatus(aula, event.target.value as StatusAula)}
+                    {agenda.grupos.map((grupo) => (
+                      <Fragment key={grupo.id}>
+                        <tr className="border-t border-line bg-sand">
+                          <th className="px-3 py-2 text-left font-semibold text-tide-dark" colSpan={6} scope="colgroup">
+                            {formatarHora(grupo.inicio)}–{formatarHora(grupo.fim)} · {grupo.responsavel.nome} · {grupo.capacidade} vagas
+                          </th>
+                        </tr>
+                        {[...grupo.aulas]
+                          .sort((a, b) => a.aluno.nome.localeCompare(b.aluno.nome, 'pt-BR'))
+                          .map((aula) => (
+                          <tr
+                            key={aula.id}
                             className={cx(
-                              'cursor-pointer rounded-full border-0 py-1 pr-7 pl-2 text-xs font-semibold disabled:cursor-wait disabled:opacity-70',
-                              classeSeloAula(aula),
+                              'border-t border-line',
+                              aula.experimental && aula.status === 'CONFIRMADA' && classeFundoAula(aula),
                             )}
                           >
-                            {STATUS.map((item) => (
-                              <option key={item.value} value={item.value}>
-                                {item.label}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-3 py-3">
-                          <Marcadores aula={aula} />
-                        </td>
-                      </tr>
+                            <td className="px-3 py-3 whitespace-nowrap tabular-nums">
+                              <Link to={`/agenda/aulas/${aula.id}`} className="font-semibold text-tide-dark">
+                                {formatarHora(aula.inicio)}–{formatarHora(aula.fim)}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-3">{aula.aluno.nome}</td>
+                            <td className="px-3 py-3">{aula.responsavel.nome}</td>
+                            <td className="px-3 py-3">
+                              <SeloCategoria categoria={aula.aluno.categoria} />
+                            </td>
+                            <td className="px-3 py-3">
+                              <label className="sr-only" htmlFor={`status-${aula.id}`}>
+                                Status de {aula.aluno.nome}
+                              </label>
+                              <select
+                                id={`status-${aula.id}`}
+                                value={aula.status}
+                                disabled={pendente === aula.id}
+                                onChange={(event) => void mudarStatus(aula, event.target.value as StatusAula)}
+                                className={cx(
+                                  'cursor-pointer rounded-full border-0 py-1 pr-7 pl-2 text-xs font-semibold disabled:cursor-wait disabled:opacity-70',
+                                  classeSeloAula(aula),
+                                )}
+                              >
+                                {STATUS.map((item) => (
+                                  <option key={item.value} value={item.value}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-3 py-3">
+                              <Marcadores aula={aula} />
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

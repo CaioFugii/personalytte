@@ -45,8 +45,8 @@ export function AgendaVagas() {
   }, [bruta, setParams])
 
   const grade = useMemo(
-    () => dias.map((dia) => HORARIOS_OFERTA.map((hora) => celulaOferta(dia, hora, agenda.aulas, agenda.eventos))),
-    [dias, agenda.aulas, agenda.eventos],
+    () => dias.map((dia) => HORARIOS_OFERTA.map((hora) => celulaOferta(dia, hora, agenda.grupos, agenda.eventos))),
+    [dias, agenda.grupos, agenda.eventos],
   )
 
   function ir(data: string) {
@@ -63,7 +63,7 @@ export function AgendaVagas() {
   }
 
   function abrirTexto() {
-    setTexto(textoOferta(dias, agenda.aulas, agenda.eventos, intervalo))
+    setTexto(textoOferta(dias, agenda.grupos, agenda.eventos, intervalo))
   }
 
   const carregando = agenda.carregando && agenda.aulas.length === 0 && agenda.eventos.length === 0
@@ -135,6 +135,7 @@ export function AgendaVagas() {
               <li>Horário vago</li>
               <li>Categoria e vagas</li>
               <li>Lotado</li>
+              <li>Ocupado</li>
               <li>Agenda fechada</li>
             </ul>
           </div>

@@ -39,8 +39,17 @@ export type AlunoResposta = {
   reposicoesDisponiveis: number;
 };
 
+export type GrupoResumo = {
+  id: string;
+  responsavel: { id: string; nome: string };
+  inicio: string;
+  fim: string;
+  capacidade: number;
+};
+
 export type AulaResposta = {
   id: string;
+  grupo: GrupoResumo;
   aluno: { id: string; nome: string; categoria: CategoriaAluno | null; telefone: string | null; temporario: boolean };
   responsavel: { id: string; nome: string };
   inicio: string;
@@ -53,6 +62,18 @@ export type AulaResposta = {
   justificativaReposicao: string | null;
   ligadaAoPlano: boolean;
   cancelamento: { justificativa: string; geraReposicao: boolean } | null;
+};
+
+export type GrupoResposta = GrupoResumo & {
+  aulas: AulaResposta[];
+};
+
+export type GrupoFixoResposta = {
+  dia: HorarioPlano['dia'];
+  horarioInicio: string;
+  responsavel: { id: string; nome: string };
+  capacidade: number;
+  alunos: { id: string; nome: string; categoria: CategoriaAluno | null }[];
 };
 
 export type EventoResposta = {

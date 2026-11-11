@@ -17,12 +17,12 @@ O PRD vence em regra de produto. O contrato vence no formato HTTP. Se os dois di
 
 ## Como trabalhar
 
-- O compromisso se chama **aula**. Não introduza o tipo Treino nem as categorias Intermediário e Avançado.
+- O compromisso se chama **aula**. O grupo é a sessão que recebe essas aulas. Não introduza o tipo Treino nem as categorias Intermediário e Avançado.
 - Textos de interface e mensagens de erro ficam em português.
 - Datas de negócio usam America/Sao_Paulo.
 - A sessão é o cookie `sessao`. Não guarde token no `localStorage`.
 - Professor não grava aluno, equipe, evento nem aviso. Sócio entra como administrador.
-- Fora desta versão: portal do aluno, financeiro, relatórios, mensagens, configurações, turmas e quadra.
+- Fora desta versão: portal do aluno, financeiro, relatórios, mensagens, configurações e quadra.
 
 ## Verificação
 

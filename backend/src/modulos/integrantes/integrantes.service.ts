@@ -108,9 +108,8 @@ export class IntegrantesService {
         throw new ErroApi(409, 'INTEGRANTE_COM_AGENDA', MENSAGEM_AGENDA);
       }
       const aulaFutura = await em.findOne(Aula, {
-        responsavel: integrante.id,
         status: { $ne: 'CANCELADA' },
-        inicio: { $gt: agora },
+        grupo: { responsavel: integrante.id, inicio: { $gt: agora } },
       });
       if (aulaFutura) throw new ErroApi(409, 'INTEGRANTE_COM_AGENDA', MENSAGEM_AGENDA);
       if (integrante.funcao === 'SOCIO') await this.assertNaoEhUltimo(em, integrante.id, MENSAGEM_ULTIMO);

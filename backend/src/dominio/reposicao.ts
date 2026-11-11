@@ -12,7 +12,7 @@ export async function origemDisponivelMaisAntiga(em: EntityManager, alunoId: str
   const origens = await em.find(Aula, {
     aluno: alunoId,
     justificativaReposicao: { $ne: null },
-  }, { populate: ['aluno', 'responsavel'], orderBy: { inicio: 'asc', id: 'asc' } });
+  }, { populate: ['aluno', 'grupo', 'grupo.responsavel'], orderBy: { grupo: { inicio: 'asc' }, id: 'asc' } });
   const abertas = await reposicoesEmAberto(em, origens.map((origem) => origem.id));
   return origens.find((origem) => !abertas.has(origem.id)) ?? null;
 }

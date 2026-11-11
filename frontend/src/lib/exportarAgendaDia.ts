@@ -17,19 +17,22 @@ export function textoAgendaDia(aulas: Aula[]): string {
   const ordenadas = [...aulas].sort((a, b) => {
     const diferenca = new Date(a.inicio).getTime() - new Date(b.inicio).getTime()
     if (diferenca !== 0) return diferenca
+    const professor = a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR')
+    if (professor !== 0) return professor
     return a.aluno.nome.localeCompare(b.aluno.nome, 'pt-BR')
   })
-  const grupos: { horario: string; linhas: string[] }[] = []
+  const grupos: { id: string; horario: string; linhas: string[] }[] = []
   for (const aula of ordenadas) {
     if (aula.status === 'CANCELADA') continue
     const horario = `${formatarHora(aula.inicio)}-${formatarHora(aula.fim)}`
     const linha = linhaDoAluno(aula)
     const ultimo = grupos.at(-1)
-    if (ultimo?.horario === horario) {
+    const id = aula.grupo?.id ?? horario
+    if (ultimo?.id === id) {
       ultimo.linhas.push(linha)
-      continue
+    } else {
+      grupos.push({ id, horario, linhas: [linha] })
     }
-    grupos.push({ horario, linhas: [linha] })
   }
   if (grupos.length === 0) return 'Nenhuma aula neste dia.'
   return grupos.map((grupo) => [grupo.horario, ...grupo.linhas].join('\n')).join('\n\n')

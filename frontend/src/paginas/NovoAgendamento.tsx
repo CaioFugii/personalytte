@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type React
 import { createPortal } from 'react-dom'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Aula, Evento, Responsavel, TipoEvento } from '../api/types'
+import type { Aluno, Evento, Grupo, Responsavel, TipoEvento } from '../api/types'
 import { useGet } from '../api/useGet'
 import {
   Botao,
@@ -19,12 +19,8 @@ import { notificar, useNotificar } from '../componentes/toast'
 import { civilValida, hojeSP, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
 import { categoriasPresentes, rotuloCategoria, TIPOS_EVENTO } from '../lib/rotulos'
 
-const LIMITE_GRUPO = 4
-const LIMITE_PRIMEIRA_AULA = 6
-
-function limiteDoHorario(hora: string): number {
-  return hora === '07:00' || hora === '07:00:00' ? LIMITE_PRIMEIRA_AULA : LIMITE_GRUPO
-}
+const CAPACIDADE_PADRAO = 4
+const CAPACIDADE_MAXIMA = 6
 
 const GRADE_HORARIOS = Array.from({ length: 16 }, (_, indice) => `${String(indice + 7).padStart(2, '0')}:00`)
 
@@ -33,41 +29,47 @@ function minutosDoHorario(hora: string): number {
   return horas * 60 + minutos
 }
 
-function horariosCruzam(um: string, outro: string): boolean {
-  return Math.abs(minutosDoHorario(um) - minutosDoHorario(outro)) < 60
+function horariosCruzam(inicio: string, fim: string, hora: string): boolean {
+  const slot = minutosDoHorario(hora)
+  return minutosDoHorario(inicio) < slot + 60 && minutosDoHorario(fim) > slot
 }
 
 function cabeNoDia(hora: string): boolean {
   return minutosDoHorario(hora) + 60 < 24 * 60
 }
 
-type HorarioLivre = { hora: string; vagas: number; limite: number; categorias: Array<Aula['aluno']['categoria']> }
+type HorarioLivre = { hora: string; vagas: number; limite: number; categorias: Array<Aluno['categoria'] | null> }
 
-function horariosLivres(aulas: Aula[], responsavelId: string, alunoIds: string[], pedidos: number): HorarioLivre[] {
-  const ocupam = aulas.filter((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA')
-  const horas = new Set(GRADE_HORARIOS)
-  for (const aula of ocupam) {
-    if (aula.responsavel.id !== responsavelId) continue
-    const hora = partesSP(aula.inicio).hora
+function horariosLivres(grupos: Grupo[], responsavelId: string, alunoIds: string[], pedidos: number, ampliar: boolean): HorarioLivre[] {
+  const ocupam = (grupo: Grupo) => grupo.aulas.filter((aula) => aula.status !== 'CANCELADA' && aula.status !== 'FALTA')
+  const horas = new Set<string>(GRADE_HORARIOS)
+  for (const grupo of grupos) {
+    if (grupo.responsavel.id !== responsavelId) continue
+    const hora = partesSP(grupo.inicio).hora.slice(0, 5)
     if (cabeNoDia(hora)) horas.add(hora)
   }
   return [...horas]
     .filter(cabeNoDia)
     .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b))
     .flatMap((hora) => {
-      const limite = limiteDoHorario(hora)
-      const doProfessor = ocupam.filter(
-        (aula) => aula.responsavel.id === responsavelId && horariosCruzam(partesSP(aula.inicio).hora, hora),
+      const doProfessor = grupos.filter(
+        (grupo) => grupo.responsavel.id === responsavelId && horariosCruzam(partesSP(grupo.inicio).hora, partesSP(grupo.fim).hora, hora) && ocupam(grupo).length > 0,
       )
-      const mesmoInicio = doProfessor.filter((aula) => partesSP(aula.inicio).hora === hora)
-      if (doProfessor.length !== mesmoInicio.length) return []
-      const alunoOcupado = aulas.some(
-        (aula) => alunoIds.includes(aula.aluno.id) && horariosCruzam(partesSP(aula.inicio).hora, hora),
+      const mesmoInicio = grupos.find(
+        (grupo) => grupo.responsavel.id === responsavelId && partesSP(grupo.inicio).hora.slice(0, 5) === hora,
+      )
+      const cruzaOutro = doProfessor.some((grupo) => grupo.id !== mesmoInicio?.id)
+      if (cruzaOutro) return []
+      const alunoOcupado = grupos.some(
+        (grupo) => horariosCruzam(partesSP(grupo.inicio).hora, partesSP(grupo.fim).hora, hora)
+          && grupo.aulas.some((aula) => alunoIds.includes(aula.aluno.id)),
       )
       if (alunoOcupado) return []
-      const vagas = limite - mesmoInicio.length
+      const ocupando = mesmoInicio ? ocupam(mesmoInicio) : []
+      const limite = ampliar ? CAPACIDADE_MAXIMA : (mesmoInicio?.capacidade ?? CAPACIDADE_PADRAO)
+      const vagas = limite - ocupando.length
       if (vagas < pedidos) return []
-      return [{ hora, vagas, limite, categorias: mesmoInicio.map((aula) => aula.aluno.categoria) }]
+      return [{ hora, vagas, limite, categorias: ocupando.map((aula) => aula.aluno.categoria) }]
     })
 }
 
@@ -294,16 +296,19 @@ function FormAula() {
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
   const [experimental, setExperimental] = useState(false)
+  const [ampliar, setAmpliar] = useState(false)
+  const [fim, setFim] = useState('')
+  const [fimManual, setFimManual] = useState(false)
   const [usarReposicao, setUsarReposicao] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const diaValido = civilValida(data)
-  const aulasDia = useGet<Aula[]>(diaValido ? `/api/aulas?de=${data}&ate=${data}` : null)
-  const aulasDoDia = Array.isArray(aulasDia.dados) ? aulasDia.dados : []
-  const consultaPronta = Boolean(responsavelId) && diaValido && !aulasDia.carregando && !aulasDia.erro && Array.isArray(aulasDia.dados)
+  const gruposDia = useGet<Grupo[]>(diaValido ? `/api/grupos?de=${data}&ate=${data}` : null)
+  const gruposDoDia = Array.isArray(gruposDia.dados) ? gruposDia.dados : []
+  const consultaPronta = Boolean(responsavelId) && diaValido && !gruposDia.carregando && !gruposDia.erro && Array.isArray(gruposDia.dados)
   const livres = useMemo(() => {
     if (!consultaPronta) return []
-    return horariosLivres(aulasDoDia, responsavelId, selecionados.map((aluno) => aluno.id), Math.max(selecionados.length, 1))
-  }, [consultaPronta, aulasDoDia, responsavelId, selecionados])
+    return horariosLivres(gruposDoDia, responsavelId, selecionados.map((aluno) => aluno.id), Math.max(selecionados.length, 1), ampliar)
+  }, [consultaPronta, gruposDoDia, responsavelId, selecionados, ampliar])
   const escolhido = livres.find((item) => item.hora === hora)
 
   useEffect(() => {
@@ -328,13 +333,22 @@ function FormAula() {
       .slice(0, 8)
   }, [alunos, selecionados, texto])
 
+  useEffect(() => {
+    if (!hora || fimManual) return
+    const total = minutosDoHorario(hora) + 60
+    if (total >= 24 * 60) return
+    const horas = String(Math.floor(total / 60)).padStart(2, '0')
+    const mins = String(total % 60).padStart(2, '0')
+    setFim(`${horas}:${mins}`)
+  }, [hora, fimManual])
+
   const alunoReposicao = !experimental && selecionados.length === 1 ? selecionados[0] : null
   const vagasReposicao = alunoReposicao?.reposicoesDisponiveis ?? 0
   const podeUsarReposicao = vagasReposicao > 0
   useEffect(() => {
     if (!podeUsarReposicao) setUsarReposicao(false)
   }, [podeUsarReposicao])
-  const limite = escolhido ? escolhido.vagas : limiteDoHorario(hora)
+  const limite = usarReposicao ? 1 : (escolhido ? escolhido.limite : (ampliar ? CAPACIDADE_MAXIMA : CAPACIDADE_PADRAO))
   const grupoCheio = usarReposicao ? selecionados.length >= 1 : selecionados.length >= limite
   const digitadoCadastrado = alunoPeloNome(alunos, texto, selecionados)
   const cadastroTemporario = experimental && selecionados.length === 0 && !digitadoCadastrado
@@ -373,39 +387,45 @@ function FormAula() {
       return
     }
     if (ids.length > limite) {
-      notificar('erro', limite === LIMITE_PRIMEIRA_AULA ? 'A aula das 7h aceita até 6 alunos.' : 'Nesse horário o grupo aceita até 4 alunos.')
+      notificar('erro', `O grupo aceita até ${limite} alunos.`)
       return
     }
     if (data < hoje) {
       notificar('erro', 'Não é possível agendar uma data anterior a hoje.')
       return
     }
+    if (!usarReposicao && fim) {
+      const duracao = minutosDoHorario(fim) - minutosDoHorario(hora)
+      if (duracao < 60) {
+        notificar('erro', 'O grupo dura no mínimo 1 hora.')
+        return
+      }
+    }
     setEnviando(true)
-    const base = { responsavelId, inicio: instanteBrasilia(data, hora), experimental }
+    const inicio = instanteBrasilia(data, hora)
+    const sessao: Record<string, unknown> = { responsavelId, inicio, experimental }
+    if (!usarReposicao && fimManual && fim) sessao.fim = instanteBrasilia(data, fim)
+    if (!usarReposicao && ampliar) sessao.capacidade = CAPACIDADE_MAXIMA
     try {
       if (usarReposicao) {
         await api('/api/aulas/reposicao', {
           method: 'POST',
-          body: JSON.stringify({ alunoId: ids[0], responsavelId, inicio: base.inicio }),
+          body: JSON.stringify({ alunoId: ids[0], responsavelId, inicio }),
         })
-      } else if (ids.length > 1) {
-        await api('/api/aulas/grupo', { method: 'POST', body: JSON.stringify({ ...base, alunoIds: ids }) })
-      } else {
+      } else if (temporario) {
         await api('/api/aulas', {
           method: 'POST',
-          body: JSON.stringify(
-            temporario
-              ? { ...base, alunoTemporario: { nome, telefone: telefone.trim() ? telefone.trim() : null } }
-              : { ...base, alunoId: ids[0] },
-          ),
+          body: JSON.stringify({ ...sessao, alunoTemporario: { nome, telefone: telefone.trim() ? telefone.trim() : null } }),
         })
+      } else {
+        await api('/api/grupos', { method: 'POST', body: JSON.stringify({ ...sessao, alunoIds: ids }) })
       }
       navigate(`/agenda?semana=${inicioDaSemana(data)}`, {
         state: {
           sucesso: usarReposicao
             ? 'Reposição agendada.'
             : ids.length > 1
-              ? `Aula em grupo agendada para ${ids.length} alunos.`
+              ? `Grupo agendado para ${ids.length} alunos.`
               : 'Aula agendada.',
         },
       })
@@ -417,8 +437,8 @@ function FormAula() {
 
   function dicaDoHorario(): string {
     if (!responsavelId || !diaValido) return 'Escolha o professor e a data para ver os horários livres.'
-    if (aulasDia.carregando) return 'Carregando horários…'
-    if (aulasDia.erro) return aulasDia.erro
+    if (gruposDia.carregando) return 'Carregando horários…'
+    if (gruposDia.erro) return gruposDia.erro
     if (livres.length === 0) return 'Não há horário livre para este professor nesse dia.'
     return ''
   }
@@ -466,9 +486,7 @@ function FormAula() {
                 ? 'Busque um cadastrado ou digite o nome. Quem não está na lista vira cadastro temporário.'
                 : escolhido && escolhido.vagas < escolhido.limite
                   ? `Esse horário ainda aceita ${escolhido.vagas} ${escolhido.vagas === 1 ? 'aluno' : 'alunos'}.`
-                  : hora === '07:00' || hora === '07:00:00'
-                    ? 'Busque por nome, e-mail ou telefone e selecione. A aula das 7h junta até 6 alunos.'
-                    : 'Busque por nome, e-mail ou telefone e selecione. A aula em grupo junta até 4 alunos no mesmo horário.'
+                  : 'Busque por nome, e-mail ou telefone e selecione. O grupo nasce com 4 vagas e pode ser ampliado para 6.'
         }
       >
         {selecionados.length > 0 ? (
@@ -590,7 +608,7 @@ function FormAula() {
             id="hora-aula"
             required
             value={hora}
-            disabled={!responsavelId || !diaValido || aulasDia.carregando || Boolean(aulasDia.erro) || (consultaPronta && livres.length === 0)}
+            disabled={!responsavelId || !diaValido || gruposDia.carregando || Boolean(gruposDia.erro) || (consultaPronta && livres.length === 0)}
             onChange={(event) => setHora(event.target.value)}
             className={classeCampo}
           >
@@ -602,15 +620,41 @@ function FormAula() {
               </option>
             ))}
           </select>
-          {aulasDia.erro ? (
-            <button type="button" className="mt-2 text-sm font-semibold text-tide" onClick={() => aulasDia.recarregar()}>
+          {gruposDia.erro ? (
+            <button type="button" className="mt-2 text-sm font-semibold text-tide" onClick={() => gruposDia.recarregar()}>
               Tentar de novo
             </button>
           ) : null}
         </Campo>
       </div>
+      {!usarReposicao ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Campo label="Término" htmlFor="fim-aula" dica="O grupo dura no mínimo 1 hora e termina no mesmo dia.">
+            <input
+              id="fim-aula"
+              type="time"
+              required
+              value={fim}
+              onChange={(event) => {
+                setFimManual(true)
+                setFim(event.target.value)
+              }}
+              className={classeCampo}
+            />
+          </Campo>
+          <label className="flex items-end gap-2 pb-2 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={ampliar}
+              onChange={(event) => setAmpliar(event.target.checked)}
+              className="accent-tide"
+            />
+            Ampliar para 6 alunos
+          </label>
+        </div>
+      ) : null}
       <div className="flex gap-2">
-        <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0) || (diaValido && aulasDia.carregando)}>
+        <Botao type="submit" disabled={enviando || (!experimental && alunos.length === 0) || (diaValido && gruposDia.carregando)}>
           {enviando ? 'Salvando…' : 'Agendar aula'}
         </Botao>
         <LinkBotao to="/agenda/novo" variante="secundario">

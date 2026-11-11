@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
-import type { Aluno, Categoria, DiaSemana, Genero, HorarioPlano, Plano, Responsavel } from '../api/types'
+import type { Aluno, Categoria, Genero, Plano } from '../api/types'
 import { useGet } from '../api/useGet'
 import { useConfirmacao } from '../componentes/confirmacao'
-import { notificar, useNotificar } from '../componentes/toast'
+import { notificar } from '../componentes/toast'
 import {
   Botao,
   Cabecalho,
@@ -15,10 +15,8 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { civilValida, digitosTelefone, horaCurta } from '../lib/calendario'
-import { CATEGORIAS, DIAS, GENEROS, PLANOS } from '../lib/rotulos'
-
-type LinhaHorario = { dia: DiaSemana | ''; horarioInicio: string; responsavelId: string }
+import { civilValida, digitosTelefone } from '../lib/calendario'
+import { CATEGORIAS, GENEROS, PLANOS } from '../lib/rotulos'
 
 type FormAluno = {
   nome: string
@@ -29,7 +27,6 @@ type FormAluno = {
   plano: Plano | ''
   categoria: Categoria | ''
   genero: Genero | ''
-  horarios: LinhaHorario[]
 }
 
 const VAZIO: FormAluno = {
@@ -41,7 +38,6 @@ const VAZIO: FormAluno = {
   plano: '',
   categoria: '',
   genero: '',
-  horarios: [],
 }
 
 function doAluno(aluno: Aluno): FormAluno {
@@ -54,17 +50,7 @@ function doAluno(aluno: Aluno): FormAluno {
     plano: aluno.plano,
     categoria: aluno.categoria,
     genero: aluno.genero ?? '',
-    horarios: (aluno.horarios ?? []).map((horario) => ({
-      dia: horario.dia,
-      horarioInicio: horaCurta(horario.horarioInicio),
-      responsavelId: horario.responsavelId,
-    })),
   }
-}
-
-function minutosDe(horario: string): number {
-  const [hora, minuto] = horario.split(':').map(Number)
-  return hora * 60 + minuto
 }
 
 export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
@@ -76,14 +62,12 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
   const aluno = alunoQ.dados
   const inativo = aluno?.ativo === false
   const somenteLeitura = modo === 'editar' && (!admin || inativo)
-  const respQ = useGet<Responsavel[]>(modo === 'novo' && !admin ? null : '/api/integrantes/responsaveis')
   useTitulo(modo === 'novo' ? 'Novo aluno' : aluno?.nome || 'Aluno')
 
   const [chaveVista, setChaveVista] = useState<string | null>(null)
   const [form, setForm] = useState<FormAluno>(VAZIO)
   const [enviando, setEnviando] = useState(false)
   const { pedir, dialogo } = useConfirmacao()
-  useNotificar(respQ.erro ? 'erro' : null, respQ.erro)
 
   const chave = modo === 'novo' ? 'novo' : aluno?.id ?? null
   if (chave && chave !== chaveVista) {
@@ -93,22 +77,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
 
   if (modo === 'novo' && usuario && !admin) {
     return <Navigate to="/alunos" replace state={{ aviso: 'Só o administrador cadastra aluno.' }} />
-  }
-
-  const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
-  const opcoes = responsaveis.filter((pessoa) => pessoa.funcao === 'PROFESSOR')
-  for (const horario of form.horarios) {
-    if (horario.responsavelId && !opcoes.some((item) => item.id === horario.responsavelId)) {
-      opcoes.push({ id: horario.responsavelId, nome: 'Professor atual', funcao: 'PROFESSOR' })
-    }
-  }
-  opcoes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-
-  function atualizarHorario(indice: number, parcial: Partial<LinhaHorario>) {
-    setForm((atual) => ({
-      ...atual,
-      horarios: atual.horarios.map((horario, posicao) => (posicao === indice ? { ...horario, ...parcial } : horario)),
-    }))
   }
 
   async function aoEnviar(event: FormEvent) {
@@ -134,29 +102,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       notificar('erro', 'A data de nascimento não é válida.')
       return
     }
-    const preenchidas = form.horarios.filter((horario) => horario.dia || horario.horarioInicio || horario.responsavelId)
-    if (preenchidas.some((horario) => !horario.dia || !horario.horarioInicio || !horario.responsavelId)) {
-      notificar('erro', 'Preencha o dia, o horário e o professor de cada aula.')
-      return
-    }
-    const horarios = preenchidas as HorarioPlano[]
-    const chaves = horarios.map((horario) => `${horario.dia} ${horario.horarioInicio}`)
-    if (new Set(chaves).size !== chaves.length) {
-      notificar('erro', 'Esse dia e horário já estão no plano.')
-      return
-    }
-    const cruza = horarios.some((horario, indice) =>
-      horarios.some(
-        (outro, outroIndice) =>
-          outroIndice > indice &&
-          outro.dia === horario.dia &&
-          Math.abs(minutosDe(horario.horarioInicio) - minutosDe(outro.horarioInicio)) < 60,
-      ),
-    )
-    if (cruza) {
-      notificar('erro', 'Dois horários do mesmo dia se cruzam.')
-      return
-    }
     const corpo = {
       nome: form.nome.trim(),
       telefone: form.telefone,
@@ -166,7 +111,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
       plano: form.plano,
       categoria: form.categoria,
       genero: form.genero,
-      horarios,
     }
     setEnviando(true)
     try {
@@ -354,81 +298,6 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
               </select>
             </Campo>
           </div>
-          <fieldset className="rounded-lg border border-line p-4" disabled={somenteLeitura}>
-            <legend className="px-1 font-semibold">Plano semanal</legend>
-            <p className="mb-3 text-sm text-muted">
-              Cada linha é um dia, um horário e um professor. O mesmo aluno pode ter professores diferentes, como terça
-              às 19h com um e quinta às 19h com outro. Sem linhas, o aluno fica sem aula.
-            </p>
-            <div className="flex flex-col gap-3">
-              {form.horarios.map((horario, indice) => (
-                <div key={indice} className="grid items-end gap-3 lg:grid-cols-[1fr_1fr_1.4fr_auto]">
-                  <Campo label={indice === 0 ? 'Dia' : `Dia ${indice + 1}`} htmlFor={`dia-${indice}`}>
-                    <select
-                      id={`dia-${indice}`}
-                      value={horario.dia}
-                      onChange={(event) => atualizarHorario(indice, { dia: event.target.value as DiaSemana | '' })}
-                      className={classeCampo}
-                    >
-                      <option value="">Selecione</option>
-                      {DIAS.map((dia) => (
-                        <option key={dia.value} value={dia.value}>
-                          {dia.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Campo>
-                  <Campo label="Horário" htmlFor={`horario-${indice}`}>
-                    <input
-                      id={`horario-${indice}`}
-                      type="time"
-                      value={horario.horarioInicio}
-                      onChange={(event) => atualizarHorario(indice, { horarioInicio: event.target.value })}
-                      className={classeCampo}
-                    />
-                  </Campo>
-                  <Campo label="Professor" htmlFor={`professor-${indice}`}>
-                    <select
-                      id={`professor-${indice}`}
-                      value={horario.responsavelId}
-                      onChange={(event) => atualizarHorario(indice, { responsavelId: event.target.value })}
-                      className={classeCampo}
-                    >
-                      <option value="">Selecione</option>
-                      {opcoes.map((pessoa) => (
-                        <option key={pessoa.id} value={pessoa.id}>
-                          {pessoa.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </Campo>
-                  <Botao
-                    type="button"
-                    variante="secundario"
-                    onClick={() =>
-                      setForm((atual) => ({ ...atual, horarios: atual.horarios.filter((_, posicao) => posicao !== indice) }))
-                    }
-                  >
-                    Remover
-                  </Botao>
-                </div>
-              ))}
-              <div>
-                <Botao
-                  type="button"
-                  variante="secundario"
-                  onClick={() =>
-                    setForm((atual) => ({
-                      ...atual,
-                      horarios: [...atual.horarios, { dia: '', horarioInicio: '', responsavelId: '' }],
-                    }))
-                  }
-                >
-                  Adicionar horário
-                </Botao>
-              </div>
-            </div>
-          </fieldset>
           {inativo && admin ? (
             <div className="flex flex-wrap gap-2">
               <Botao type="button" onClick={() => void reativar()}>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
@@ -17,14 +17,11 @@ import {
   SeloStatus,
   useTitulo,
 } from '../componentes/ui'
-import { aulaJaComecou, formatarIntervalo, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
+import { formatarIntervalo, inicioDaSemana, instanteBrasilia, partesSP } from '../lib/calendario'
 import { rotuloCategoria, rotuloStatus, STATUS } from '../lib/rotulos'
 
 type FormAula = {
   alunoId: string
-  responsavelId: string
-  data: string
-  hora: string
   status: StatusAula
   experimental: boolean
   telefone: string
@@ -36,12 +33,8 @@ type FormAula = {
 }
 
 function doAula(aula: Aula): FormAula {
-  const partes = partesSP(aula.inicio)
   return {
     alunoId: aula.aluno.id,
-    responsavelId: aula.responsavel.id,
-    data: partes.data,
-    hora: partes.hora,
     status: aula.status,
     experimental: aula.experimental,
     telefone: aula.aluno.telefone ?? '',
@@ -56,8 +49,10 @@ function doAula(aula: Aula): FormAula {
 function chaveAula(aula: Aula): string {
   return [
     aula.id,
+    aula.grupo.id,
     aula.inicio,
     aula.fim,
+    aula.grupo.capacidade,
     aula.status,
     aula.experimental,
     aula.aluno.telefone ?? '',
@@ -81,7 +76,6 @@ export function AulaDetalhe() {
   const aula = aulaQ.dados
   useTitulo(aula ? aula.aluno.nome : 'Aula')
 
-  const [agora, setAgora] = useState(() => new Date())
   const [chaveVista, setChaveVista] = useState<string | null>(null)
   const [form, setForm] = useState<FormAula | null>(null)
   const [salvando, setSalvando] = useState(false)
@@ -93,11 +87,6 @@ export function AulaDetalhe() {
     setChaveVista(chave)
     setForm(aula ? doAula(aula) : null)
   }
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setAgora(new Date()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   const alunos = Array.isArray(alunosQ.dados) ? alunosQ.dados : []
   const responsaveis = Array.isArray(respQ.dados) ? respQ.dados : []
@@ -113,14 +102,6 @@ export function AulaDetalhe() {
     }
     return base.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   }, [alunos, aula])
-  const opcoesResp = useMemo(() => {
-    if (!aula) return []
-    const base = responsaveis.map((item) => ({ id: item.id, nome: item.nome }))
-    if (!base.some((item) => item.id === aula.responsavel.id)) {
-      base.unshift({ id: aula.responsavel.id, nome: aula.responsavel.nome })
-    }
-    return base.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-  }, [responsaveis, aula])
   const professores = useMemo(
     () =>
       responsaveis
@@ -137,21 +118,15 @@ export function AulaDetalhe() {
     (alunosQ.carregando && !Array.isArray(alunosQ.dados)) ||
     (respQ.carregando && !Array.isArray(respQ.dados))
   const erroCarga = aulaQ.erro || (!aula && (alunosQ.erro || respQ.erro))
-  const comecou = aula ? aulaJaComecou(aula.inicio, agora) : false
   const repoeCancelada = aula?.status === 'CANCELADA' && aula.cancelamento?.geraReposicao === true
   const opcoesStatus = aula?.status === 'CANCELADA' ? STATUS : STATUS.filter((item) => item.value !== 'CANCELADA')
   useNotificar(aula && (alunosQ.erro || respQ.erro) ? 'erro' : null, alunosQ.erro || respQ.erro)
-  useNotificar(comecou ? 'aviso' : null, 'Esta aula já começou. Data e horário não podem ser alterados.')
 
   async function salvar(event: FormEvent) {
     event.preventDefault()
     if (!aula || !form) return
-    if (!form.alunoId || !form.responsavelId) {
-      notificar('erro', 'Informe o aluno e o responsável.')
-      return
-    }
-    if (!comecou && (!civilPreenchida(form.data) || !form.hora)) {
-      notificar('erro', 'Informe a data e o horário.')
+    if (!form.alunoId) {
+      notificar('erro', 'Informe o aluno.')
       return
     }
     const concedeFalta = form.status === 'FALTA' && form.criarReposicao && !aula.reposicaoAgendadaId
@@ -172,18 +147,11 @@ export function AulaDetalhe() {
 
     const corpo: Record<string, unknown> = {}
     if (form.alunoId !== aula.aluno.id) corpo.alunoId = form.alunoId
-    if (form.responsavelId !== aula.responsavel.id) corpo.responsavelId = form.responsavelId
     if (form.status !== aula.status) corpo.status = form.status
     if (form.experimental !== aula.experimental) corpo.experimental = form.experimental
     const temporarioSelecionado = aula.aluno.temporario && form.alunoId === aula.aluno.id
     if (temporarioSelecionado && form.telefone.trim() !== (aula.aluno.telefone ?? '')) {
       corpo.telefone = form.telefone.trim() ? form.telefone.trim() : null
-    }
-    if (!comecou) {
-      const atual = partesSP(aula.inicio)
-      if (form.data !== atual.data || form.hora !== atual.hora) {
-        corpo.inicio = instanteBrasilia(form.data, form.hora)
-      }
     }
     if (form.status === 'FALTA' && !aula.reposicaoAgendadaId) {
       if (form.criarReposicao) {
@@ -213,7 +181,7 @@ export function AulaDetalhe() {
     setSalvando(true)
     try {
       await api(`/api/aulas/${aula.id}`, { method: 'PATCH', body: JSON.stringify(corpo) })
-      const dataAgenda = !comecou && civilPreenchida(form.data) ? form.data : partesSP(aula.inicio).data
+      const dataAgenda = partesSP(aula.inicio).data
       navigate(`/agenda?semana=${inicioDaSemana(dataAgenda)}`, {
         state: {
           sucesso: corpo.reposicao
@@ -272,9 +240,11 @@ export function AulaDetalhe() {
         acoes={
           <>
             {aula ? (
-              <LinkBotao to={`/agenda/dia?date=${partesSP(aula.inicio).data}`} variante="secundario">
-                Agenda do dia
-              </LinkBotao>
+              <>
+                <LinkBotao to={`/agenda/dia?date=${partesSP(aula.inicio).data}`} variante="secundario">
+                  Agenda do dia
+                </LinkBotao>
+              </>
             ) : (
               <LinkBotao to="/agenda" variante="secundario">
                 Agenda
@@ -314,7 +284,7 @@ export function AulaDetalhe() {
               </Link>
             ) : null}
           </div>
-          <p className="text-sm text-muted">Responsável: {aula.responsavel.nome}</p>
+          <p className="text-sm text-muted">Professor: {aula.responsavel.nome}</p>
           {aula.cancelamento ? (
             <div className="rounded-2xl border border-line bg-paper p-4 text-sm">
               <p className="font-semibold">Cancelamento</p>
@@ -354,43 +324,6 @@ export function AulaDetalhe() {
                   />
                 </Campo>
               ) : null}
-              <Campo label="Responsável" htmlFor="responsavel">
-                <select
-                  id="responsavel"
-                  required
-                  value={form.responsavelId}
-                  onChange={(event) => setForm({ ...form, responsavelId: event.target.value })}
-                  className={classeCampo}
-                >
-                  {opcoesResp.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.nome}
-                    </option>
-                  ))}
-                </select>
-              </Campo>
-              <Campo label="Data" htmlFor="data" dica="Horário de Brasília">
-                <input
-                  id="data"
-                  type="date"
-                  required={!comecou}
-                  disabled={comecou}
-                  value={form.data}
-                  onChange={(event) => setForm({ ...form, data: event.target.value })}
-                  className={classeCampo}
-                />
-              </Campo>
-              <Campo label="Horário" htmlFor="hora">
-                <input
-                  id="hora"
-                  type="time"
-                  required={!comecou}
-                  disabled={comecou}
-                  value={form.hora}
-                  onChange={(event) => setForm({ ...form, hora: event.target.value })}
-                  className={classeCampo}
-                />
-              </Campo>
               <Campo label="Status" htmlFor="status">
                 <select
                   id="status"

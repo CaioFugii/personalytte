@@ -4,7 +4,7 @@ Uma escola. O aluno não entra no sistema. O fuso das regras é America/Sao_Paul
 
 ## Pessoas
 
-**Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` e `OUTROS` entram como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal. No cadastro do aluno e no novo agendamento, o campo se chama Professor e a lista traz só a função `PROFESSOR`.
+**Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` e `OUTROS` entram como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal. No novo agendamento, o campo se chama Professor e a lista traz só a função `PROFESSOR`. A ficha do aluno não edita o plano semanal.
 
 O professor vê o dashboard, o acompanhamento do mês, a agenda inteira e os alunos, com telefone. Cria, edita, cancela e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
 
@@ -14,7 +14,7 @@ Não há cadastro público. O administrador define a senha, com no mínimo 8 car
 
 **Aluno** tem nome, telefone, plano (`PARTICULAR`, `GYMPASS`, `TOTALPASS`, `MENSAL`), categoria (`INICIANTE`, `D`, `C`, `B` ou `A`) e gênero (`FEMININO` ou `MASCULINO`). E-mail, Instagram e data de nascimento são opcionais. A data é um dia civil (`YYYY-MM-DD`). O Instagram guarda o usuário do perfil, para marcação nos stories. A categoria fica só no aluno, e a agenda mostra a categoria atual. O plano não gera cobrança.
 
-Cada item do plano semanal tem o próprio dia, horário e professor. Segunda às 19h e quinta às 9h são duas aulas, e cada uma pode ter um professor diferente. A linha sem professor é recusada. A lista vazia significa aluno sem aula gerada. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo permanece na lista de Alunos e sai da busca de um agendamento novo. O detalhe abre; edição e nova aula, não. Reativar devolve o aluno à lista ativa e não recria as aulas que saíram na inativação. O plano semanal continua no cadastro, e o horizonte não gera ocorrência dele enquanto o plano não for alterado. Alterar o plano gera as ocorrências futuras a partir dessa alteração.
+Cada item do plano semanal tem o próprio dia, horário e professor. Segunda às 19h e quinta às 9h são duas aulas, e cada uma pode ter um professor diferente. A linha sem professor é recusada. A lista vazia significa aluno sem aula gerada. A ficha do aluno não mostra nem grava esse plano. Entrar e sair do horário fixo fica na lista de grupos. Apagar inativa: o histórico fica, e as aulas futuras ainda `AGUARDANDO` saem da agenda. Aluno inativo permanece na lista de Alunos e sai da busca de um agendamento novo. O detalhe abre; edição e nova aula, não. Reativar devolve o aluno à lista ativa e não recria as aulas que saíram na inativação. O plano semanal continua no cadastro, e o horizonte não gera ocorrência dele enquanto o plano não for alterado. Alterar o plano gera as ocorrências futuras a partir dessa alteração.
 
 ## Check-in
 
@@ -22,9 +22,11 @@ Gympass e TotalPass avisam a visita por webhook. O painel guarda os dois na mesm
 
 ## Aula
 
-Cada aula tem um aluno, um responsável, início, status e o marcador de experimental. Dura 60 minutos e começa e termina no mesmo dia.
+O grupo é a sessão. Tem um professor, início, fim e capacidade. A aula é a participação de um aluno nessa sessão: status, experimental, reposição, justificativa e o vínculo com o plano semanal.
 
-Aula é dada em grupo de até 4 alunos. O mesmo responsável pode ter até 4 aulas que ocupam vaga no mesmo início, uma por aluno. Ocupam vaga os status `AGUARDANDO` e `CONFIRMADA`. O sistema recusa a quinta, outro início do mesmo responsável que cruze o grupo e qualquer cruzamento do mesmo aluno. A aula das 7h, a primeira do dia, aceita até 6 alunos com o mesmo responsável. A sétima é recusada. No novo agendamento, a lista de horário só oferece inícios em que ainda cabe o grupo, sem cruzar outra aula do professor ou dos alunos escolhidos. Aula `CANCELADA` ou `FALTA` libera a vaga do grupo. A tela Horários com vaga lê a semana escolhida, de segunda a sábado, das 7h às 21h, sem os inícios de 12h e de 13h. Sem aula ocupando vaga, o horário é Horário vago. Com vaga, mostra a categoria presente, a quantidade e o professor. Grupo cheio mostra a categoria da turma e Lotado. Evento que cobre o horário é Agenda fechada. O texto copiado repete o quadro e não inclui nome de aluno. A agenda da semana lista esses inícios de segunda a domingo, e o horário sem aula aparece como Horário vago. A falta ou o cancelamento do próprio aluno continua impedindo outro horário que cruze essa aula. Sair da falta ou do cancelamento volta a ocupar a vaga, e o grupo cheio recusa essa volta.
+O grupo nasce com 1 hora e capacidade 4. A capacidade só pode ser 4 ou 6. Ampliar para 6 é uma escolha da sessão, em qualquer horário. Reduzir para 4 é recusado se já houver mais de 4 vagas ocupadas. O fim pode passar de 1 hora e também voltar até 1 hora. Menos de 1 hora é recusado. Começo e fim ficam no mesmo dia. Mudar início ou fim depois que a sessão começou continua recusado. O professor pode ser trocado a qualquer momento, inclusive depois do início. A troca vale para todos os alunos da sessão e não reescreve o plano semanal de cada um. Trocar professor, início ou fim solta do plano as aulas daquela sessão. Mudar a capacidade não solta.
+
+Ocupam vaga as aulas `AGUARDANDO` e `CONFIRMADA`. `FALTA` e `CANCELADA` liberam a vaga. O mesmo professor não pode ter dois grupos que se cruzem enquanto os dois ocupam vaga. O mesmo aluno não pode estar em dois grupos que se cruzem, em qualquer status da própria aula. No novo agendamento, a lista de horário só oferece inícios em que ainda cabe o grupo, sem cruzar outro grupo do professor ou dos alunos escolhidos. Dá para ampliar a sessão para 6 e estender o fim nessa mesma tela. A tela Horários com vaga lê a semana escolhida, de segunda a sábado, das 7h às 21h, sem os inícios de 12h e de 13h, e usa a capacidade e o intervalo real do grupo. Sem grupo ocupando o horário, ele é Horário vago. Com vaga, mostra a categoria presente, a quantidade e o professor. Grupo cheio mostra a categoria e Lotado. Horário coberto por um grupo que começou antes é Ocupado. Evento que cobre o horário é Agenda fechada. O texto copiado repete o quadro e não inclui nome de aluno. A agenda da semana e a do dia leem os grupos. Na semana, o nome do aluno abre o status na própria grade. Ao marcar Falta, a vaga de reposição nasce com o quadro marcado e a justificativa preenchida. Cancelar continua pedindo a justificativa. O horário sem grupo aparece como Horário vago. A falta ou o cancelamento do próprio aluno continua impedindo outro grupo que cruze essa aula. Sair da falta ou do cancelamento volta a ocupar a vaga, e o grupo cheio recusa essa volta.
 
 Status: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. Toda aula nova nasce `AGUARDANDO`. Os dois papéis podem mover o status entre esses quatro, mas só se entra em `CANCELADA` pela ação de cancelar.
 
@@ -38,11 +40,11 @@ Aula experimental é avulsa. Pode apontar para um aluno cadastrado ou criar um c
 
 Um agendamento novo não aceita data anterior a hoje em Brasília. Hoje é permitido.
 
-O plano gera ocorrências com início no futuro, até 8 semanas a partir de hoje. Todo dia o horizonte é estendido. Ocorrência que cair em qualquer evento não é criada.
+O plano gera ocorrências com início no futuro, até 8 semanas a partir de hoje. Cada ocorrência entra no grupo daquele professor e daquele início, de 1 hora. A capacidade é a já escolhida para esse dia, horário e professor, ou 4 se o horário ainda não existe. Alunos com o mesmo dia, horário e professor compartilham um único grupo. Todo dia o horizonte é estendido. Ocorrência que cair em qualquer evento não é criada. Remover aulas `AGUARDANDO` futuras apaga a participação. Grupo que ficar sem nenhuma aula é apagado.
 
-Mudar um horário ou o responsável do plano recria só as ocorrências futuras ainda `AGUARDANDO` e ainda ligadas ao plano. Mudar aluno, responsável, data ou horário de um dia solta aquela ocorrência do plano. Mudar o status mantém o vínculo.
+Mudar um horário ou o responsável do plano recria só as ocorrências futuras ainda `AGUARDANDO` e ainda ligadas ao plano. Mudar o aluno de um dia solta aquela ocorrência do plano. Mudar professor, início ou fim do grupo solta todas as aulas da sessão. Mudar o status ou a capacidade mantém o vínculo.
 
-Depois que a aula começou, o status continua editável. Data e horário permanecem.
+Depois que o grupo começou, o status da aula continua editável. Início e fim da sessão permanecem. A lista de grupos fica em Gestão, de segunda a sábado, e não usa dia do mês. Cada horário mostra os alunos. Cada dia oferece Novo grupo: horário, professor, limite e ao menos um aluno. O botão Editar abre o professor, o limite e a entrada e a saída de alunos. O professor dessa lista é um integrante Professor ou Sócio. O limite é 4 ou 6 e vale para as próximas sessões daquele horário. Reduzir abaixo da quantidade de alunos do horário é recusado. Entrar no grupo grava o dia, o horário e o professor no plano semanal e gera as próximas aulas Aguardando. Sair apaga essas aulas Aguardando. Trocar o professor regrava o plano e recria as próximas aulas Aguardando com o professor novo. A aula já confirmada permanece com o professor anterior. A sessão datada não tem tela de edição. A tela da aula edita só o compromisso daquele aluno.
 
 ## Evento
 
@@ -50,7 +52,7 @@ Tipos: `FERIADO`, `AGENDA_FECHADA`, `AUSENCIA`, `ANIVERSARIO`, `TORNEIO`.
 
 Nome, início e fim são obrigatórios. O evento pode atravessar dias. Contato é opcional. Ausência aponta um responsável.
 
-Qualquer evento bloqueia aula nova em todo o intervalo, para qualquer responsável. Uma aula não cancelada bloqueia evento novo no mesmo intervalo. Aula existente não é cancelada. Ausência exige o responsável e mesmo assim bloqueia a escola toda. Apagar o evento libera o horário. Só o administrador cria, edita e apaga evento.
+Qualquer evento bloqueia aula nova em todo o intervalo, para qualquer responsável. Um grupo com alguma aula não cancelada bloqueia evento novo no mesmo intervalo. Evento não aponta para grupo. Aula existente não é cancelada. Ausência exige o responsável e mesmo assim bloqueia a escola toda. Apagar o evento libera o horário. Só o administrador cria, edita e apaga evento.
 
 ## Aviso
 

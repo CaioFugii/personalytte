@@ -3,8 +3,9 @@ import { Aula } from '../entidades/aula.entity';
 import { Aviso } from '../entidades/aviso.entity';
 import { Evento } from '../entidades/evento.entity';
 import { papelDe } from '../entidades/enums';
+import { Grupo } from '../entidades/grupo.entity';
 import { Integrante } from '../entidades/integrante.entity';
-import type { AlunoResposta, AulaResposta, AvisoResposta, EventoResposta, IntegranteAtual, IntegranteResposta, ResponsavelResposta } from './contrato';
+import type { AlunoResposta, AulaResposta, AvisoResposta, EventoResposta, GrupoResposta, GrupoResumo, IntegranteAtual, IntegranteResposta, ResponsavelResposta } from './contrato';
 import { formatarInstante } from './tempo';
 import { idRelacao } from './validacao';
 
@@ -60,12 +61,28 @@ export function serializarAluno(aluno: Aluno, reposicoesDisponiveis = 0): AlunoR
   };
 }
 
+export function serializarGrupoResumo(grupo: Grupo): GrupoResumo {
+  return {
+    id: grupo.id,
+    responsavel: { id: grupo.responsavel.id, nome: grupo.responsavel.nome },
+    inicio: formatarInstante(grupo.inicio),
+    fim: formatarInstante(grupo.fim),
+    capacidade: grupo.capacidade,
+  };
+}
+
+export function serializarGrupo(grupo: Grupo, aulas: AulaResposta[]): GrupoResposta {
+  return { ...serializarGrupoResumo(grupo), aulas };
+}
+
 export function serializarAula(
   aula: Aula,
   contexto: { reposicaoAgendadaId?: string | null; reposicoesDisponiveis?: number } = {},
 ): AulaResposta {
+  const grupo = serializarGrupoResumo(aula.grupo);
   return {
     id: aula.id,
+    grupo,
     aluno: {
       id: aula.aluno.id,
       nome: aula.aluno.nome,
@@ -73,9 +90,9 @@ export function serializarAula(
       telefone: aula.aluno.telefone,
       temporario: aula.aluno.temporario,
     },
-    responsavel: { id: aula.responsavel.id, nome: aula.responsavel.nome },
-    inicio: formatarInstante(aula.inicio),
-    fim: formatarInstante(aula.fim),
+    responsavel: grupo.responsavel,
+    inicio: grupo.inicio,
+    fim: grupo.fim,
     status: aula.status,
     experimental: aula.experimental,
     reposicaoDeAulaId: idRelacao(aula.reposicaoDe),

@@ -26,21 +26,20 @@ export class DashboardService {
     const inicioHoje = inicioDoDia(agora);
     const fimHoje = adicionarDias(inicioHoje, 1);
     const aulasHoje = await this.em.find(Aula, {
-      inicio: { $gte: inicioHoje, $lt: fimHoje },
+      grupo: { inicio: { $gte: inicioHoje, $lt: fimHoje } },
       status: { $ne: 'CANCELADA' },
-    }, { populate: ['aluno'] });
-    const proxima = await this.em.findOne(Aula, {
+    }, { populate: ['aluno', 'grupo'] });
+    const candidatas = await this.em.find(Aula, {
       status: { $ne: 'CANCELADA' },
-      fim: { $gt: agora },
-    }, { orderBy: { inicio: 'asc' } });
-    const doHorario = proxima
-      ? await this.em.find(Aula, {
-          status: { $ne: 'CANCELADA' },
-          inicio: proxima.inicio,
-        }, { populate: ['aluno', 'responsavel', 'reposicaoDe'] })
-      : [];
+      grupo: { fim: { $gt: agora } },
+    }, {
+      populate: ['aluno', 'grupo', 'grupo.responsavel', 'reposicaoDe'],
+      orderBy: { grupo: { inicio: 'asc' } },
+    });
+    const inicioProximo = candidatas[0]?.grupo.inicio.getTime();
+    const doHorario = candidatas.filter((aula) => aula.grupo.inicio.getTime() === inicioProximo);
     doHorario.sort((a, b) => {
-      const responsavel = a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR');
+      const responsavel = a.grupo.responsavel.nome.localeCompare(b.grupo.responsavel.nome, 'pt-BR');
       if (responsavel !== 0) return responsavel;
       return a.aluno.nome.localeCompare(b.aluno.nome, 'pt-BR');
     });

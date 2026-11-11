@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Aula, Evento, Responsavel } from './types'
+import type { Aula, Evento, Grupo, Responsavel } from './types'
 import { abortou, api, ErroApi, mensagemDeErro } from './client'
 
 type EstadoAgenda = {
+  grupos: Grupo[]
   aulas: Aula[]
   eventos: Evento[]
   nomes: Map<string, string>
@@ -18,34 +19,32 @@ function ordenarAulas(aulas: Aula[]): Aula[] {
   })
 }
 
+function estadoVazio(carregando = true): EstadoAgenda {
+  return { grupos: [], aulas: [], eventos: [], nomes: new Map(), erro: null, carregando }
+}
+
 export function useAgenda(de: string, ate: string) {
   const [tick, setTick] = useState(0)
-  const [estado, setEstado] = useState<EstadoAgenda>({
-    aulas: [],
-    eventos: [],
-    nomes: new Map(),
-    erro: null,
-    carregando: true,
-  })
+  const [estado, setEstado] = useState<EstadoAgenda>(estadoVazio())
   const intervaloVisto = useRef(`${de}|${ate}`)
   if (intervaloVisto.current !== `${de}|${ate}`) {
     intervaloVisto.current = `${de}|${ate}`
-    setEstado({ aulas: [], eventos: [], nomes: new Map(), erro: null, carregando: true })
+    setEstado(estadoVazio())
   }
 
   useEffect(() => {
     const ctrl = new AbortController()
     setEstado((atual) => ({ ...atual, carregando: true, erro: null }))
     Promise.all([
-      api<unknown>(`/api/aulas?de=${de}&ate=${ate}`, { signal: ctrl.signal }),
+      api<unknown>(`/api/grupos?de=${de}&ate=${ate}`, { signal: ctrl.signal }),
       api<unknown>(`/api/eventos?de=${de}&ate=${ate}`, { signal: ctrl.signal }),
       api<Responsavel[]>('/api/integrantes/responsaveis', { signal: ctrl.signal }).catch((erro: unknown) => {
         if (abortou(erro)) throw erro
         return [] as Responsavel[]
       }),
     ])
-      .then(([aulas, eventos, responsaveis]) => {
-        if (!Array.isArray(aulas) || !Array.isArray(eventos) || !Array.isArray(responsaveis)) {
+      .then(([grupos, eventos, responsaveis]) => {
+        if (!Array.isArray(grupos) || !Array.isArray(eventos) || !Array.isArray(responsaveis)) {
           throw new ErroApi(500, 'DADOS_INVALIDOS', 'A resposta da agenda veio em um formato inesperado.')
         }
         const nomes = new Map<string, string>()
@@ -55,8 +54,12 @@ export function useAgenda(de: string, ate: string) {
           }
         }
         if (ctrl.signal.aborted) return
+        const sessoes = [...(grupos as Grupo[])].sort(
+          (a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime(),
+        )
         setEstado({
-          aulas: ordenarAulas(aulas as Aula[]),
+          grupos: sessoes,
+          aulas: ordenarAulas(sessoes.flatMap((grupo) => grupo.aulas)),
           eventos: [...(eventos as Evento[])].sort(
             (a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime(),
           ),
@@ -67,13 +70,7 @@ export function useAgenda(de: string, ate: string) {
       })
       .catch((erro: unknown) => {
         if (abortou(erro) || ctrl.signal.aborted) return
-        setEstado({
-          aulas: [],
-          eventos: [],
-          nomes: new Map(),
-          erro: mensagemDeErro(erro),
-          carregando: false,
-        })
+        setEstado({ ...estadoVazio(false), erro: mensagemDeErro(erro) })
       })
     return () => ctrl.abort()
   }, [de, ate, tick])

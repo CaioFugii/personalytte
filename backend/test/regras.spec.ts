@@ -13,6 +13,7 @@ import { AulasService } from '../src/modulos/aulas/aulas.service';
 import { AvisosService } from '../src/modulos/avisos/avisos.service';
 import { DashboardService } from '../src/modulos/dashboard/dashboard.service';
 import { EventosService } from '../src/modulos/eventos/eventos.service';
+import { GruposService } from '../src/modulos/grupos/grupos.service';
 import { IntegrantesService } from '../src/modulos/integrantes/integrantes.service';
 import { SessaoService } from '../src/modulos/sessao/sessao.service';
 import { criarOrmConfig } from '../src/orm.config';
@@ -34,6 +35,7 @@ type Servicos = {
   integrantes: IntegrantesService;
   alunos: AlunosService;
   aulas: AulasService;
+  grupos: GruposService;
   eventos: EventosService;
   sessao: SessaoService;
 };
@@ -47,6 +49,7 @@ function servicos(orm: MikroORM): Servicos {
     integrantes: new IntegrantesService(contexto),
     alunos: new AlunosService(contexto, agenda),
     aulas: new AulasService(contexto, agenda),
+    grupos: new GruposService(contexto, agenda),
     eventos: new EventosService(contexto, agenda),
     sessao: new SessaoService(contexto),
   };
@@ -73,8 +76,8 @@ async function socio(s: Servicos, email = 'socio@personalytte.local') {
 
 async function aulasDe(orm: MikroORM, alunoId?: string): Promise<Aula[]> {
   return orm.em.fork().find(Aula, alunoId ? { aluno: alunoId } : {}, {
-    populate: ['aluno', 'responsavel', 'reposicaoDe'],
-    orderBy: { inicio: 'asc' },
+    populate: ['aluno', 'grupo', 'grupo.responsavel', 'reposicaoDe'],
+    orderBy: { grupo: { inicio: 'asc' }, id: 'asc' },
   });
 }
 
@@ -229,7 +232,7 @@ describe('regras de domínio', () => {
     const ana = await s.alunos.criar({ nome: 'Ana', telefone: '11911110001', genero: 'FEMININO', plano: 'PARTICULAR', categoria: 'D' }, AGORA);
     const bruno = await s.alunos.criar({ nome: 'Bruno', telefone: '11911110002', genero: 'FEMININO', plano: 'GYMPASS', categoria: 'C' }, AGORA);
     const carla = await s.alunos.criar({ nome: 'Carla', telefone: '11911110003', genero: 'FEMININO', plano: 'MENSAL', categoria: 'B' }, AGORA);
-    await s.aulas.criarGrupo({
+    await s.grupos.criar({
       alunoIds: [ana.id, bruno.id],
       responsavelId: marina.id,
       inicio: '2026-10-21T18:00:00-03:00',
@@ -291,66 +294,100 @@ describe('regras de domínio', () => {
       alunos.push(await s.alunos.criar({ nome: `Aluno ${i}`, telefone: `1191111000${i}`, genero: 'FEMININO', plano: 'PARTICULAR', categoria: 'D' }, AGORA));
     }
     const inicio = '2026-10-22T19:00:00-03:00';
-    const grupo = await s.aulas.criarGrupo({
+    const grupo = await s.grupos.criar({
       alunoIds: alunos.slice(0, 3).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
     }, AGORA);
-    expect(grupo).toHaveLength(3);
+    expect(grupo.aulas).toHaveLength(3);
     await s.aulas.criar({ alunoId: alunos[3].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
     await expect(s.aulas.criar({ alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: false }, AGORA))
       .rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_GRUPO_CHEIO });
     await expect(s.aulas.criar({
       alunoId: alunos[4].id, responsavelId: marina.id, inicio: '2026-10-22T19:30:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
-    await expect(s.aulas.criarGrupo({
+    await expect(s.grupos.criar({
       alunoIds: [alunos[4].id, alunos[4].id], responsavelId: marina.id, inicio: '2026-10-23T19:00:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
-    await expect(s.aulas.criarGrupo({
+    await expect(s.grupos.criar({
       alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T19:00:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
-    await expect(s.aulas.criarGrupo({
+    await expect(s.grupos.criar({
       alunoIds: [alunos[4].id, alunos[0].id], responsavelId: marina.id, inicio: '2026-10-22T19:00:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
     expect(await aulasDe(orm, alunos[4].id)).toHaveLength(0);
 
-    await s.aulas.cancelar(grupo[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
+    await s.aulas.cancelar(grupo.aulas[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
     await s.aulas.criar({ alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
     const banco = orm.em.fork().getConnection();
     await expect(banco.execute(
-      `insert into aulas (id, aluno_id, responsavel_id, inicio, fim, status, experimental, ligada_ao_plano)
-       values (gen_random_uuid(), '${alunos[5].id}', '${marina.id}', '2026-10-22T19:30:00-03:00', '2026-10-22T20:30:00-03:00', 'AGUARDANDO', false, false)`,
+      `with novo as (
+         insert into grupos (id, responsavel_id, inicio, fim, capacidade)
+         values (gen_random_uuid(), '${marina.id}', '2026-10-22T19:30:00-03:00', '2026-10-22T20:30:00-03:00', 4)
+         returning id
+       )
+       insert into aulas (id, grupo_id, aluno_id, status, experimental, ligada_ao_plano)
+       select gen_random_uuid(), novo.id, '${alunos[5].id}', 'AGUARDANDO', false, false from novo`,
     )).rejects.toBeDefined();
   });
 
-  it('aceita até 6 alunos na aula das 7h', async () => {
+  it('amplia o grupo para 6 alunos e recusa menos de 1 hora', async () => {
     const s = servicos(orm);
     const marina = await professor(s);
+    const outro = await professor(s, 'outro-capacidade@personalytte.local');
     const alunos = [];
     for (let i = 1; i <= 7; i += 1) {
       alunos.push(await s.alunos.criar({ nome: `Sete ${i}`, telefone: `1192222000${i}`, genero: 'FEMININO', plano: 'PARTICULAR', categoria: 'D' }, AGORA));
     }
     const inicio = '2026-10-22T07:00:00-03:00';
-    const grupo = await s.aulas.criarGrupo({
-      alunoIds: alunos.slice(0, 6).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
+    await expect(s.grupos.criar({
+      alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const grupo = await s.grupos.criar({
+      alunoIds: alunos.slice(0, 4).map((aluno) => aluno.id),
+      responsavelId: marina.id,
+      inicio,
+      capacidade: 4,
+      experimental: false,
     }, AGORA);
-    expect(grupo).toHaveLength(6);
+    expect(grupo.capacidade).toBe(4);
+    expect(grupo.fim).toBe('2026-10-22T08:00:00-03:00');
+    const ampliado = await s.grupos.atualizar(grupo.id, { capacidade: 6, fim: '2026-10-22T08:30:00-03:00' }, AGORA);
+    expect(ampliado.capacidade).toBe(6);
+    expect(ampliado.fim).toBe('2026-10-22T08:30:00-03:00');
+    expect(ampliado.aulas.every((aula) => aula.ligadaAoPlano === false)).toBe(true);
+    const quinto = await s.aulas.criar({ alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
+    const sexto = await s.aulas.criar({ alunoId: alunos[5].id, responsavelId: marina.id, inicio, experimental: false }, AGORA);
+    expect(quinto.grupo.capacidade).toBe(6);
+    expect(sexto.grupo.id).toBe(grupo.id);
     await expect(s.aulas.criar({
       alunoId: alunos[6].id, responsavelId: marina.id, inicio, experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: mensagemGrupoCheio(6) });
-    await expect(s.aulas.criarGrupo({
-      alunoIds: alunos.map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T07:00:00-03:00', experimental: false,
+    await expect(s.grupos.criar({
+      alunoIds: alunos.map((aluno) => aluno.id),
+      responsavelId: marina.id,
+      inicio: '2026-10-23T09:00:00-03:00',
+      capacidade: 6,
+      experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
-    await expect(s.aulas.criarGrupo({
-      alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio: '2026-10-23T08:00:00-03:00', experimental: false,
-    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.grupos.atualizar(grupo.id, { fim: '2026-10-22T07:30:00-03:00' }, AGORA))
+      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    await expect(s.grupos.atualizar(grupo.id, { capacidade: 5 }, AGORA))
+      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
     await expect(s.aulas.criar({
       alunoId: alunos[6].id, responsavelId: marina.id, inicio: '2026-10-22T07:30:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
 
-    await s.aulas.cancelar(grupo[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
+    const depois = new Date('2026-10-22T07:10:00-03:00');
+    const trocado = await s.grupos.atualizar(grupo.id, { responsavelId: outro.id }, depois);
+    expect(trocado.responsavel.id).toBe(outro.id);
+    await expect(s.grupos.atualizar(grupo.id, { inicio: '2026-10-22T09:00:00-03:00' }, depois))
+      .rejects.toMatchObject({ codigo: 'AULA_JA_INICIOU' });
+
+    await s.aulas.cancelar(grupo.aulas[0].id, { justificativa: 'Aluno doente', geraReposicao: false }, AGORA);
     const entrou = await s.aulas.criar({
-      alunoId: alunos[6].id, responsavelId: marina.id, inicio, experimental: false,
+      alunoId: alunos[6].id, responsavelId: outro.id, inicio, experimental: false,
     }, AGORA);
     expect(entrou.status).toBe('AGUARDANDO');
+    expect(entrou.grupo.id).toBe(grupo.id);
   });
 
   it('falta libera a vaga do grupo e mantém o aluno ocupado', async () => {
@@ -364,14 +401,14 @@ describe('regras de domínio', () => {
       }, AGORA));
     }
     const inicio = '2026-10-22T19:00:00-03:00';
-    const grupo = await s.aulas.criarGrupo({
+    const grupo = await s.grupos.criar({
       alunoIds: alunos.slice(0, 4).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
     }, AGORA);
     await expect(s.aulas.criar({
       alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: true,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_GRUPO_CHEIO });
 
-    await s.aulas.atualizar(grupo[0].id, { status: 'FALTA' }, AGORA);
+    await s.aulas.atualizar(grupo.aulas[0].id, { status: 'FALTA' }, AGORA);
     const experimental = await s.aulas.criar({
       alunoId: alunos[4].id, responsavelId: marina.id, inicio, experimental: true,
     }, AGORA);
@@ -385,11 +422,11 @@ describe('regras de domínio', () => {
     await expect(s.aulas.criar({
       alunoId: alunos[0].id, responsavelId: outro.id, inicio, experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
-    await expect(s.aulas.atualizar(grupo[0].id, { status: 'CONFIRMADA' }, AGORA))
+    await expect(s.aulas.atualizar(grupo.aulas[0].id, { status: 'CONFIRMADA' }, AGORA))
       .rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_GRUPO_CHEIO });
     s.em.clear();
 
-    await s.aulas.cancelar(grupo[1].id, { justificativa: 'Aluno viajou', geraReposicao: false }, AGORA);
+    await s.aulas.cancelar(grupo.aulas[1].id, { justificativa: 'Aluno viajou', geraReposicao: false }, AGORA);
     const noLugar = await s.aulas.criar({
       alunoId: alunos[5].id, responsavelId: marina.id, inicio, experimental: false,
     }, AGORA);
@@ -397,7 +434,7 @@ describe('regras de domínio', () => {
     await expect(s.aulas.criar({
       alunoId: alunos[1].id, responsavelId: outro.id, inicio, experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });
-    await expect(s.aulas.atualizar(grupo[1].id, { status: 'CONFIRMADA' }, AGORA))
+    await expect(s.aulas.atualizar(grupo.aulas[1].id, { status: 'CONFIRMADA' }, AGORA))
       .rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_GRUPO_CHEIO });
   });
 
@@ -468,8 +505,9 @@ describe('regras de domínio', () => {
     expect(confirmada.ligadaAoPlano).toBe(true);
     const falta = await s.aulas.atualizar(terca!.id, { status: 'FALTA' }, AGORA);
     expect(falta.ligadaAoPlano).toBe(true);
-    const solta = await s.aulas.atualizar(outraQuinta!.id, { inicio: '2026-10-29T20:00:00-03:00' }, AGORA);
-    expect(solta.ligadaAoPlano).toBe(false);
+    const solta = await s.grupos.atualizar(outraQuinta!.grupo.id, { inicio: '2026-10-29T20:00:00-03:00' }, AGORA);
+    expect(solta.aulas[0].ligadaAoPlano).toBe(false);
+    expect(solta.inicio).toBe('2026-10-29T20:00:00-03:00');
     await s.alunos.atualizar(ana.id, { categoria: 'A' }, AGORA);
     expect((await aulasDe(orm, ana.id)).filter((aula) => aula.ligadaAoPlano && aula.status === 'AGUARDANDO').length).toBe(antes.length - 3);
 
@@ -499,8 +537,8 @@ describe('regras de domínio', () => {
 
     const sexta = novas.find((aula) => iso(aula.inicio) === '2026-10-23T18:00:00-03:00');
     expect(sexta).toBeTruthy();
-    const trocada = await s.aulas.atualizar(sexta!.id, { responsavelId: socioAtual.id }, AGORA);
-    expect(trocada.ligadaAoPlano).toBe(false);
+    const trocada = await s.grupos.atualizar(sexta!.grupo.id, { responsavelId: socioAtual.id }, AGORA);
+    expect(trocada.aulas[0].ligadaAoPlano).toBe(false);
     await s.alunos.atualizar(ana.id, { horarios: [{ dia: 'qua', horarioInicio: '18:00', responsavelId: marina.id }] }, AGORA);
     const final = await aulasDe(orm, ana.id);
     expect(final.find((aula) => aula.id === sexta!.id)?.ligadaAoPlano).toBe(false);
@@ -803,14 +841,16 @@ describe('regras de domínio', () => {
     const atualizada = await s.aulas.atualizar(aula.id, { status: 'CONFIRMADA' }, depoisDoInicio);
     expect(atualizada.status).toBe('CONFIRMADA');
     expect(atualizada.inicio).toBe('2026-10-22T10:00:00-03:00');
-    await expect(s.aulas.atualizar(aula.id, { inicio: '2026-10-22T09:00:00-03:00' }, depoisDoInicio)).rejects.toMatchObject({
+    await expect(s.grupos.atualizar(aula.grupo.id, { inicio: '2026-10-22T09:00:00-03:00' }, depoisDoInicio)).rejects.toMatchObject({
       codigo: 'AULA_JA_INICIOU',
       status: 409,
     });
     expect(iso((await aulasDe(orm, ana.id))[0].inicio)).toBe('2026-10-22T10:00:00-03:00');
-    const mesmoInstante = await s.aulas.atualizar(aula.id, { inicio: '2026-10-22T13:00:00Z', status: 'FALTA' }, depoisDoInicio);
-    expect(mesmoInstante.status).toBe('FALTA');
+    const mesmoInstante = await s.grupos.atualizar(aula.grupo.id, { inicio: '2026-10-22T13:00:00Z' }, depoisDoInicio);
     expect(mesmoInstante.inicio).toBe('2026-10-22T10:00:00-03:00');
+    const falta = await s.aulas.atualizar(aula.id, { status: 'FALTA' }, depoisDoInicio);
+    expect(falta.status).toBe('FALTA');
+    expect(falta.inicio).toBe('2026-10-22T10:00:00-03:00');
   });
 
   it('inativa aluno preservando histórico e recusa inativar integrante com agenda ou o último administrador', async () => {
@@ -1015,5 +1055,221 @@ describe('regras de domínio', () => {
     expect(avisos).toHaveLength(1);
     expect(avisos[0].titulo).toBe(tituloAvisoAniversariantes(fevereiro));
     expect(avisos[0].mensagem).toContain('Elena Bissexto — sábado, 28 de fevereiro');
+  });
+
+  it('adiciona e remove aluno do grupo fixo, sem depender do dia do mês', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s, 'grupo-fixo@personalytte.local');
+    const ana = await s.alunos.criar({
+      nome: 'Ana Fixa',
+      telefone: '11911118001',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      horarios: [{ dia: 'qua', horarioInicio: '19:00', responsavelId: marina.id }],
+    }, AGORA);
+    const bruno = await s.alunos.criar({
+      nome: 'Bruno Fixo',
+      telefone: '11911118002',
+      genero: 'MASCULINO',
+      plano: 'PARTICULAR',
+      categoria: 'C',
+    }, AGORA);
+
+    const lista = await s.grupos.listarFixos(AGORA);
+    const quarta = lista.find((grupo) => grupo.dia === 'qua' && grupo.horarioInicio === '19:00' && grupo.responsavel.id === marina.id);
+    expect(quarta?.alunos.map((aluno) => aluno.nome)).toEqual(['Ana Fixa']);
+    expect(lista.some((grupo) => grupo.dia === 'dom')).toBe(false);
+
+    const comBruno = await s.grupos.adicionarFixo({
+      dia: 'qua',
+      horarioInicio: '19:00',
+      responsavelId: marina.id,
+      alunoId: bruno.id,
+    }, AGORA);
+    const atualizado = comBruno.find((grupo) => grupo.dia === 'qua' && grupo.horarioInicio === '19:00');
+    expect(atualizado?.alunos.map((aluno) => aluno.nome)).toEqual(['Ana Fixa', 'Bruno Fixo']);
+    const aulasBruno = await aulasDe(orm, bruno.id);
+    expect(aulasBruno.some((aula) => iso(aula.inicio) === '2026-10-28T19:00:00-03:00' && aula.ligadaAoPlano)).toBe(true);
+
+    const semAna = await s.grupos.removerFixo({
+      dia: 'qua',
+      horarioInicio: '19:00',
+      responsavelId: marina.id,
+      alunoId: ana.id,
+    }, AGORA);
+    expect(semAna.find((grupo) => grupo.responsavel.id === marina.id)?.alunos.map((aluno) => aluno.nome)).toEqual(['Bruno Fixo']);
+    const aulasAna = await aulasDe(orm, ana.id);
+    expect(aulasAna.filter((aula) => aula.status === 'AGUARDANDO' && aula.ligadaAoPlano)).toHaveLength(0);
+  });
+
+  it('troca o professor do grupo fixo e mantém a aula confirmada', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s, 'troca-marina@personalytte.local');
+    const paulo = await s.integrantes.criar({
+      nome: 'Paulo Nunes',
+      email: 'troca-paulo@personalytte.local',
+      senha: 'professor1',
+      funcao: 'PROFESSOR',
+      telefone: '11988886666',
+    });
+    const ana = await s.alunos.criar({
+      nome: 'Ana Troca',
+      telefone: '11911118011',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      horarios: [{ dia: 'qua', horarioInicio: '19:00', responsavelId: marina.id }],
+    }, AGORA);
+    const bruno = await s.alunos.criar({
+      nome: 'Bruno Troca',
+      telefone: '11911118012',
+      genero: 'MASCULINO',
+      plano: 'PARTICULAR',
+      categoria: 'C',
+      horarios: [{ dia: 'qua', horarioInicio: '19:00', responsavelId: marina.id }],
+    }, AGORA);
+    const aulasAna = await aulasDe(orm, ana.id);
+    const confirmada = aulasAna.find((aula) => aula.grupo.inicio > AGORA);
+    expect(confirmada).toBeTruthy();
+    await s.aulas.atualizar(confirmada!.id, { status: 'CONFIRMADA' }, AGORA);
+    await s.grupos.atualizar(confirmada!.grupo.id, { capacidade: 6 }, AGORA);
+
+    const lista = await s.grupos.trocarProfessorFixo({
+      dia: 'qua',
+      horarioInicio: '19:00',
+      responsavelId: marina.id,
+      novoResponsavelId: paulo.id,
+    }, AGORA);
+    const quarta = lista.find((grupo) => grupo.dia === 'qua' && grupo.horarioInicio === '19:00');
+    expect(quarta?.responsavel.id).toBe(paulo.id);
+    expect(quarta?.capacidade).toBe(6);
+    expect(quarta?.alunos.map((aluno) => aluno.nome)).toEqual(['Ana Troca', 'Bruno Troca']);
+    expect(lista.some((grupo) => grupo.responsavel.id === marina.id && grupo.horarioInicio === '19:00')).toBe(false);
+
+    const aluno = await orm.em.fork().findOneOrFail(Aluno, ana.id);
+    expect(aluno.horarios).toEqual([{ dia: 'qua', horarioInicio: '19:00', responsavelId: paulo.id }]);
+    const depois = await aulasDe(orm, ana.id);
+    const mantida = depois.find((aula) => aula.id === confirmada!.id);
+    expect(mantida?.status).toBe('CONFIRMADA');
+    expect(mantida?.grupo.responsavel.id).toBe(marina.id);
+    const novas = depois.filter((aula) => aula.status === 'AGUARDANDO' && aula.ligadaAoPlano);
+    expect(novas.length).toBeGreaterThan(0);
+    expect(novas.every((aula) => aula.grupo.responsavel.id === paulo.id && aula.grupo.capacidade === 6)).toBe(true);
+
+    const ocupado = await s.alunos.criar({
+      nome: 'Carla Ocupada',
+      telefone: '11911118013',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'B',
+    }, AGORA);
+    await s.grupos.criar({
+      alunoIds: [ocupado.id],
+      responsavelId: marina.id,
+      inicio: '2026-11-04T19:30:00-03:00',
+    }, AGORA);
+    await expect(s.grupos.trocarProfessorFixo({
+      dia: 'qua',
+      horarioInicio: '19:00',
+      responsavelId: paulo.id,
+      novoResponsavelId: marina.id,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    const segue = await orm.em.fork().findOneOrFail(Aluno, ana.id);
+    expect(segue.horarios[0]?.responsavelId).toBe(paulo.id);
+  });
+
+  it('altera o limite do grupo fixo e a ocorrência nova acompanha', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s, 'limite-fixo@personalytte.local');
+    const ana = await s.alunos.criar({
+      nome: 'Ana Limite',
+      telefone: '11911118021',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+      horarios: [{ dia: 'seg', horarioInicio: '07:00', responsavelId: marina.id }],
+    }, AGORA);
+    const ampliado = await s.grupos.trocarProfessorFixo({
+      dia: 'seg',
+      horarioInicio: '07:00',
+      responsavelId: marina.id,
+      capacidade: 6,
+    }, AGORA);
+    const grupo = ampliado.find((item) => item.dia === 'seg' && item.horarioInicio === '07:00');
+    expect(grupo?.capacidade).toBe(6);
+    const aulas = await aulasDe(orm, ana.id);
+    const futuras = aulas.filter((aula) => aula.grupo.inicio > AGORA);
+    expect(futuras.length).toBeGreaterThan(0);
+    expect(futuras.every((aula) => aula.grupo.capacidade === 6 && aula.ligadaAoPlano)).toBe(true);
+
+    const ultima = futuras[futuras.length - 1];
+    const contexto = orm.em.fork();
+    const aula = await contexto.findOneOrFail(Aula, ultima.id, { populate: ['grupo'] });
+    contexto.remove(aula);
+    contexto.remove(aula.grupo);
+    await contexto.flush();
+    const aluno = await s.em.findOneOrFail(Aluno, ana.id);
+    await s.agenda.gerarOcorrencias(s.em, aluno, AGORA, 'recusar');
+    await s.em.flush();
+    const recriadas = await aulasDe(orm, ana.id);
+    const nova = recriadas.find((item) => item.grupo.inicio.getTime() === ultima.grupo.inicio.getTime());
+    expect(nova?.grupo.capacidade).toBe(6);
+    expect(nova?.ligadaAoPlano).toBe(true);
+
+    for (const [indice, nome] of ['Bruno Limite', 'Carla Limite', 'Diego Limite', 'Elena Limite'].entries()) {
+      const criado = await s.alunos.criar({
+        nome,
+        telefone: `1191111803${indice}`,
+        genero: 'MASCULINO',
+        plano: 'PARTICULAR',
+        categoria: 'C',
+      }, AGORA);
+      await s.grupos.adicionarFixo({
+        dia: 'seg',
+        horarioInicio: '07:00',
+        responsavelId: marina.id,
+        alunoId: criado.id,
+      }, AGORA);
+    }
+    await expect(s.grupos.trocarProfessorFixo({
+      dia: 'seg',
+      horarioInicio: '07:00',
+      responsavelId: marina.id,
+      capacidade: 4,
+    }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO' });
+    const segue = await s.grupos.listarFixos(AGORA);
+    expect(segue.find((item) => item.dia === 'seg' && item.horarioInicio === '07:00')?.capacidade).toBe(6);
+  });
+
+  it('cria um grupo fixo novo na sexta', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s, 'sexta-nova@personalytte.local');
+    const ana = await s.alunos.criar({
+      nome: 'Ana Sexta',
+      telefone: '11911118041',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+    }, AGORA);
+    const lista = await s.grupos.criarFixo({
+      dia: 'sex',
+      horarioInicio: '18:00',
+      responsavelId: marina.id,
+      capacidade: 6,
+      alunoIds: [ana.id],
+    }, AGORA);
+    const sexta = lista.find((grupo) => grupo.dia === 'sex' && grupo.horarioInicio === '18:00');
+    expect(sexta?.responsavel.id).toBe(marina.id);
+    expect(sexta?.capacidade).toBe(6);
+    expect(sexta?.alunos.map((aluno) => aluno.nome)).toEqual(['Ana Sexta']);
+    const aulas = await aulasDe(orm, ana.id);
+    expect(aulas.some((aula) => aula.status === 'AGUARDANDO' && aula.ligadaAoPlano && aula.grupo.responsavel.id === marina.id)).toBe(true);
+    await expect(s.grupos.criarFixo({
+      dia: 'sex',
+      horarioInicio: '18:00',
+      responsavelId: marina.id,
+      alunoIds: [ana.id],
+    }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
   });
 });

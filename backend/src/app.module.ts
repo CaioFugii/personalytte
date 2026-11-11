@@ -16,6 +16,8 @@ import { CheckinsController } from './modulos/checkins/checkins.controller';
 import { CheckinsService } from './modulos/checkins/checkins.service';
 import { DashboardController } from './modulos/dashboard/dashboard.controller';
 import { DashboardService } from './modulos/dashboard/dashboard.service';
+import { GruposController } from './modulos/grupos/grupos.controller';
+import { GruposService } from './modulos/grupos/grupos.service';
 import { EventosController } from './modulos/eventos/eventos.controller';
 import { EventosService } from './modulos/eventos/eventos.service';
 import { IntegrantesController } from './modulos/integrantes/integrantes.controller';
@@ -30,6 +32,7 @@ import { SessaoService } from './modulos/sessao/sessao.service';
     IntegrantesController,
     AlunosController,
     AulasController,
+    GruposController,
     EventosController,
     AvisosController,
     DashboardController,
@@ -41,6 +44,7 @@ import { SessaoService } from './modulos/sessao/sessao.service';
     IntegrantesService,
     AlunosService,
     AulasService,
+    GruposService,
     EventosService,
     AvisosService,
     DashboardService,

@@ -1,4 +1,4 @@
-import type { Aula, Evento } from '../api/types'
+import type { Aula, Evento, Grupo } from '../api/types'
 import { formatarDiaLongo, instanteBrasilia, partesSP } from './calendario'
 import { categoriasPresentes } from './rotulos'
 
@@ -28,23 +28,25 @@ export type CelulaOferta = {
   linhas: LinhaOferta[]
 }
 
-function minutos(hora: string): number {
-  const [horas, mins] = hora.slice(0, 5).split(':').map(Number)
-  return horas * 60 + mins
-}
-
 function ocupaVaga(aula: Aula): boolean {
   return aula.status !== 'CANCELADA' && aula.status !== 'FALTA'
-}
-
-function limiteDoHorario(hora: string): number {
-  return hora === '07:00' ? 6 : 4
 }
 
 function eventoCobre(evento: Evento, dia: string, hora: string): boolean {
   const inicio = new Date(instanteBrasilia(dia, hora)).getTime()
   const fim = inicio + DURACAO_MS
   return new Date(evento.inicio).getTime() < fim && new Date(evento.fim).getTime() > inicio
+}
+
+function grupoCobre(grupo: Grupo, dia: string, hora: string): boolean {
+  const inicio = new Date(instanteBrasilia(dia, hora)).getTime()
+  const fim = inicio + DURACAO_MS
+  return new Date(grupo.inicio).getTime() < fim && new Date(grupo.fim).getTime() > inicio
+}
+
+function comecaNaHora(grupo: Grupo, dia: string, hora: string): boolean {
+  const partes = partesSP(grupo.inicio)
+  return partes.data === dia && partes.hora.slice(0, 5) === hora
 }
 
 function nivelDoGrupo(categorias: Array<Aula['aluno']['categoria']>): string {
@@ -56,35 +58,26 @@ function rotuloVagas(categorias: Array<Aula['aluno']['categoria']>, vagas: numbe
   return `${nivelDoGrupo(categorias)} · ${lugar}`
 }
 
-export function celulaOferta(dia: string, hora: string, aulas: Aula[], eventos: Evento[]): CelulaOferta {
+export function celulaOferta(dia: string, hora: string, grupos: Grupo[], eventos: Evento[]): CelulaOferta {
   if (eventos.some((evento) => eventoCobre(evento, dia, hora))) {
     return { tipo: 'fechado', linhas: [{ texto: 'Agenda fechada', professor: null }] }
   }
 
-  const doDia = aulas.filter((aula) => ocupaVaga(aula) && partesSP(aula.inicio).data === dia)
-  const noHorario = doDia.filter((aula) => partesSP(aula.inicio).hora.slice(0, 5) === hora)
-  const cruzando = doDia.some(
-    (aula) => minutos(partesSP(aula.inicio).hora) !== minutos(hora) && Math.abs(minutos(partesSP(aula.inicio).hora) - minutos(hora)) < 60,
-  )
-
-  const porProfessor = new Map<string, Aula[]>()
-  for (const aula of noHorario) {
-    const lista = porProfessor.get(aula.responsavel.id) ?? []
-    lista.push(aula)
-    porProfessor.set(aula.responsavel.id, lista)
-  }
+  const cobrindo = grupos.filter((grupo) => grupo.aulas.some(ocupaVaga) && grupoCobre(grupo, dia, hora))
+  const noHorario = cobrindo.filter((grupo) => comecaNaHora(grupo, dia, hora))
+  const cruzando = cobrindo.some((grupo) => !comecaNaHora(grupo, dia, hora))
 
   const abertas: LinhaOferta[] = []
   const lotadas: LinhaOferta[] = []
-  for (const grupo of porProfessor.values()) {
-    const categorias = grupo.map((aula) => aula.aluno.categoria)
-    const professor = grupo[0].responsavel.nome
-    const vagas = limiteDoHorario(hora) - grupo.length
+  for (const grupo of noHorario) {
+    const ocupando = grupo.aulas.filter(ocupaVaga)
+    const categorias = ocupando.map((aula) => aula.aluno.categoria)
+    const vagas = grupo.capacidade - ocupando.length
     if (vagas <= 0) {
-      lotadas.push({ texto: `${nivelDoGrupo(categorias)} · Lotado`, professor, lotado: true })
+      lotadas.push({ texto: `${nivelDoGrupo(categorias)} · Lotado`, professor: grupo.responsavel.nome, lotado: true })
       continue
     }
-    abertas.push({ texto: rotuloVagas(categorias, vagas), professor })
+    abertas.push({ texto: rotuloVagas(categorias, vagas), professor: grupo.responsavel.nome })
   }
   const porNome = (a: LinhaOferta, b: LinhaOferta) => (a.professor ?? '').localeCompare(b.professor ?? '', 'pt-BR')
   abertas.sort(porNome)
@@ -97,10 +90,10 @@ export function celulaOferta(dia: string, hora: string, aulas: Aula[], eventos: 
 }
 
 /** Texto da semana, sem nome de aluno, pronto para colar no WhatsApp. */
-export function textoOferta(dias: string[], aulas: Aula[], eventos: Evento[], intervalo: string): string {
+export function textoOferta(dias: string[], grupos: Grupo[], eventos: Evento[], intervalo: string): string {
   const blocos = dias.map((dia) => {
     const linhas = HORARIOS_OFERTA.flatMap((hora) => {
-      const celula = celulaOferta(dia, hora, aulas, eventos)
+      const celula = celulaOferta(dia, hora, grupos, eventos)
       return celula.linhas.map((linha) => {
         const detalhe = linha.professor ? `${linha.texto} · ${linha.professor}` : linha.texto
         return `${hora} — ${detalhe}`

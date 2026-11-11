@@ -88,6 +88,9 @@ export function Layout() {
           <NavLink to="/alunos" className={classeLink}>
             Alunos
           </NavLink>
+          <NavLink to="/grupos" className={classeLink}>
+            Grupos
+          </NavLink>
           {admin ? (
             <NavLink to="/equipe" className={classeLink}>
               Equipe

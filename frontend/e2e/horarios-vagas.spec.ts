@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 type Aluno = { id: string }
 type Responsavel = { id: string; nome: string; funcao: string }
-type Aula = { inicio: string; status: string }
+type Aula = { inicio: string; fim?: string; status: string }
 type Evento = { inicio: string; fim: string }
 
 const HORAS = [
@@ -46,19 +46,6 @@ function inicioDaSemana(iso: string): string {
   return addDias(iso, dow === 0 ? -6 : 1 - dow)
 }
 
-function horaDe(iso: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date(iso))
-  const pegar = (tipo: Intl.DateTimeFormatPartTypes) => parts.find((parte) => parte.type === tipo)?.value ?? ''
-  let hora = pegar('hour')
-  if (hora === '24') hora = '00'
-  return `${hora.padStart(2, '0')}:${pegar('minute').padStart(2, '0')}`
-}
-
 function dataDe(iso: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Sao_Paulo',
@@ -68,11 +55,6 @@ function dataDe(iso: string): string {
   }).formatToParts(new Date(iso))
   const pegar = (tipo: Intl.DateTimeFormatPartTypes) => parts.find((parte) => parte.type === tipo)?.value ?? ''
   return `${pegar('year')}-${pegar('month')}-${pegar('day')}`
-}
-
-function minutos(hora: string): number {
-  const [horas, mins] = hora.slice(0, 5).split(':').map(Number)
-  return horas * 60 + mins
 }
 
 async function json<T>(resposta: { ok: () => boolean; json: () => Promise<unknown>; text: () => Promise<string> }): Promise<T> {
@@ -108,26 +90,38 @@ test('a semana de vagas oferece horário vago e categoria com vagas', async ({ p
   const segunda = addDias(inicioDaSemana(hojeSP()), 7)
   const quinta = addDias(segunda, 3)
   const domingo = addDias(segunda, 6)
+type GrupoDia = { inicio: string; fim: string; responsavel: { nome: string }; aulas: Array<{ status: string }> }
+
+  const grupos = await json<GrupoDia[]>(await page.request.get(`/api/grupos?de=${segunda}&ate=${domingo}`))
   const aulas = await json<Aula[]>(await page.request.get(`/api/aulas?de=${segunda}&ate=${domingo}`))
   const eventos = await json<Evento[]>(await page.request.get(`/api/eventos?de=${segunda}&ate=${domingo}`))
   const livres = HORAS.filter((hora) => {
-    const ocupado = aulas.some((aula) => {
-      if (aula.status === 'CANCELADA' || aula.status === 'FALTA') return false
+    const slot = new Date(`${quinta}T${hora}:00-03:00`).getTime()
+    const marinaNoHorario = grupos.some((grupo) => {
+      if (grupo.responsavel.nome !== 'Marina Costa') return false
+      if (dataDe(grupo.inicio) !== quinta) return false
+      const inicio = new Date(grupo.inicio).getTime()
+      const fim = new Date(grupo.fim).getTime()
+      return inicio < slot + 60 * 60 * 1000 && fim > slot
+    })
+    const alunoNoHorario = aulas.some((aula) => {
       if (dataDe(aula.inicio) !== quinta) return false
-      return Math.abs(minutos(horaDe(aula.inicio)) - minutos(hora)) < 60
+      const inicio = new Date(aula.inicio).getTime()
+      const fim = aula.fim ? new Date(aula.fim).getTime() : inicio + 60 * 60 * 1000
+      return inicio < slot + 60 * 60 * 1000 && fim > slot
     })
     const fechado = eventos.some((evento) => {
       const inicio = new Date(`${quinta}T${hora}:00-03:00`).getTime()
       return new Date(evento.inicio).getTime() < inicio + 60 * 60 * 1000 && new Date(evento.fim).getTime() > inicio
     })
-    return !ocupado && !fechado
+    return !marinaNoHorario && !alunoNoHorario && !fechado
   })
   expect(livres.length).toBeGreaterThanOrEqual(3)
   const horaGrupo = livres[0]
   const horaVaga = livres[1]
-  const horaLotada = livres.slice(2).find((hora) => hora !== '07:00') ?? livres[2]
-  const vagas = horaGrupo === '07:00' ? 4 : 2
-  const cheios = horaLotada === '07:00' ? 6 : 4
+  const horaLotada = livres[2]
+  const vagas = 2
+  const cheios = 4
   const responsaveis = await json<Responsavel[]>(await page.request.get('/api/integrantes/responsaveis'))
   const marina = responsaveis.find((pessoa) => pessoa.nome === 'Marina Costa' && pessoa.funcao === 'PROFESSOR')
   expect(marina).toBeTruthy()
