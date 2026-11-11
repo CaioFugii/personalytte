@@ -7,6 +7,7 @@ import { Login } from './paginas/Login'
 import { Painel } from './paginas/Painel'
 import { AgendaSemana } from './paginas/AgendaSemana'
 import { AgendaDia } from './paginas/AgendaDia'
+import { AgendaVagas } from './paginas/AgendaVagas'
 import { AulaDetalhe } from './paginas/AulaDetalhe'
 import { EditarEvento, ModalEscolha, NovoAgendamento } from './paginas/NovoAgendamento'
 import { Alunos } from './paginas/Alunos'
@@ -71,6 +72,7 @@ function Rotas() {
           <Route element={<Layout />}>
             <Route path="/" element={<Painel />} />
             <Route path="/agenda" element={<AgendaSemana />} />
+            <Route path="/agenda/vagas" element={<AgendaVagas />} />
             <Route path="/checkins" element={<Checkins />} />
             <Route path="/acompanhamento" element={<Acompanhamento />} />
             <Route path="/agenda/dia" element={<AgendaDia />} />

@@ -23,7 +23,7 @@ import {
   useTitulo,
 } from '../componentes/ui'
 import { useSessao } from '../contexto/Sessao'
-import { addDias, civilValida, formatarDiaLongo, formatarHora, hojeSP } from '../lib/calendario'
+import { addDias, civilValida, formatarDiaLongo, formatarHora, hojeSP, inicioDaSemana } from '../lib/calendario'
 import { STATUS } from '../lib/rotulos'
 import { Abas } from './AgendaSemana'
 import { LinkNovoAgendamento } from './NovoAgendamento'
@@ -162,7 +162,12 @@ export function AgendaDia() {
           </>
         }
       />
-      <Abas semana={`/agenda?semana=${data}`} dia={`/agenda/dia?date=${data}`} atual="dia" />
+      <Abas
+        semana={`/agenda?semana=${inicioDaSemana(data)}`}
+        dia={`/agenda/dia?date=${data}`}
+        vagas={`/agenda/vagas?semana=${inicioDaSemana(data)}`}
+        atual="dia"
+      />
 
       {carregandoLista ? <PainelEstado status>Carregando…</PainelEstado> : null}
       {agenda.erro ? (

@@ -25,6 +25,7 @@ import {
   inicioDaSemana,
   partesSP,
 } from '../lib/calendario'
+import { HORARIOS_OFERTA } from '../lib/ofertaHorarios'
 import { resumoCategorias, rotuloStatus, rotuloTipoEvento } from '../lib/rotulos'
 import type { Aula, Evento, StatusAula } from '../api/types'
 
@@ -71,7 +72,12 @@ export function AgendaSemana() {
           </>
         }
       />
-      <Abas semana={`/agenda?semana=${segunda}`} dia="/agenda/dia" atual="semana" />
+      <Abas
+        semana={`/agenda?semana=${segunda}`}
+        dia="/agenda/dia"
+        vagas={`/agenda/vagas?semana=${segunda}`}
+        atual="semana"
+      />
 
       {agenda.carregando && agenda.aulas.length === 0 && agenda.eventos.length === 0 ? (
         <PainelEstado status>Carregando…</PainelEstado>
@@ -119,19 +125,31 @@ type GrupoHorario = {
   aulas: Aula[]
 }
 
-/** Aulas já vêm em ordem de início. O mesmo horário vira um grupo só. */
-function agruparPorHorario(aulas: Aula[]): GrupoHorario[] {
-  const grupos: GrupoHorario[] = []
+function minutosDoHorario(hora: string): number {
+  const [horas, mins] = hora.slice(0, 5).split(':').map(Number)
+  return horas * 60 + mins
+}
+
+function naJanelaAlmoco(hora: string): boolean {
+  const minutos = minutosDoHorario(hora)
+  return minutos >= 12 * 60 && minutos < 14 * 60
+}
+
+/** Das 7h às 22h, sem 12h e 13h. Horário fora dessa grade entra se já tiver aula. */
+function gradeDoDia(aulas: Aula[]): GrupoHorario[] {
+  const porHorario = new Map<string, Aula[]>()
   for (const aula of aulas) {
-    const horario = formatarHora(aula.inicio)
-    const ultimo = grupos.at(-1)
-    if (ultimo?.horario === horario) {
-      ultimo.aulas.push(aula)
-      continue
-    }
-    grupos.push({ horario, rotulo: rotuloGrupo(horario), aulas: [aula] })
+    const horario = formatarHora(aula.inicio).slice(0, 5)
+    if (naJanelaAlmoco(horario)) continue
+    const lista = porHorario.get(horario) ?? []
+    lista.push(aula)
+    porHorario.set(horario, lista)
   }
-  return grupos
+  const horas = new Set<string>(HORARIOS_OFERTA)
+  for (const hora of porHorario.keys()) horas.add(hora)
+  return [...horas]
+    .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b))
+    .map((horario) => ({ horario, rotulo: rotuloGrupo(horario), aulas: porHorario.get(horario) ?? [] }))
 }
 
 function rotuloGrupo(horario: string): string {
@@ -167,7 +185,7 @@ function DiaColuna({
   eventos: Evento[]
   nomes: Map<string, string>
 }) {
-  const grupos = agruparPorHorario(aulas)
+  const grupos = gradeDoDia(aulas)
   return (
     <section className={cx('flex min-h-52 flex-col rounded-2xl bg-paper shadow-[0_8px_24px_rgba(14,60,67,0.05)]', hoje && 'ring-2 ring-tide')}>
       <Link to={`/agenda/dia?date=${dia}`} className="border-b border-line px-2 py-2 hover:bg-sand">
@@ -189,10 +207,16 @@ function DiaColuna({
             </li>
           )
         })}
-        {grupos.map((grupo) => (
-          <GrupoAulas key={grupo.horario} grupo={grupo} />
-        ))}
-        {eventos.length === 0 && aulas.length === 0 ? <li className="px-1 py-2 text-xs text-muted">Nada neste dia.</li> : null}
+        {grupos.map((grupo) =>
+          grupo.aulas.length > 0 ? (
+            <GrupoAulas key={grupo.horario} grupo={grupo} />
+          ) : (
+            <li key={grupo.horario} className="rounded-xl bg-sand px-1.5 py-1 text-xs text-muted">
+              <span className="font-bold text-tide-dark tabular-nums">{grupo.rotulo}</span>
+              <span className="mt-0.5 block">Horário vago</span>
+            </li>
+          ),
+        )}
       </ul>
     </section>
   )
@@ -288,29 +312,37 @@ function LegendaStatus() {
   )
 }
 
-export function Abas({ semana, dia, atual }: { semana: string; dia: string; atual: 'semana' | 'dia' }) {
+export function Abas({
+  semana,
+  dia,
+  vagas,
+  atual,
+}: {
+  semana: string
+  dia: string
+  vagas: string
+  atual: 'semana' | 'dia' | 'vagas'
+}) {
+  const abas = [
+    { id: 'semana' as const, to: semana, label: 'Semana' },
+    { id: 'dia' as const, to: dia, label: 'Dia' },
+    { id: 'vagas' as const, to: vagas, label: 'Vagas' },
+  ]
   return (
     <div className="mb-4 flex gap-2" role="tablist" aria-label="Agenda">
-      <Link
-        to={semana}
-        aria-current={atual === 'semana' ? 'page' : undefined}
-        className={cx(
-          'rounded-full px-3 py-1.5 text-sm font-semibold',
-          atual === 'semana' ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
-        )}
-      >
-        Semana
-      </Link>
-      <Link
-        to={dia}
-        aria-current={atual === 'dia' ? 'page' : undefined}
-        className={cx(
-          'rounded-full px-3 py-1.5 text-sm font-semibold',
-          atual === 'dia' ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
-        )}
-      >
-        Dia
-      </Link>
+      {abas.map((aba) => (
+        <Link
+          key={aba.id}
+          to={aba.to}
+          aria-current={atual === aba.id ? 'page' : undefined}
+          className={cx(
+            'rounded-full px-3 py-1.5 text-sm font-semibold',
+            atual === aba.id ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
+          )}
+        >
+          {aba.label}
+        </Link>
+      ))}
     </div>
   )
 }

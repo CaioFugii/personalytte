@@ -129,11 +129,10 @@ export function formatarDiaCurto(iso: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-export function formatarIntervaloSemana(segunda: string): string {
-  const domingo = addDias(segunda, 6)
+export function formatarIntervaloSemana(segunda: string, ultimo = addDias(segunda, 6)): string {
   const inicio = instanteCivil(segunda)
-  const fim = instanteCivil(domingo)
-  const mesmoMes = segunda.slice(0, 7) === domingo.slice(0, 7)
+  const fim = instanteCivil(ultimo)
+  const mesmoMes = segunda.slice(0, 7) === ultimo.slice(0, 7)
   const dia = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, day: 'numeric' })
   const diaMes = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, day: 'numeric', month: 'long' })
   const completo = new Intl.DateTimeFormat('pt-BR', {
@@ -143,7 +142,7 @@ export function formatarIntervaloSemana(segunda: string): string {
     year: 'numeric',
   })
   if (mesmoMes) return `${dia.format(inicio)} a ${completo.format(fim)}`
-  if (segunda.slice(0, 4) === domingo.slice(0, 4)) return `${diaMes.format(inicio)} a ${completo.format(fim)}`
+  if (segunda.slice(0, 4) === ultimo.slice(0, 4)) return `${diaMes.format(inicio)} a ${completo.format(fim)}`
   return `${completo.format(inicio)} a ${completo.format(fim)}`
 }
 

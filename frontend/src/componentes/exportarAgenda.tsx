@@ -6,10 +6,16 @@ export function ModalTextoAgenda({
   texto,
   onCopiar,
   onFechar,
+  titulo = 'Texto da agenda',
+  descricao = 'Pronto para colar no WhatsApp.',
+  rotuloCampo = 'Texto da agenda do dia',
 }: {
   texto: string
   onCopiar: () => void
   onFechar: () => void
+  titulo?: string
+  descricao?: string
+  rotuloCampo?: string
 }) {
   const tituloId = useId()
   const fecharAtual = useRef(onFechar)
@@ -44,15 +50,15 @@ export function ModalTextoAgenda({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
-          Texto da agenda
+          {titulo}
         </h2>
-        <p className="text-sm text-muted">Pronto para colar no WhatsApp.</p>
+        <p className="text-sm text-muted">{descricao}</p>
         <textarea
           ref={campoRef}
           readOnly
           value={texto}
           rows={Math.min(16, Math.max(8, texto.split('\n').length))}
-          aria-label="Texto da agenda do dia"
+          aria-label={rotuloCampo}
           className="max-h-[55vh] w-full resize-y rounded-2xl border border-line bg-sand p-3 text-sm leading-relaxed"
         />
         <div className="flex flex-wrap justify-end gap-2">
