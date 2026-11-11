@@ -118,7 +118,7 @@ export function Layout() {
         </div>
       </aside>
       <main className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto w-full max-w-6xl">
+        <div className={cx('mx-auto w-full', location.pathname === '/grupos' ? 'max-w-none' : 'max-w-6xl')}>
           <Outlet />
         </div>
       </main>

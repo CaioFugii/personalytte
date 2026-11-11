@@ -252,11 +252,11 @@ export function Grupos() {
       ) : null}
       {lista ? (
         <div className={classeTabela}>
-          <table className="w-full min-w-[960px] border-collapse text-sm">
+          <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
             <thead className={classeThead}>
               <tr>
                 {DIAS_LISTA.map((dia) => (
-                  <th key={dia.value} className="px-3 py-3" scope="col">
+                  <th key={dia.value} className="w-1/6 px-3 py-3" scope="col">
                     {dia.label}
                   </th>
                 ))}
@@ -269,7 +269,7 @@ export function Grupos() {
                     .filter((grupo) => grupo.dia === dia.value)
                     .sort((a, b) => a.horarioInicio.localeCompare(b.horarioInicio) || a.responsavel.nome.localeCompare(b.responsavel.nome, 'pt-BR'))
                   return (
-                    <td key={dia.value} className="border-t border-line px-2 py-3 align-top">
+                    <td key={dia.value} className="w-1/6 border-t border-line px-2 py-3 align-top">
                       <div className="grid gap-2">
                         {doDia.length === 0 ? (
                           <p className="rounded-2xl border border-dashed border-line px-2 py-4 text-center text-xs text-muted">
