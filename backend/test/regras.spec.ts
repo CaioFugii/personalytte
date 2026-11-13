@@ -341,6 +341,15 @@ describe('regras de domínio', () => {
     await expect(s.grupos.criar({
       alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id), responsavelId: marina.id, inicio, experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+    const cinco = await s.grupos.criar({
+      alunoIds: alunos.slice(0, 5).map((aluno) => aluno.id),
+      responsavelId: outro.id,
+      inicio: '2026-10-22T09:00:00-03:00',
+      capacidade: 5,
+      experimental: false,
+    }, AGORA);
+    expect(cinco.capacidade).toBe(5);
+    expect(cinco.aulas).toHaveLength(5);
     const grupo = await s.grupos.criar({
       alunoIds: alunos.slice(0, 4).map((aluno) => aluno.id),
       responsavelId: marina.id,
@@ -371,7 +380,9 @@ describe('regras de domínio', () => {
     await expect(s.grupos.atualizar(grupo.id, { fim: '2026-10-22T07:30:00-03:00' }, AGORA))
       .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
     await expect(s.grupos.atualizar(grupo.id, { capacidade: 5 }, AGORA))
-      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+      .rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: mensagemGrupoCheio(5) });
+    await expect(s.grupos.atualizar(grupo.id, { capacidade: 3 }, AGORA))
+      .rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS', mensagem: 'A capacidade do grupo é 4, 5 ou 6.' });
     await expect(s.aulas.criar({
       alunoId: alunos[6].id, responsavelId: marina.id, inicio: '2026-10-22T07:30:00-03:00', experimental: false,
     }, AGORA)).rejects.toMatchObject({ codigo: 'HORARIO_OCUPADO', mensagem: MENSAGEM_OCUPADO });

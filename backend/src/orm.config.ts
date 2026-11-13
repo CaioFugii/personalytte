@@ -26,6 +26,7 @@ import { Migration20261110120000_falta_nao_ocupa_professor } from './migrations/
 import { Migration20261110130000_aluno_plano_suspenso } from './migrations/Migration20261110130000_aluno_plano_suspenso';
 import { Migration20261110150000_plano_professor_por_horario } from './migrations/Migration20261110150000_plano_professor_por_horario';
 import { Migration20261111120000_grupos } from './migrations/Migration20261111120000_grupos';
+import { Migration20261113120000_capacidade_cinco } from './migrations/Migration20261113120000_capacidade_cinco';
 
 export function criarOrmConfig() {
   carregarEnv();
@@ -60,6 +61,7 @@ export function criarOrmConfig() {
         { name: 'Migration20261110130000_aluno_plano_suspenso', class: Migration20261110130000_aluno_plano_suspenso },
         { name: 'Migration20261110150000_plano_professor_por_horario', class: Migration20261110150000_plano_professor_por_horario },
         { name: 'Migration20261111120000_grupos', class: Migration20261111120000_grupos },
+        { name: 'Migration20261113120000_capacidade_cinco', class: Migration20261113120000_capacidade_cinco },
       ],
     },
     driverOptions: local ? {} : { connection: { ssl: { rejectUnauthorized: false } } },

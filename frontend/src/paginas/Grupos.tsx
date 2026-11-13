@@ -11,6 +11,12 @@ import { HORARIOS_OFERTA } from '../lib/ofertaHorarios'
 import { DIAS } from '../lib/rotulos'
 
 const DIAS_LISTA = DIAS.filter((dia) => dia.value !== 'dom')
+const LIMITES = [4, 5, 6] as const
+
+function limiteDe(valor: string): (typeof LIMITES)[number] | null {
+  const numero = Number(valor)
+  return LIMITES.find((limite) => limite === numero) ?? null
+}
 const CURTO_DIA: Record<DiaSemana, string> = {
   seg: 'Seg',
   ter: 'Ter',
@@ -402,7 +408,7 @@ function NovoGrupo({
   const rotulo = rotuloDia(dia)
   const [horarioInicio, setHorarioInicio] = useState(horarioInicial)
   const [responsavelId, setResponsavelId] = useState('')
-  const [capacidade, setCapacidade] = useState<4 | 6>(4)
+  const [capacidade, setCapacidade] = useState<(typeof LIMITES)[number]>(4)
   const [escolhidos, setEscolhidos] = useState<Aluno[]>([])
   const disponiveis = alunos
     .filter((aluno) => !escolhidos.some((item) => item.id === aluno.id))
@@ -506,10 +512,14 @@ function NovoGrupo({
               className={classeCampo}
               value={capacidade}
               disabled={pendente}
-              onChange={(event) => setCapacidade(event.target.value === '6' ? 6 : 4)}
+              onChange={(event) => {
+                const limite = limiteDe(event.target.value)
+                if (limite) setCapacidade(limite)
+              }}
             >
-              <option value={4}>4 alunos</option>
-              <option value={6}>6 alunos</option>
+              {LIMITES.map((limite) => (
+                <option key={limite} value={limite}>{limite} alunos</option>
+              ))}
             </select>
           </label>
           <div>
@@ -659,8 +669,9 @@ function EditorGrupo({
               disabled={pendente}
               onChange={(event) => onAlterarLimite(Number(event.target.value))}
             >
-              <option value={4} disabled={grupo.alunos.length > 4}>4 alunos</option>
-              <option value={6}>6 alunos</option>
+              {LIMITES.map((limite) => (
+                <option key={limite} value={limite} disabled={grupo.alunos.length > limite}>{limite} alunos</option>
+              ))}
             </select>
           </label>
           <div>

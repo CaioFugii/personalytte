@@ -37,8 +37,8 @@ export function ocupaVaga(status: StatusAula): boolean {
 }
 
 export function capacidadeDe(valor: unknown): number {
-  if (valor === CAPACIDADE_PADRAO || valor === CAPACIDADE_MAXIMA) return valor;
-  throw dadosInvalidos('A capacidade do grupo é 4 ou 6.');
+  if (valor === CAPACIDADE_PADRAO || valor === 5 || valor === CAPACIDADE_MAXIMA) return valor;
+  throw dadosInvalidos('A capacidade do grupo é 4, 5 ou 6.');
 }
 
 export function exigirIntervaloGrupo(inicio: Date, fim: Date): void {
