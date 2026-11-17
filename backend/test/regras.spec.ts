@@ -7,6 +7,7 @@ import { AgendaService } from '../src/dominio/agenda.service';
 import { tituloAvisoAniversariantes } from '../src/dominio/aniversariantes';
 import { Aluno } from '../src/entidades/aluno.entity';
 import { Aula } from '../src/entidades/aula.entity';
+import { Grupo } from '../src/entidades/grupo.entity';
 import { Integrante } from '../src/entidades/integrante.entity';
 import { AlunosService } from '../src/modulos/alunos/alunos.service';
 import { AulasService } from '../src/modulos/aulas/aulas.service';
@@ -1282,5 +1283,92 @@ describe('regras de domínio', () => {
       responsavelId: marina.id,
       alunoIds: [ana.id],
     }, AGORA)).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' });
+  });
+
+  it('remove agendamento avulso e devolve a vaga da reposição', async () => {
+    const s = servicos(orm);
+    const marina = await professor(s, 'marina-remover@personalytte.local');
+    const paulo = await professor(s, 'paulo-remover@personalytte.local');
+    const ana = await s.alunos.criar({
+      nome: 'Ana Avulsa',
+      telefone: '11911119001',
+      genero: 'FEMININO',
+      plano: 'PARTICULAR',
+      categoria: 'D',
+    }, AGORA);
+    const bruno = await s.alunos.criar({
+      nome: 'Bruno Plano',
+      telefone: '11911119002',
+      genero: 'MASCULINO',
+      plano: 'MENSAL',
+      categoria: 'C',
+      horarios: [{ dia: 'sab', horarioInicio: '09:00', responsavelId: marina.id }],
+    }, AGORA);
+    const avulsa = await s.aulas.criar({
+      alunoId: ana.id,
+      responsavelId: marina.id,
+      inicio: '2026-10-22T10:00:00-03:00',
+    }, AGORA);
+    const colega = await s.aulas.criar({
+      alunoId: bruno.id,
+      responsavelId: marina.id,
+      inicio: '2026-10-22T10:00:00-03:00',
+    }, AGORA);
+    expect(colega.grupo.id).toBe(avulsa.grupo.id);
+    const doPlano = (await aulasDe(orm, bruno.id)).find((aula) => aula.ligadaAoPlano);
+    expect(doPlano).toBeTruthy();
+    await expect(s.aulas.remover(doPlano!.id)).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      mensagem: 'Aula do plano semanal não se remove por aqui.',
+    });
+    await expect(s.aulas.remover(avulsa.id)).resolves.toEqual({ ok: true });
+    expect(await orm.em.fork().findOne(Aula, { id: avulsa.id })).toBeNull();
+    expect(await orm.em.fork().findOne(Aula, { id: colega.id })).not.toBeNull();
+    expect(await orm.em.fork().findOne(Grupo, { id: avulsa.grupo.id })).not.toBeNull();
+
+    const sozinha = await s.aulas.criar({
+      alunoId: ana.id,
+      responsavelId: paulo.id,
+      inicio: '2026-10-23T15:00:00-03:00',
+    }, AGORA);
+    await s.aulas.remover(sozinha.id);
+    expect(await orm.em.fork().findOne(Grupo, { id: sozinha.grupo.id })).toBeNull();
+    const deNovo = await s.aulas.criar({
+      alunoId: ana.id,
+      responsavelId: paulo.id,
+      inicio: '2026-10-23T15:30:00-03:00',
+    }, AGORA);
+    expect(deNovo.ligadaAoPlano).toBe(false);
+
+    const origem = await s.aulas.criar({
+      alunoId: ana.id,
+      responsavelId: marina.id,
+      inicio: '2026-10-24T09:00:00-03:00',
+    }, AGORA);
+    await s.aulas.atualizar(origem.id, {
+      status: 'FALTA',
+      concederReposicao: { justificativa: 'Avisou' },
+      reposicao: { responsavelId: marina.id, inicio: '2026-10-27T09:00:00-03:00' },
+    }, AGORA);
+    const reposicao = (await aulasDe(orm, ana.id)).find((aula) => aula.reposicaoDe?.id === origem.id);
+    expect(reposicao).toBeTruthy();
+    await expect(s.aulas.remover(origem.id)).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      mensagem: 'Esta aula tem uma reposição ligada. Remova a reposição antes.',
+    });
+    await s.aulas.remover(reposicao!.id);
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(1);
+    await s.aulas.remover(origem.id);
+    expect((await s.alunos.obter(ana.id)).reposicoesDisponiveis).toBe(0);
+
+    const visita = await s.aulas.criar({
+      experimental: true,
+      alunoTemporario: { nome: 'Visitante Errado', telefone: null },
+      responsavelId: marina.id,
+      inicio: '2026-10-24T16:00:00-03:00',
+    }, AGORA);
+    await s.aulas.remover(visita.id);
+    expect(await orm.em.fork().findOne(Aluno, { nome: 'Visitante Errado' })).toBeNull();
+    await expect(s.aulas.remover('00000000-0000-4000-8000-000000000000')).rejects.toMatchObject({ codigo: 'NAO_ENCONTRADO' });
   });
 });

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { AulasService } from './aulas.service';
 
 @Controller('aulas')
@@ -36,5 +36,10 @@ export class AulasController {
   @HttpCode(200)
   cancelar(@Param('id') id: string, @Body() corpo: unknown) {
     return this.aulas.cancelar(id, corpo);
+  }
+
+  @Delete(':id')
+  remover(@Param('id') id: string) {
+    return this.aulas.remover(id);
   }
 }

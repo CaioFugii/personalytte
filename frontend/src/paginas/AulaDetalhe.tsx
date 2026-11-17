@@ -4,6 +4,7 @@ import { api, mensagemDeErro } from '../api/client'
 import type { Aluno, Aula, Categoria, Responsavel, StatusAula } from '../api/types'
 import { useGet } from '../api/useGet'
 import { ModalCancelamento, type DadosCancelamento } from '../componentes/cancelamento'
+import { useConfirmacao } from '../componentes/confirmacao'
 import { notificar, useNotificar } from '../componentes/toast'
 import {
   Botao,
@@ -80,7 +81,9 @@ export function AulaDetalhe() {
   const [form, setForm] = useState<FormAula | null>(null)
   const [salvando, setSalvando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [removendo, setRemovendo] = useState(false)
   const [pedindoCancelamento, setPedindoCancelamento] = useState(false)
+  const { pedir, dialogo } = useConfirmacao()
 
   const chave = aula ? chaveAula(aula) : null
   if (chave !== chaveVista) {
@@ -200,6 +203,29 @@ export function AulaDetalhe() {
     }
   }
 
+  async function remover() {
+    if (!aula || aula.ligadaAoPlano || removendo) return
+    const confirma = await pedir({
+      titulo: 'Remover agendamento',
+      mensagem: aula.reposicaoDeAulaId
+        ? 'Esta reposição sai da agenda. A vaga de reposição volta a ficar disponível.'
+        : 'Este agendamento avulso sai da agenda. A vaga fica livre e não gera reposição.',
+      confirmar: 'Remover',
+      perigo: true,
+    })
+    if (!confirma) return
+    setRemovendo(true)
+    try {
+      await api(`/api/aulas/${aula.id}`, { method: 'DELETE' })
+      navigate(`/agenda/dia?date=${partesSP(aula.inicio).data}`, {
+        state: { sucesso: 'Agendamento removido.' },
+      })
+    } catch (err) {
+      notificar('erro', mensagemDeErro(err))
+      setRemovendo(false)
+    }
+  }
+
   async function cancelar(dados: DadosCancelamento) {
     if (!aula || aula.status === 'CANCELADA') return
     setCancelando(true)
@@ -220,8 +246,11 @@ export function AulaDetalhe() {
     respQ.recarregar()
   }
 
+  const ocupado = salvando || cancelando || removendo
+
   return (
     <div>
+      {dialogo}
       {pedindoCancelamento && aula ? (
         <ModalCancelamento
           professores={professores}
@@ -453,12 +482,17 @@ export function AulaDetalhe() {
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Botao type="submit" disabled={salvando || cancelando}>
+              <Botao type="submit" disabled={ocupado}>
                 {salvando ? 'Salvando…' : 'Salvar'}
               </Botao>
               {aula.status !== 'CANCELADA' ? (
-                <Botao variante="perigo" disabled={salvando || cancelando} onClick={() => setPedindoCancelamento(true)}>
+                <Botao variante="perigo" disabled={ocupado} onClick={() => setPedindoCancelamento(true)}>
                   {cancelando ? 'Cancelando…' : 'Cancelar aula'}
+                </Botao>
+              ) : null}
+              {!aula.ligadaAoPlano ? (
+                <Botao variante="secundario" disabled={ocupado} onClick={() => void remover()}>
+                  {removendo ? 'Removendo…' : 'Remover agendamento'}
                 </Botao>
               ) : null}
             </div>

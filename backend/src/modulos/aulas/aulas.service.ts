@@ -1,4 +1,4 @@
-import { EntityManager, wrap } from '@mikro-orm/core';
+import { EntityManager, FlushMode, wrap } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
 import type { AulaResposta } from '../../comum/contrato';
 import { ErroApi, MENSAGEM_JA_INICIOU, naoEncontrado, traduzirErroBanco } from '../../comum/erros';
@@ -142,6 +142,37 @@ export class AulasService {
         }
         await em.flush();
         return (await responderAulas(em, [aula]))[0];
+      });
+    } catch (erro) {
+      const traduzido = traduzirErroBanco(erro);
+      if (traduzido) throw traduzido;
+      throw erro;
+    }
+  }
+
+  async remover(id: string): Promise<{ ok: true }> {
+    uuidDe(id, 'Identificador');
+    try {
+      return await this.em.transactional(async (em) => {
+        const aula = await this.carregar(em, id);
+        if (aula.ligadaAoPlano) {
+          throw new ErroApi(400, 'DADOS_INVALIDOS', 'Aula do plano semanal não se remove por aqui.');
+        }
+        const ligadas = await em.count(Aula, { reposicaoDe: aula.id }, { flushMode: FlushMode.COMMIT });
+        if (ligadas > 0) {
+          throw new ErroApi(400, 'DADOS_INVALIDOS', 'Esta aula tem uma reposição ligada. Remova a reposição antes.');
+        }
+        const aluno = aula.aluno;
+        const grupoId = aula.grupo.id;
+        em.remove(aula);
+        await em.flush();
+        await this.agenda.removerGrupoSeVazio(em, grupoId);
+        if (aluno.temporario) {
+          const outras = await em.count(Aula, { aluno: aluno.id }, { flushMode: FlushMode.COMMIT });
+          if (outras === 0) em.remove(aluno);
+        }
+        await em.flush();
+        return { ok: true };
       });
     } catch (erro) {
       const traduzido = traduzirErroBanco(erro);

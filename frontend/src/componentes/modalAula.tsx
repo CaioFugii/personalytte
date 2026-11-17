@@ -6,6 +6,7 @@ import { useGet } from '../api/useGet'
 import { formatarIntervalo } from '../lib/calendario'
 import { STATUS } from '../lib/rotulos'
 import { ModalCancelamento, type DadosCancelamento } from './cancelamento'
+import { useConfirmacao } from './confirmacao'
 import { notificar } from './toast'
 import { Botao, Campo, classeCampo, SeloCategoria } from './ui'
 
@@ -29,9 +30,14 @@ export function ModalAula({
   const [justificativa, setJustificativa] = useState(aula.justificativaReposicao ?? '')
   const [salvando, setSalvando] = useState(false)
   const [cancelando, setCancelando] = useState(false)
+  const [removendo, setRemovendo] = useState(false)
   const [pedindoCancelamento, setPedindoCancelamento] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const { pedir, dialogo } = useConfirmacao()
   const cancelamentoAberto = useRef(false)
+  const confirmandoAtual = useRef(false)
   cancelamentoAberto.current = pedindoCancelamento
+  confirmandoAtual.current = confirmando
   const respQ = useGet<Responsavel[]>(pedindoCancelamento ? '/api/integrantes/responsaveis' : null)
   const professores = useMemo(
     () =>
@@ -55,7 +61,7 @@ export function ModalAula({
     const anterior = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     function aoTecla(event: KeyboardEvent) {
-      if (event.key !== 'Escape' || cancelamentoAberto.current) return
+      if (event.key !== 'Escape' || cancelamentoAberto.current || confirmandoAtual.current) return
       event.preventDefault()
       fecharAtual.current()
     }
@@ -97,6 +103,31 @@ export function ModalAula({
     }
   }
 
+  async function remover() {
+    if (aula.ligadaAoPlano || removendo) return
+    setConfirmando(true)
+    const confirma = await pedir({
+      titulo: 'Remover agendamento',
+      mensagem: aula.reposicaoDeAulaId
+        ? 'Esta reposição sai da agenda. A vaga de reposição volta a ficar disponível.'
+        : 'Este agendamento avulso sai da agenda. A vaga fica livre e não gera reposição.',
+      confirmar: 'Remover',
+      perigo: true,
+    })
+    setConfirmando(false)
+    if (!confirma) return
+    setRemovendo(true)
+    try {
+      await api(`/api/aulas/${aula.id}`, { method: 'DELETE' })
+      notificar('ok', 'Agendamento removido.')
+      onSalvo()
+      onFechar()
+    } catch (erro) {
+      notificar('erro', mensagemDeErro(erro))
+      setRemovendo(false)
+    }
+  }
+
   async function cancelar(dados: DadosCancelamento) {
     if (aula.status === 'CANCELADA') return
     setCancelando(true)
@@ -111,7 +142,11 @@ export function ModalAula({
     }
   }
 
+  const ocupado = salvando || cancelando || removendo
+
   return createPortal(
+    <>
+    {dialogo}
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 p-4" onMouseDown={onFechar}>
       {pedindoCancelamento && !respQ.carregando ? (
         <ModalCancelamento
@@ -143,7 +178,7 @@ export function ModalAula({
             </h2>
             <p className="mt-1 text-sm text-muted">{formatarIntervalo(aula.inicio, aula.fim)}</p>
           </div>
-          <button type="button" className="text-sm font-semibold text-muted" onClick={onFechar} disabled={salvando || cancelando}>
+          <button type="button" className="text-sm font-semibold text-muted" onClick={onFechar} disabled={ocupado}>
             Fechar
           </button>
         </div>
@@ -157,7 +192,7 @@ export function ModalAula({
               id={`status-aula-${aula.id}`}
               ref={statusRef}
               value={status}
-              disabled={salvando || cancelando}
+              disabled={ocupado}
               onChange={(event) => {
                 const proximo = event.target.value as StatusAula
                 setStatus(proximo)
@@ -192,7 +227,7 @@ export function ModalAula({
                   <input
                     type="checkbox"
                     checked={criarReposicao}
-                    disabled={salvando || cancelando}
+                    disabled={ocupado}
                     onChange={(event) => setCriarReposicao(event.target.checked)}
                     className="accent-tide"
                   />
@@ -205,7 +240,7 @@ export function ModalAula({
                       required
                       rows={3}
                       value={justificativa}
-                      disabled={salvando || cancelando}
+                      disabled={ocupado}
                       onChange={(event) => setJustificativa(event.target.value)}
                       className={classeCampo}
                     />
@@ -216,22 +251,28 @@ export function ModalAula({
           </fieldset>
         ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
-          <Botao type="submit" disabled={salvando || cancelando}>
+          <Botao type="submit" disabled={ocupado}>
             Salvar
           </Botao>
           {aula.status !== 'CANCELADA' ? (
             <Botao
               type="button"
               variante="perigo"
-              disabled={salvando || cancelando || respQ.carregando}
+              disabled={ocupado || respQ.carregando}
               onClick={() => setPedindoCancelamento(true)}
             >
               Cancelar aula
             </Botao>
           ) : null}
+          {!aula.ligadaAoPlano ? (
+            <Botao type="button" variante="secundario" disabled={ocupado} onClick={() => void remover()}>
+              {removendo ? 'Removendo…' : 'Remover agendamento'}
+            </Botao>
+          ) : null}
         </div>
       </form>
-    </div>,
+    </div>
+    </>,
     document.body,
   )
 }

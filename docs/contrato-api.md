@@ -204,6 +204,8 @@ Ao enviar `status: "FALTA"`, o corpo pode incluir `concederReposicao` e `reposic
 }
 ```
 
+`DELETE /api/aulas/:id` apaga o agendamento avulso. Vale para aula fora do plano, inclusive experimental e reposição. A aula deixa de existir: não fica Cancelada, não pede justificativa e não concede reposição. Se a aula removida era uma reposição, a vaga da origem volta a ficar disponível. Aula ligada ao plano responde `400` com `DADOS_INVALIDOS`. Aula que tem outra apontando para ela como reposição também, pedindo para remover essa reposição antes. Grupo que ficar sem aula é apagado. Aluno temporário que ficar sem aula é apagado. Responde `{ "ok": true }`. Aula inexistente responde `404`.
+
 Criar, editar, obter e cancelar devolvem a aula, inclusive o `id`.
 
 Conflito de horário ou bloqueio: `409` com `HORARIO_OCUPADO` ou `BLOQUEIO_AGENDA`. O conflito usa o intervalo real do grupo. O mesmo professor não pode ter dois grupos que se cruzem enquanto os dois ocupam vaga. Ocupam vaga `AGUARDANDO` e `CONFIRMADA`. `FALTA` e `CANCELADA` liberam a vaga. A aula além da capacidade responde `HORARIO_OCUPADO`. O mesmo aluno em dois grupos que se cruzem responde `HORARIO_OCUPADO` em qualquer status da própria aula. Sair de `FALTA` ou de `CANCELADA` volta a ocupar a vaga e, com o grupo cheio, responde `HORARIO_OCUPADO`.

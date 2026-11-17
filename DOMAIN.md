@@ -6,7 +6,7 @@ Uma escola. O aluno não entra no sistema. O fuso das regras é America/Sao_Paul
 
 **Integrante** é quem entra no painel. A função define o papel: `PROFESSOR` e `OUTROS` entram como professor e `SOCIO` entra como administrador. O sócio também pode ser responsável por aula e por plano semanal. No novo agendamento, o campo se chama Professor e a lista traz `PROFESSOR` e `SOCIO`. A ficha do aluno não edita o plano semanal.
 
-O professor vê o dashboard, o acompanhamento do mês, a agenda inteira e os alunos, com telefone. Cria, edita, cancela e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
+O professor vê o dashboard, o acompanhamento do mês, a agenda inteira e os alunos, com telefone. Cria, edita, cancela, remove agendamento avulso e muda o status das aulas. Não grava aluno, equipe, evento nem aviso.
 
 O administrador faz o que o professor faz e ainda grava alunos, integrantes, eventos e avisos.
 
@@ -37,6 +37,8 @@ Ao marcar `FALTA`, a vaga de reposição só nasce se a tela marcar criar reposi
 O acompanhamento lê um mês civil de Brasília, o corrente ou um anterior. Falta, confirmação e cancelamento contam a aula daquele status cujo início cai no mês. Reposição é a aula que aponta para a origem, contada no mês do próprio início, em qualquer status. Aula `AGUARDANDO` que não é reposição fica de fora. As reposições disponíveis aparecem na mesma tela e não dependem do mês escolhido. Os dois papéis apenas leem.
 
 Aula experimental é avulsa. Pode apontar para um aluno cadastrado ou criar um cadastro temporário: nome obrigatório, telefone opcional, sem plano, categoria, gênero ou plano semanal. Temporário não aparece na lista de alunos nem conta como cadastrado. Avulsa, experimental e reposição ficam fora do plano semanal.
+
+Agendamento avulso pode ser removido, inclusive experimental e reposição. A aula sai da agenda. Não vira cancelamento, não pede justificativa e não concede reposição. Remover uma reposição devolve a vaga da origem. Aula do plano semanal não se remove por aqui. Se outra aula aponta para ela como reposição, a remoção espera essa reposição sair. Grupo sem aula restante é apagado. Aluno temporário sem aula restante também.
 
 Um agendamento novo não aceita data anterior a hoje em Brasília. Hoje é permitido.
 
