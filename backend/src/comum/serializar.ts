@@ -88,6 +88,7 @@ export function serializarAula(
       nome: aula.aluno.nome,
       categoria: aula.aluno.categoria,
       telefone: aula.aluno.telefone,
+      instagram: aula.aluno.instagram,
       temporario: aula.aluno.temporario,
     },
     responsavel: grupo.responsavel,

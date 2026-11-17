@@ -218,7 +218,7 @@ export function Grupos() {
   }
 
   return (
-    <div>
+    <div className="flex h-[70vh] min-h-0 flex-col lg:h-[calc(100dvh-3rem)]">
       {dialogo}
       {novo ? (
         <NovoGrupo
@@ -245,23 +245,25 @@ export function Grupos() {
           onRemover={(aluno) => void remover(aberto, aluno)}
         />
       ) : null}
-      <Cabecalho
-        sobretitulo="Gestão"
-        titulo="Grupos"
-        descricao="De segunda a sábado, com o horário à esquerda e o dia em cima. Novo grupo cria um horário fixo. Editar abre o professor, o limite e os alunos. As próximas aulas em Aguardando acompanham essa lista."
-      />
-      <form role="search" className="mb-4" onSubmit={(event) => event.preventDefault()}>
-        <label htmlFor="busca-grupos" className="sr-only">
-          Busca
-        </label>
-        <input
-          id="busca-grupos"
-          value={texto}
-          onChange={(event) => setTexto(event.target.value)}
-          placeholder="Professor ou aluno"
-          className={classeBusca}
+      <div className="shrink-0">
+        <Cabecalho
+          sobretitulo="Gestão"
+          titulo="Grupos"
+          descricao="De segunda a sábado, com o horário à esquerda e o dia em cima. Novo grupo cria um horário fixo. Editar abre o professor, o limite e os alunos. As próximas aulas em Aguardando acompanham essa lista."
         />
-      </form>
+        <form role="search" className="mb-4" onSubmit={(event) => event.preventDefault()}>
+          <label htmlFor="busca-grupos" className="sr-only">
+            Busca
+          </label>
+          <input
+            id="busca-grupos"
+            value={texto}
+            onChange={(event) => setTexto(event.target.value)}
+            placeholder="Professor ou aluno"
+            className={classeBusca}
+          />
+        </form>
+      </div>
       {(consulta.carregando || alunosQ.carregando) && !lista ? <PainelEstado status>Carregando…</PainelEstado> : null}
       {erroCarga ? (
         <PainelEstado>
@@ -278,12 +280,14 @@ export function Grupos() {
         </PainelEstado>
       ) : null}
       {lista ? (
-        <GradeGrupos
-          grupos={visiveis}
-          busca={busca}
-          onEditar={setAberto}
-          onNovo={(dia, horario) => setNovo({ dia, horario })}
-        />
+        <div className="min-h-0 flex-1">
+          <GradeGrupos
+            grupos={visiveis}
+            busca={busca}
+            onEditar={setAberto}
+            onNovo={(dia, horario) => setNovo({ dia, horario })}
+          />
+        </div>
       ) : null}
     </div>
   )
@@ -302,18 +306,19 @@ function GradeGrupos({
 }) {
   const horas = horasDaGrade(grupos, Boolean(busca.trim()))
   return (
-    <div className="overflow-x-auto rounded-3xl bg-paper p-4 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl bg-paper p-4 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
       {horas.length === 0 ? <p className="text-muted">Nenhum grupo encontrado.</p> : null}
       {horas.length > 0 ? (
-        <table className="w-full min-w-[72rem] table-fixed border-separate border-spacing-1 text-left">
+        <div className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full min-w-[72rem] table-fixed border-separate border-spacing-1 text-left">
           <caption className="sr-only">Grupos de segunda a sábado, com o horário à esquerda.</caption>
           <thead>
             <tr>
-              <th scope="col" className="w-16">
+              <th scope="col" className="sticky top-0 z-10 w-16 bg-paper">
                 <span className="sr-only">Horário</span>
               </th>
               {DIAS_LISTA.map((dia) => (
-                <th key={dia.value} scope="col" className="rounded-xl px-2 py-2 text-center text-ink">
+                <th key={dia.value} scope="col" className="sticky top-0 z-10 rounded-xl bg-paper px-2 py-2 text-center text-ink">
                   <span className="block text-xs font-semibold tracking-wide uppercase">{CURTO_DIA[dia.value]}</span>
                 </th>
               ))}
@@ -380,7 +385,8 @@ function GradeGrupos({
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       ) : null}
     </div>
   )

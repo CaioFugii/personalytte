@@ -220,7 +220,7 @@ Aula na resposta. `responsavel`, `inicio` e `fim` repetem o grupo:
     "fim": "2026-10-20T20:00:00-03:00",
     "capacidade": 4
   },
-  "aluno": { "id": "uuid", "nome": "string", "categoria": "D", "telefone": "11999990000", "temporario": false },
+  "aluno": { "id": "uuid", "nome": "string", "categoria": "D", "telefone": "11999990000", "instagram": "anacosta", "temporario": false },
   "responsavel": { "id": "uuid", "nome": "string" },
   "inicio": "2026-10-20T19:00:00-03:00",
   "fim": "2026-10-20T20:00:00-03:00",
@@ -235,7 +235,7 @@ Aula na resposta. `responsavel`, `inicio` e `fim` repetem o grupo:
 }
 ```
 
-`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras. `reposicaoAgendadaId` aponta a reposição em aberto desta aula, ou `null`. `reposicoesDisponiveis` é o saldo do aluno desta aula. `justificativaReposicao` é a justificativa que concedeu a vaga, ou `null` quando a aula não concede reposição.
+`status`: `AGUARDANDO`, `CONFIRMADA`, `FALTA`, `CANCELADA`. `cancelamento` é `{ "justificativa": "string", "geraReposicao": true }` na aula Cancelada e `null` nas outras. `reposicaoAgendadaId` aponta a reposição em aberto desta aula, ou `null`. `reposicoesDisponiveis` é o saldo do aluno desta aula. `justificativaReposicao` é a justificativa que concedeu a vaga, ou `null` quando a aula não concede reposição. `instagram` no aluno da aula é o usuário do perfil, sem `@`, ou `null`.
 
 ## Eventos
 

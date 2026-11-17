@@ -71,7 +71,7 @@ export type Aluno = {
 export type Aula = {
   id: string
   grupo: GrupoResumo
-  aluno: { id: string; nome: string; categoria: Categoria | null; telefone: string | null; temporario: boolean }
+  aluno: { id: string; nome: string; categoria: Categoria | null; telefone: string | null; instagram: string | null; temporario: boolean }
   responsavel: { id: string; nome: string }
   inicio: string
   fim: string

@@ -188,6 +188,7 @@ describe('sessão http', () => {
     const aluno = await admin.post('/api/alunos').send({
       nome: 'Sem plano',
       telefone: '11933330003',
+      instagram: '@sem.plano',
       genero: 'FEMININO', plano: 'PARTICULAR',
       categoria: 'D',
       horarios: [],
@@ -217,7 +218,7 @@ describe('sessão http', () => {
     expect(aula.status).toBe(201);
     expect(aula.body).toMatchObject({
       id: expect.any(String),
-      aluno: { id: aluno.body.id, nome: 'Sem plano', categoria: 'D' },
+      aluno: { id: aluno.body.id, nome: 'Sem plano', categoria: 'D', instagram: 'sem.plano' },
       responsavel: { id: paulo.id, nome: 'Paulo Campos' },
       inicio: '2026-12-15T10:00:00-03:00',
       fim: '2026-12-15T11:00:00-03:00',

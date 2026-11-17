@@ -7,12 +7,14 @@ const EMOJI: Partial<Record<StatusAula, string>> = {
 }
 
 function linhaDoAluno(aula: Aula): string {
-  const nome = aula.experimental ? `${aula.aluno.nome} • Experimental` : aula.aluno.nome
+  const usuario = aula.aluno.instagram?.replace(/^@+/, '').trim()
+  const nome = usuario ? `${aula.aluno.nome} @${usuario}` : aula.aluno.nome
+  const marcado = aula.experimental ? `${nome} • Experimental` : nome
   const emoji = EMOJI[aula.status]
-  return emoji ? `${nome}${emoji}` : nome
+  return emoji ? `${marcado}${emoji}` : marcado
 }
 
-/** Texto da agenda do dia, pronto para colar no WhatsApp. Aula cancelada não entra. */
+/** Texto da agenda do dia, pronto para colar no WhatsApp. Aula cancelada não entra. Quem tem Instagram aparece com @usuário. */
 export function textoAgendaDia(aulas: Aula[]): string {
   const ordenadas = [...aulas].sort((a, b) => {
     const diferenca = new Date(a.inicio).getTime() - new Date(b.inicio).getTime()
