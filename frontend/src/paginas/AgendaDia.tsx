@@ -153,7 +153,7 @@ export function AgendaDia() {
               onChange={(event) => {
                 if (civilValida(event.target.value)) ir(event.target.value)
               }}
-              className="h-10 rounded-full border border-line bg-paper px-3 text-sm"
+              className="h-10 rounded-md border border-line bg-paper px-3 text-sm"
             />
             <Botao variante="secundario" disabled={carregandoLista || Boolean(agenda.erro)} onClick={abrirTexto}>
               Copiar texto

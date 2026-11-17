@@ -195,9 +195,9 @@ function DiaColuna({
 }) {
   const horas = gradeDoDia(grupos)
   return (
-    <section className={cx('flex min-h-52 flex-col rounded-2xl bg-paper shadow-[0_8px_24px_rgba(14,60,67,0.05)]', hoje && 'ring-2 ring-tide')}>
-      <Link to={`/agenda/dia?date=${dia}`} className="border-b border-line px-2 py-2 hover:bg-sand">
-        <span className="block text-xs font-semibold tracking-wide text-muted uppercase">{formatarDiaCurto(dia)}</span>
+    <section className="flex min-h-52 flex-col rounded-md border border-line bg-paper">
+      <Link to={`/agenda/dia?date=${dia}`} className={cx('border-b border-line px-2 py-2 hover:bg-sand', hoje && 'bg-lime')}>
+        <span className="block text-xs font-semibold text-muted">{formatarDiaCurto(dia)}</span>
         <span className="text-2xl leading-none font-bold">{Number(dia.slice(8))}</span>
         {hoje ? <span className="ml-2 text-xs font-semibold text-tide">Hoje</span> : null}
       </Link>
@@ -205,7 +205,7 @@ function DiaColuna({
         {eventos.map((evento, indice) => {
           const responsavel = nomeDoResponsavel(evento, nomes)
           return (
-            <li key={evento.id ?? `${evento.inicio}-${indice}`} className="rounded-xl bg-[#f6edd8] px-1.5 py-1 text-xs">
+            <li key={evento.id ?? `${evento.inicio}-${indice}`} className="rounded-md bg-paper px-1.5 py-1 text-xs">
               <span className="font-semibold">{rotuloTipoEvento(evento.tipo)}</span>
               <span className="block">{evento.nome}</span>
               {evento.bloqueiaAulas ? <span className="block font-semibold text-clay">Bloqueia aulas</span> : null}
@@ -221,7 +221,7 @@ function DiaColuna({
               <GrupoAulas key={grupo.id} grupo={grupo} rotulo={hora.rotulo} onAbrir={onAbrir} />
             ))
           ) : (
-            <li key={hora.horario} className="rounded-xl bg-sand px-1.5 py-1 text-xs text-muted">
+            <li key={hora.horario} className="rounded-md bg-sand px-1.5 py-1 text-xs text-muted">
               <span className="font-bold text-tide-dark tabular-nums">{hora.rotulo}</span>
               <span className="mt-0.5 block">Horário vago</span>
             </li>
@@ -250,7 +250,7 @@ function GrupoAulas({
     <li>
       <section
         className={cx(
-          'rounded-xl px-1 py-1',
+          'rounded-md px-1 py-1',
           fundo ?? 'border border-line bg-sand/70',
           status === 'CANCELADA' && 'opacity-70',
         )}
@@ -360,8 +360,8 @@ export function Abas({
           to={aba.to}
           aria-current={atual === aba.id ? 'page' : undefined}
           className={cx(
-            'rounded-full px-3 py-1.5 text-sm font-semibold',
-            atual === aba.id ? 'bg-tide text-white' : 'bg-paper text-ink shadow-[0_4px_14px_rgba(14,60,67,0.05)]',
+            'rounded-md px-3 py-1.5 text-sm font-semibold',
+            atual === aba.id ? 'bg-lime text-tide-dark' : 'border border-line bg-paper text-ink',
           )}
         >
           {aba.label}

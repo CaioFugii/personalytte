@@ -8,8 +8,8 @@ import { cx, Marca } from './ui'
 
 function classeLink({ isActive }: { isActive: boolean }) {
   return cx(
-    'rounded-full px-3 py-2 text-sm font-semibold whitespace-nowrap',
-    isActive ? 'bg-white/15 text-white' : 'text-white/80 hover:bg-white/10',
+    'rounded-md px-3 py-2 text-sm font-semibold whitespace-nowrap',
+    isActive ? 'bg-lime text-tide-dark' : 'text-white/80 hover:bg-white/10',
   )
 }
 
@@ -67,9 +67,7 @@ export function Layout() {
           </div>
         </div>
         <nav aria-label="Principal" className="flex gap-1 overflow-x-auto px-3 pb-4 lg:flex-col">
-          <p className="hidden px-3 pt-2 pb-1 text-[11px] font-bold tracking-[0.14em] text-white/45 uppercase lg:block">
-            Visão geral
-          </p>
+          <p className="hidden px-3 pt-2 pb-1 text-sm text-white/55 lg:block">Visão geral</p>
           <NavLink to="/" end className={classeLink}>
             Painel
           </NavLink>
@@ -82,9 +80,7 @@ export function Layout() {
           <NavLink to="/checkins" className={classeLink}>
             Check-ins
           </NavLink>
-          <p className="hidden px-3 pt-4 pb-1 text-[11px] font-bold tracking-[0.14em] text-white/45 uppercase lg:block">
-            Gestão
-          </p>
+          <p className="hidden px-3 pt-4 pb-1 text-sm text-white/55 lg:block">Gestão</p>
           <NavLink to="/alunos" className={classeLink}>
             Alunos
           </NavLink>
@@ -99,7 +95,7 @@ export function Layout() {
         </nav>
         <div className="mt-auto hidden p-4 lg:block">
           <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-lime text-sm font-bold text-sidebar">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-lime text-sm font-bold text-tide-dark">
               {inicial(usuario?.nome)}
             </span>
             <div className="min-w-0">

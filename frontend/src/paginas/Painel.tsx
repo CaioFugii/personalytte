@@ -63,7 +63,7 @@ function EditorAviso({
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid gap-3 rounded-2xl bg-sand/70 p-4">
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid gap-3 rounded-md bg-sand/70 p-4">
       <Campo label="Título" htmlFor={inicial?.id ? `titulo-${inicial.id}` : 'titulo-novo'}>
         <input
           id={inicial?.id ? `titulo-${inicial.id}` : 'titulo-novo'}
@@ -164,8 +164,8 @@ export function Painel() {
       ) : null}
       {dados ? (
         <div className="grid gap-6">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Numero to={`/agenda/dia?date=${hoje}`} rotulo="Aulas hoje" valor={dados.aulasHoje} />
+          <section className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line xl:grid-cols-4">
+            <Numero to={`/agenda/dia?date=${hoje}`} rotulo="Aulas hoje" valor={dados.aulasHoje} destaque />
             <Numero to={`/agenda/dia?date=${hoje}`} rotulo="Confirmadas" valor={dados.confirmadas} />
             <Numero to="/alunos" rotulo="Alunos cadastrados" valor={dados.alunosCadastrados} />
             <Numero to={`/agenda/dia?date=${hoje}`} rotulo="Alunos do dia" valor={dados.alunosDoDia} />
@@ -241,7 +241,7 @@ export function Painel() {
             ) : (
               <ul className="grid gap-3">
                 {dados.avisos.map((aviso, indice) => (
-                  <li key={aviso.id ?? `aviso-${indice}`} className="relative rounded-2xl bg-sand px-4 py-3">
+                  <li key={aviso.id ?? `aviso-${indice}`} className="relative rounded-md bg-sand px-4 py-3">
                     {editor === aviso.id && aviso.id ? (
                       <EditorAviso
                         inicial={aviso}
@@ -343,11 +343,17 @@ function ProximoHorario({ aulas }: { aulas: Aula[] }) {
   )
 }
 
-function Numero({ to, rotulo, valor }: { to: string; rotulo: string; valor: number }) {
+function Numero({ to, rotulo, valor, destaque = false }: { to: string; rotulo: string; valor: number; destaque?: boolean }) {
   return (
-    <Link to={to} className={cx(classeCartao, 'px-5 py-4')}>
-      <p className="text-4xl leading-none font-bold tabular-nums">{Number.isFinite(valor) ? valor : '—'}</p>
-      <p className="mt-2 text-sm text-muted">{rotulo}</p>
+    <Link
+      to={to}
+      className={cx(
+        'px-5 py-4',
+        destaque ? 'bg-lime' : 'bg-paper hover:bg-sand',
+      )}
+    >
+      <p className="text-5xl leading-none font-bold tabular-nums">{Number.isFinite(valor) ? valor : '—'}</p>
+      <p className="mt-2 text-sm">{rotulo}</p>
     </Link>
   )
 }

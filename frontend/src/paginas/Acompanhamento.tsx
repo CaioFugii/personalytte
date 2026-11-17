@@ -113,7 +113,7 @@ export function Acompanhamento() {
                         {aluno.nome}
                       </Link>
                       {aluno.ativo ? null : (
-                        <span className="ml-2 inline-flex rounded-full bg-[#e7e4de] px-2 py-0.5 text-xs font-semibold text-ink">
+                        <span className="ml-2 inline-flex rounded-md bg-line px-2 py-0.5 text-xs font-semibold text-ink">
                           Inativo
                         </span>
                       )}
@@ -150,7 +150,7 @@ export function Acompanhamento() {
                 type="button"
                 aria-pressed={vista === item.id}
                 onClick={() => setVista((atualVista) => (atualVista === item.id ? 'todas' : item.id))}
-                className={cx(classeCartao, 'px-5 py-4 text-left', vista === item.id && 'ring-2 ring-tide')}
+                className={cx(classeCartao, 'px-5 py-4 text-left', vista === item.id && 'bg-lime')}
               >
                 <p className="text-4xl leading-none font-bold tabular-nums">{totais[item.id]}</p>
                 <p className="mt-2 text-sm font-semibold text-muted">{item.rotulo}</p>

@@ -46,7 +46,7 @@ export function ModalTextoAgenda({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="grid w-full max-w-lg gap-4 rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)]"
+        className="grid w-full max-w-lg gap-4 rounded-md border border-line bg-paper p-6"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
@@ -59,7 +59,7 @@ export function ModalTextoAgenda({
           value={texto}
           rows={Math.min(16, Math.max(8, texto.split('\n').length))}
           aria-label={rotuloCampo}
-          className="max-h-[55vh] w-full resize-y rounded-2xl border border-line bg-sand p-3 text-sm leading-relaxed"
+          className="max-h-[55vh] w-full resize-y rounded-md border border-line bg-sand p-3 text-sm leading-relaxed"
         />
         <div className="flex flex-wrap justify-end gap-2">
           <Botao variante="secundario" onClick={onFechar}>

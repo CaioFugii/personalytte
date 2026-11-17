@@ -186,7 +186,7 @@ export function ModalEscolha() {
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="w-full max-w-2xl rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)] sm:p-8"
+        className="w-full max-w-2xl rounded-md border border-line bg-paper p-6 sm:p-8"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -256,12 +256,12 @@ function CartaoOpcao({
       aria-pressed={selecionado}
       onClick={onClick}
       className={cx(
-        'rounded-2xl border bg-white px-4 py-6 text-center',
-        selecionado ? 'border-tide ring-2 ring-tide' : 'border-line hover:border-tide',
+        'rounded-md border bg-paper px-4 py-6 text-left',
+        selecionado ? 'border-tide bg-lime/40' : 'border-line hover:border-tide',
         disabled && 'cursor-not-allowed opacity-60',
       )}
     >
-      <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-lime text-tide">{icone}</span>
+      <span className="grid h-10 w-10 place-items-center text-tide">{icone}</span>
       <span className="mt-4 block text-lg font-bold">{titulo}</span>
       <span className="mt-1 block text-sm text-muted">{texto}</span>
     </button>
@@ -463,7 +463,7 @@ function FormAula() {
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-md border border-line bg-paper p-5">
       <label className="flex items-center gap-2 text-sm font-semibold">
         <input
           type="checkbox"
@@ -715,7 +715,7 @@ function FormEvento({ evento }: { evento?: Evento }) {
   }
 
   return (
-    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
+    <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-md border border-line bg-paper p-5">
       <Campo label="Tipo" htmlFor="tipo-evento">
         <select
           id="tipo-evento"

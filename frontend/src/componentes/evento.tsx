@@ -41,7 +41,7 @@ export function ResumoEvento({
       {evento.contato ? <span className="mt-1 block text-xs text-muted">Contato: {evento.contato}</span> : null}
     </>
   )
-  const classe = cx('block rounded-xl border border-line bg-sand/70 px-3 py-2', className)
+  const classe = cx('block rounded-md border border-line bg-sand/70 px-3 py-2', className)
   if (href) {
     return (
       <Link to={href} className={cx(classe, 'hover:border-tide')}>

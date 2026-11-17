@@ -211,7 +211,7 @@ export function AlunoFormulario({ modo }: { modo: 'novo' | 'editar' }) {
         </PainelEstado>
       ) : null}
       {(modo === 'novo' || aluno) && (
-        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-2xl bg-paper p-5 shadow-[0_10px_28px_rgba(14,60,67,0.06)]" noValidate>
+        <form onSubmit={(event) => void aoEnviar(event)} className="grid max-w-3xl gap-4 rounded-md border border-line bg-paper p-5" noValidate>
           <div className="grid gap-4 md:grid-cols-2">
             <Campo label="Nome" htmlFor="nome">
               <input

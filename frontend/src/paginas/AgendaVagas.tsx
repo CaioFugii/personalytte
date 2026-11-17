@@ -119,7 +119,7 @@ export function AgendaVagas() {
         </PainelEstado>
       ) : null}
       {!agenda.erro && !carregando ? (
-        <div className="overflow-x-auto rounded-3xl bg-paper p-4 shadow-[0_10px_28px_rgba(14,60,67,0.06)]">
+        <div className="overflow-x-auto rounded-md border border-line bg-paper p-4">
           {agenda.carregando ? (
             <p role="status" className="mb-2 text-sm text-muted">
               Atualizando…
@@ -127,7 +127,7 @@ export function AgendaVagas() {
           ) : null}
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-bold tracking-[0.14em] text-tide uppercase">Personalytte</p>
+              <p className="font-display text-sm font-bold text-tide">Personalytte</p>
               <h2 className="text-2xl font-bold tracking-tight">Horários com vaga</h2>
               <p className="text-muted">{intervalo}</p>
             </div>
@@ -150,9 +150,9 @@ export function AgendaVagas() {
                   <th
                     key={dia}
                     scope="col"
-                    className={cx('rounded-xl px-2 py-2 text-center', dia === hoje ? 'bg-tide text-white' : 'text-ink')}
+                    className={cx('rounded-md px-2 py-2 text-center', dia === hoje ? 'bg-lime text-tide-dark' : 'text-ink')}
                   >
-                    <span className="block text-xs font-semibold tracking-wide uppercase">{formatarDiaCurto(dia)}</span>
+                    <span className="block text-xs font-semibold">{formatarDiaCurto(dia)}</span>
                     <span className="text-lg leading-none font-bold">{Number(dia.slice(8))}</span>
                   </th>
                 ))}
@@ -171,7 +171,7 @@ export function AgendaVagas() {
                         key={dia}
                         data-dia={dia}
                         data-hora={hora}
-                        className={cx('rounded-xl px-2 py-1.5 align-top text-xs', FUNDO[celula.tipo])}
+                        className={cx('rounded-md px-2 py-1.5 align-top text-xs', FUNDO[celula.tipo])}
                       >
                         {celula.linhas.map((linha, indice) => (
                           <p

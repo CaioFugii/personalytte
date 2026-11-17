@@ -35,21 +35,21 @@ export function useTitulo(titulo: string) {
 }
 
 export const classeCampo =
-  'w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink shadow-[0_1px_0_rgba(22,50,56,0.03)]'
+  'w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink'
 
-export const classeBusca = 'w-full rounded-full border border-line bg-white px-4 py-2.5 text-sm text-ink'
+export const classeBusca = 'w-full rounded-md border border-line bg-paper px-4 py-2.5 text-sm text-ink'
 
-export const classeCartao = 'rounded-2xl bg-paper shadow-[0_10px_28px_rgba(14,60,67,0.06)]'
+export const classeCartao = 'rounded-md border border-line bg-paper'
 
-export const classeTabela = 'overflow-x-auto rounded-2xl border border-line/80 bg-paper shadow-[0_8px_24px_rgba(14,60,67,0.04)]'
+export const classeTabela = 'overflow-x-auto rounded-md border border-line bg-paper'
 
-export const classeThead = 'bg-mint text-left text-xs font-bold tracking-wide text-tide-dark uppercase'
+export const classeThead = 'border-b border-line bg-paper text-left text-sm font-semibold text-tide-dark'
 
 const CLASSE_BOTAO: Record<string, string> = {
-  primario: 'bg-tide text-white hover:bg-tide-dark',
+  primario: 'bg-lime text-tide-dark hover:bg-[#c5d33a]',
   secundario: 'border border-line bg-paper text-ink hover:bg-sand',
-  suave: 'bg-blush text-clay hover:bg-[#f3c4bc]',
-  perigo: 'bg-clay text-white hover:bg-[#8c3126]',
+  suave: 'bg-blush text-clay hover:bg-[#e8c2b8]',
+  perigo: 'bg-clay text-white hover:bg-[#732922]',
   fantasma: 'text-tide-dark hover:bg-sand',
 }
 
@@ -57,7 +57,7 @@ type Variante = 'primario' | 'secundario' | 'suave' | 'perigo' | 'fantasma'
 
 export function classeBotao(variante: Variante = 'primario'): string {
   return cx(
-    'inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
+    'inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50',
     CLASSE_BOTAO[variante],
   )
 }
@@ -125,11 +125,9 @@ export function Cabecalho({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {sobretitulo ? (
-          <p className="mb-1 text-xs font-bold tracking-[0.16em] text-tide uppercase">{sobretitulo}</p>
-        ) : null}
-        <h1 className="text-3xl font-bold tracking-tight text-ink">{titulo}</h1>
-        {descricao ? <p className="mt-1 text-muted">{descricao}</p> : null}
+        {sobretitulo ? <p className="mb-1 text-sm font-semibold text-tide">{sobretitulo}</p> : null}
+        <h1 className="text-4xl font-bold text-ink">{titulo}</h1>
+        {descricao ? <p className="mt-2 max-w-[62ch] leading-relaxed text-muted">{descricao}</p> : null}
       </div>
       {acoes ? <div className="flex flex-wrap gap-2">{acoes}</div> : null}
     </div>
@@ -146,7 +144,7 @@ export function PainelEstado({
   return (
     <div
       role={status ? 'status' : undefined}
-      className="rounded-2xl bg-paper px-4 py-10 text-center text-muted shadow-[0_10px_28px_rgba(14,60,67,0.06)]"
+      className="rounded-md border border-line bg-paper px-4 py-10 text-center text-muted"
     >
       {children}
     </div>
@@ -224,7 +222,7 @@ export function Marcadores({
         </span>
       ) : null}
       {aula.reposicaoDeAulaId ? (
-        <span className="inline-flex rounded-full bg-[#f8efd8] px-2 py-0.5 text-xs font-semibold text-[#7a4e0d]">
+        <span className="inline-flex rounded-md bg-sand px-2 py-0.5 text-xs font-semibold text-tide-dark">
           Reposição
         </span>
       ) : null}
@@ -236,17 +234,12 @@ export function Marca({ clara = false }: { clara?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5">
       <svg width="36" height="36" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="16" cy="16" r="15" fill="#d6ef6a" />
-        <circle cx="16" cy="16" r="6.2" fill="#0e3c43" />
-        <path d="M11.2 15.6c2 1.1 4.4 1.1 7.6 0" stroke="#d6ef6a" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+        <circle cx="16" cy="16" r="11" fill="#d7e34a" />
+        <path d="M8.5 15.4c3 1.8 6.4 1.8 12.2 0" stroke="#12383c" strokeWidth="1.6" fill="none" strokeLinecap="round" />
       </svg>
       <span className="leading-none">
-        <span className={cx('block text-[13px] font-bold tracking-[0.14em]', clara ? 'text-white' : 'text-tide-dark')}>
-          PERSONALYTTE
-        </span>
-        <span className={cx('mt-1 block text-[10px] font-semibold tracking-[0.16em]', clara ? 'text-white/70' : 'text-muted')}>
-          BEACH TENNIS
-        </span>
+        <span className={cx('block font-display text-lg font-bold', clara ? 'text-white' : 'text-tide')}>Personalytte</span>
+        <span className={cx('mt-0.5 block text-xs', clara ? 'text-white/70' : 'text-muted')}>Beach tennis</span>
       </span>
     </span>
   )

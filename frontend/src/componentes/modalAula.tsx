@@ -163,7 +163,7 @@ export function ModalAula({
         role="dialog"
         aria-modal="true"
         aria-labelledby={tituloId}
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)]"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-md border border-line bg-paper p-6"
         onMouseDown={(event) => event.stopPropagation()}
         onSubmit={(event) => {
           event.preventDefault()
@@ -172,7 +172,7 @@ export function ModalAula({
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold tracking-[0.16em] text-tide uppercase">Aula</p>
+            <p className="text-sm font-semibold text-tide">Aula</p>
             <h2 id={tituloId} className="text-2xl font-bold tracking-tight">
               {aula.aluno.nome}
             </h2>

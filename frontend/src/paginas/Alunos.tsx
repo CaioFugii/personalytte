@@ -128,7 +128,7 @@ export function Alunos() {
                       <span className="inline-flex flex-wrap items-center gap-2">
                         {aluno.nome}
                         {aluno.ativo ? null : (
-                          <span className="inline-flex rounded-full bg-[#e7e4de] px-2 py-0.5 text-xs font-semibold text-ink">
+                          <span className="inline-flex rounded-md bg-line px-2 py-0.5 text-xs font-semibold text-ink">
                             Inativo
                           </span>
                         )}

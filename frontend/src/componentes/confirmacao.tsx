@@ -91,7 +91,7 @@ function ModalConfirmacao({
         aria-modal="true"
         aria-labelledby={tituloId}
         aria-describedby={descricaoId}
-        className="w-full max-w-md rounded-3xl bg-paper p-6 shadow-[0_24px_60px_rgba(14,60,67,0.18)]"
+        className="w-full max-w-md rounded-md border border-line bg-paper p-6"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={tituloId} className="text-2xl font-bold tracking-tight">

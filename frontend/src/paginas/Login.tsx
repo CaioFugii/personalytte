@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { mensagemDeErro } from '../api/client'
 import { useSessao } from '../contexto/Sessao'
 import { notificar } from '../componentes/toast'
-import { Botao, Campo, CarregandoTela, classeCampo, Marca, useTitulo } from '../componentes/ui'
+import { Botao, Campo, CarregandoTela, classeCampo, useTitulo } from '../componentes/ui'
 
 function destinoSeguro(state: unknown): string {
   const from = state && typeof state === 'object' && 'from' in state ? (state as { from?: unknown }).from : null
@@ -37,15 +37,15 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8">
-          <Marca />
-          <p className="mt-3 text-muted">Painel da equipe. Escola de beach tennis.</p>
-        </div>
-        <form onSubmit={(event) => void aoEnviar(event)} className="rounded-3xl bg-paper p-6 shadow-[0_16px_40px_rgba(14,60,67,0.08)]" noValidate>
-          <h1 className="text-2xl font-bold tracking-tight">Entrar</h1>
-          <p className="mt-1 mb-5 text-sm text-muted">Use o e-mail e a senha que o administrador passou.</p>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="flex flex-col justify-end px-6 py-12 sm:px-12">
+        <p className="font-display max-w-[10ch] text-6xl leading-none font-bold text-tide sm:text-7xl">Personalytte</p>
+        <p className="mt-4 max-w-[28ch] text-lg leading-snug">Painel da equipe. Escola de beach tennis.</p>
+      </div>
+      <div className="flex items-center border-line bg-paper px-6 py-12 sm:px-12 lg:border-l">
+        <form onSubmit={(event) => void aoEnviar(event)} className="w-full max-w-sm" noValidate>
+          <h1 className="text-4xl font-bold">Entrar</h1>
+          <p className="mt-2 mb-6 max-w-[36ch] text-sm leading-relaxed text-muted">Use o e-mail e a senha que o administrador passou.</p>
           <div className="grid gap-4">
             <Campo label="E-mail" htmlFor="email">
               <input
